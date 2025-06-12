@@ -1,0 +1,19 @@
+{
+	"welcome": {
+		"title": "Welcome",
+		"subtitle": "We hope you enjoy the event"
+	},
+	"events": {
+		"title": "Events",
+		"subtitle": "Select an event"
+	},
+  "teams": {
+    "title": "Teams",
+    "subtitle": "Select a team"
+  },
+  "play": "Play",
+  "admin": "Organizer",
+  "enter": "Enter",
+  "loading": "Loading..."
+}
+
