@@ -18,6 +18,7 @@ import teamsReducer from "./features/teams/teamsSlice";
 import activitiesReducer from "./features/activities/activitiesSlice";
 import adminReducer from "./features/admin/adminSlice";
 import sessionReducer from "./features/session/sessionSlice";
+import popupReducer from "./features/popup/popupSlice";
 
 import { firebaseSyncMiddleware } from "./services/firebase";
 
@@ -27,7 +28,8 @@ const rootReducer = combineReducers({
   admin:  adminReducer,
   teams:  teamsReducer,
   activities:  activitiesReducer,
-  session: sessionReducer
+  session: sessionReducer,
+  popup: popupReducer
 });
 
 const persistConfig = {

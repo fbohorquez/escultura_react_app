@@ -346,3 +346,130 @@ header.event-header {
     box-shadow: 1px 1px 8px rgba(0, 0, 0, 0.2);
     z-index: 1;
 }
+
+/* Estilos para iconos de actividades personalizados */
+.custom-activity-icon {
+    border: 1px solid #000;
+    border-radius: 3px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.default-activity-icon {
+    border: none;
+}
+
+/* Estilos del componente Popup */
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: transparent;
+  pointer-events: none;
+}
+
+.popup-overlay-active {
+  background-color: rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.popup-container {
+  position: relative;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  max-width: 90%;
+  max-height: 90%;
+  padding: 20px;
+  margin: 20px;
+  overflow: auto;
+}
+
+.popup-layout-top {
+  align-self: flex-start;
+  margin-top: 20px;
+}
+
+.popup-layout-center {
+  align-self: center;
+}
+
+.popup-layout-bottom {
+  align-self: flex-end;
+  margin-bottom: 20px;
+}
+
+.popup-close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.popup-close-button:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.popup-close-button img {
+  width: 16px;
+  height: 16px;
+}
+
+.popup-header {
+  margin-bottom: 15px;
+  padding-right: 30px;
+}
+
+.popup-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.popup-body {
+  margin-bottom: 20px;
+}
+
+.popup-text {
+  margin: 0;
+  line-height: 1.5;
+  color: #666;
+}
+
+.popup-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.popup-button {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #f8f9fa;
+  color: #333;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.popup-button:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.popup-button:active {
+  background: #dee2e6;
+}

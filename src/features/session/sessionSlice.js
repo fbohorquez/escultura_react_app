@@ -25,6 +25,12 @@ const sessionSlice = createSlice({
 			state.selectedTeam = action.payload;
 			state.isAdmin = false;
 		},
+		updateSelectedTeam(state, action) {
+			if (state.selectedTeam && state.selectedTeam.id === action.payload.id) {
+				console.log('✅ selectedTeam updated:', action.payload.id, action.payload.activities_data?.length);
+				state.selectedTeam = { ...state.selectedTeam, ...action.payload };
+			}
+		},
 		setTeamPhoto(state, action) {
 			state.teamPhoto = action.payload;
 			if (state.selectedTeam) {
@@ -53,6 +59,7 @@ export const generateTokenUniqueForDevice = () => {
 export const {
 	setIsAdmin,
 	setSelectedTeam,
+	updateSelectedTeam,
 	setTeamPhoto,
 	clearSession,
 	setToken,

@@ -10,7 +10,7 @@ import {
 import { setEvent } from "../features/event/eventSlice";
 import { setTeams } from "../features/teams/teamsSlice";
 import { setAdmin } from "../features/admin/adminSlice";
-import { clearSession } from "../features/session/sessionSlice";
+import { clearSession, updateSelectedTeam } from "../features/session/sessionSlice";
 
 export default function SubscriptionManager() {
 	const dispatch = useDispatch();
@@ -21,7 +21,22 @@ export default function SubscriptionManager() {
 	const selectedTeam = useSelector((s) => s.session.selectedTeam);
 	
 
-  
+  let compareRecursive = (obj1, obj2) => {
+		if (Array.isArray(obj1) && Array.isArray(obj2)) {
+			if (obj1.length !== obj2.length) return false;
+			return obj1.every((item, index) => compareRecursive(item, obj2[index]));
+		} else if (typeof obj1 === "object" && typeof obj2 === "object") {
+			const keys1 = Object.keys(obj1);
+			const keys2 = Object.keys(obj2);
+			if (keys1.length !== keys2.length) return false;
+			return keys1.every((key) => {
+				if (!keys2.includes(key)) return false;
+				return compareRecursive(obj1[key], obj2[key]);
+			});
+		} else {
+			return obj1 === obj2;
+		}
+	};
 
 	useEffect(() => {
 		if (!eventId) return;
@@ -37,15 +52,32 @@ export default function SubscriptionManager() {
 		const unsubTeams = [];
 		teams.forEach((team) => {
 			const unsubTeam = subscribeTeam(eventId, team.id, (teamData) => {
+				console.log('🔄 Team update received:', teamData.id, teamData.activities_data?.length);
 				const currentItems = teams;
 				const teamExists = currentItems.some((item) => item.id === teamData.id);
 				if (!teamExists) {
 					dispatch(setTeams([...currentItems, teamData]));
 				} else {
-					const updatedItems = currentItems.map((item) =>
-						item.id === teamData.id ? teamData : item
-					);
+					let changes = false;
+					const updatedItems = currentItems.map((item) => {
+						if (item.id === teamData.id) {
+							if (!compareRecursive(item, teamData)) {
+								changes = true;
+							}
+							return teamData;
+						}
+						return item;
+					});
+					if (!changes) return; // No changes, no need to update
 					dispatch(setTeams(updatedItems));
+					
+					// NUEVO: Sincronizar selectedTeam si es el mismo equipo
+					if (selectedTeam && teamData.id === selectedTeam.id) {
+						if (!compareRecursive(teamData, selectedTeam)) {
+							dispatch(updateSelectedTeam(teamData));
+						}					
+					}
+					
 					if (
 						teamData && selectedTeam &&
 						teamData.id === selectedTeam.id &&
@@ -67,10 +99,13 @@ export default function SubscriptionManager() {
 			unsubAdmin();
 			unsubTeams.forEach((unsub) => unsub());
 		};
-	}, [eventId, dispatch, refresh, selectedTeam]);
+	}, [eventId, dispatch, refresh, selectedTeam, sessionToken, teams]);
 
 	return null;
 }
+
+
+
 
 
 

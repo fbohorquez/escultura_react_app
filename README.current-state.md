@@ -126,9 +126,7 @@ src/components/
 ├── eventMap.jsx              # Componente del mapa interactivo con Google Maps
 ├── routeListener.jsx         # Listener para persistencia de rutas de navegación
 ├── subscriptionManager.jsx   # Gestor de suscripciones Firebase en tiempo real
-├── cacheEventAssets.jsx      # Pre-carga y cache de assets del evento
-├── popup.jsx                 # Sistema de popups modales con cola de gestión
-└── popupExample.jsx          # Componente de ejemplo para uso del sistema de popups
+└── cacheEventAssets.jsx      # Pre-carga y cache de assets del evento
 ```
 
 ### 📁 Gestión de Estado (/src/features)
@@ -144,10 +142,8 @@ src/features/
 │   └── sessionSlice.js       # Estado: sesión usuario (admin/equipo, foto, token)
 ├── activities/
 │   └── activitiesSlice.js    # Estado: actividades/pruebas disponibles
-├── admin/
-│   └── adminSlice.js         # Estado: configuración y datos de administrador
-└── popup/
-    └── popupSlice.js         # Estado: gestión de popups y cola de visualización
+└── admin/
+    └── adminSlice.js         # Estado: configuración y datos de administrador
 ```
 
 ### 📁 Páginas (/src/pages)
@@ -175,8 +171,7 @@ src/
 ├── main.jsx                  # Punto de entrada con Provider y Router
 ├── App.jsx                   # Componente raíz con definición de rutas
 ├── store.js                  # Configuración Redux con persistencia y middleware
-└── hooks/                    # Hooks personalizados
-    └── usePopup.js           # Hook para gestión simplificada de popups
+└── hooks/                    # Directorio para hooks personalizados (vacío)
 ```
 
 ### 📁 Internacionalización (/src/i18n)
@@ -318,36 +313,9 @@ src/styles/
 - Reintento automático al recuperar conectividad
 - Procesamiento automático de archivos pendientes
 
-#### 3.12 Sistema de Popups Modales
-**Archivos**: `src/components/popup.jsx`, `src/features/popup/popupSlice.js`, `src/hooks/usePopup.js`  
-**Funcionalidad**: Sistema de diálogos modales con gestión de cola
-- **Gestión de Cola**: Solo un popup visible a la vez, cola automática para múltiples popups
-- **Configuración Flexible**: Título, texto, CSS personalizado, array de botones
-- **Posicionamiento**: Layout configurable (top, center, bottom)
-- **Interacción**: Overlay clicable, botón de cerrar opcional
-- **Hook Personalizado**: `usePopup()` para fácil integración en componentes
-- **Estado Redux**: Persistencia y sincronización de estado global
-
-**Ejemplo de Uso**:
-```javascript
-const { openPopup, closePopup } = usePopup();
-
-openPopup({
-  titulo: "Confirmar Acción",
-  texto: "¿Está seguro de continuar?",
-  array_botones: [
-    { titulo: "Cancelar", callback: () => console.log("Cancelado") },
-    { titulo: "Confirmar", callback: () => console.log("Confirmado") }
-  ],
-  layout: "center",
-  overlay: true,
-  close_button: true
-});
-```
-
 ### ✅ Características Técnicas Avanzadas
 
-#### 3.13 Internacionalización
+#### 3.12 Internacionalización
 **Archivos**: `src/i18n/index.js`, `src/i18n/es.json`, `src/i18n/en.json`  
 **Funcionalidad**: Soporte multiidioma
 - React i18next configurado con español e inglés
@@ -355,7 +323,7 @@ openPopup({
 - Detección automática de idioma del navegador
 - Cambio dinámico de idioma
 
-#### 3.14 Navegación Persistente
+#### 3.13 Navegación Persistente
 **Archivos**: `src/App.jsx`, `src/components/routeListener.jsx`  
 **Funcionalidad**: Navegación inteligente
 - React Router con MemoryRouter para aplicaciones móviles
@@ -363,7 +331,7 @@ openPopup({
 - Restauración automática de navegación al recargar
 - 5 rutas principales implementadas
 
-#### 3.15 Sistema de Componentes
+#### 3.14 Sistema de Componentes
 **Funcionalidad**: Arquitectura de componentes reutilizables
 - `BackgroundLayout`: Layout base con título y subtítulo
 - `BackButton`: Navegación hacia atrás consistente  
@@ -371,60 +339,16 @@ openPopup({
 - `EventMap`: Integración Google Maps con marcadores
 - `SubscriptionManager`: Gestión automática de suscripciones Firebase
 - `CacheEventAssets`: Pre-carga inteligente de recursos
-- `Popup`: Sistema de popups modales con gestión de cola automática
 
 ### ✅ Preparación para Funcionalidades Futuras
 
-#### 3.16 Estructura Preparada para
+#### 3.15 Estructura Preparada para
 - **Google Maps Integration**: Componente EventMap listo para mostrar equipos y pruebas
 - **Real-time Chat**: Assets de chat y estructura de comunicación
 - **Actividades Interactivas**: Sistema de iconos por tipo de prueba
 - **Modo Administrador**: Estructura de permisos y assets específicos
 - **Sistema de Puntuación**: Iconos de éxito/fallo y estados de equipo
 - **PWA Capabilities**: Manifiesto y Service Worker configurados
-
-#### 3.17 Sistema de Proximidad a Actividades
-**Archivo**: `src/components/eventMap.jsx`  
-**Funcionalidad**: Detección automática de proximidad y notificaciones
-- **Cálculo de Distancia**: Utiliza fórmula Haversine para precisión geográfica
-- **Detección Automática**: Monitoreo continuo de posición del equipo vs actividades visibles
-- **Filtrado Inteligente**: Solo evalúa actividades disponibles según configuración del equipo
-- **Popup de Proximidad**: Notificación modal cuando el equipo entra en rango de actividad
-- **Gestión de Estado**: Previene múltiples notificaciones para la misma actividad
-- **Limpieza Automática**: Reset de notificaciones al cambiar de equipo
-- **Configuración por Actividad**: Cada actividad define su propio radio de detección en metros
-
-**Características Técnicas**:
-- Integración con sistema de popups existente
-- Uso de `useCallback` para optimización de renders
-- Logging detallado para debugging en consola
-- Compatibilidad con modo administrador (sin notificaciones)
-
-#### 3.18 Sistema de Modo Debug
-**Archivos**: `.env`, `src/hooks/useDebugMode.js`, `src/components/DebugModeIndicator.jsx`, `src/components/DebugPanel.jsx`  
-**Funcionalidad**: Herramientas avanzadas para desarrollo y testing
-- **Configuración por Entorno**: Control mediante variable `VITE_DEBUG_MODE` en `.env`
-- **Navegación Libre**: Desactiva tracking GPS y permite movimiento por click en mapa
-- **Indicador Visual**: Badge flotante que muestra estado activo del modo debug
-- **Panel de Información**: Muestra posición actual, equipo seleccionado y estado del sistema
-- **Atajo de Teclado**: Activación/desactivación con `Ctrl + Shift + D`
-- **Detección de Proximidad**: Mantiene funcionalidad de notificaciones en posición simulada
-- **Logs Detallados**: Registro completo de acciones y estados para debugging
-
-**Configuración del Modo Debug**:
-```bash
-# En el archivo .env
-VITE_DEBUG_MODE=true   # Activar modo debug
-VITE_DEBUG_MODE=false  # Desactivar modo debug (por defecto)
-```
-
-**Funcionalidades del Modo Debug**:
-1. **GPS Desactivado**: El sistema no escucha la posición real del dispositivo
-2. **Click para Mover**: Hacer click en cualquier punto del mapa mueve el equipo a esa posición
-3. **Panel de Control**: Información en tiempo real de posición, equipo y evento
-4. **Indicador Visual**: Badge rojo en esquina superior derecha cuando está activo
-5. **Proximidad Simulada**: Las actividades siguen detectando proximidad en la posición simulada
-6. **Control por Teclado**: `Ctrl + Shift + D` para activar/desactivar rápidamente
 
 ---
 
@@ -439,15 +363,14 @@ VITE_DEBUG_MODE=false  # Desactivar modo debug (por defecto)
 - Navegación entre pantallas
 - Captura y subida de fotos
 - Identificación única de dispositivos
-- **Sistema de Popups Modales**: Componente completo con gestión de cola
-- **Sistema de Proximidad a Actividades**: Detección automática y notificaciones georreferenciadas
 
 ### 🚧 En Preparación
-- Lógica específica de actividades/pruebas interactivas
+- Lógica específica del mapa interactivo
+- Pruebas/actividades durante el evento
 - Sistema de chat en tiempo real
-- Funcionalidades de administrador avanzadas
-- Sistema de puntuación y resultados
-- Notificaciones push y efectos visuales
+- Funcionalidades de administrador
+- Sistema de puntuación
+- Notificaciones y efectos visuales
 
 ### 📋 Base Técnica Sólida
 La aplicación cuenta con una arquitectura robusta preparada para ser expandida con las funcionalidades específicas del gameplay, manteniendo:
@@ -456,44 +379,3 @@ La aplicación cuenta con una arquitectura robusta preparada para ser expandida 
 - Confiabilidad con cola de uploads resiliente
 - Experiencia offline con Service Workers
 - Sincronización tiempo real con Firebase
-- **Sistema de UI Modular**: Componentes reutilizables incluyendo popups modales
-
----
-
-## 5. Configuración del Modo Debug
-
-### Activación del Modo Debug
-
-#### Opción 1: Variables de Entorno
-Edita el archivo `.env` y establece:
-```bash
-VITE_DEBUG_MODE=true
-```
-
-#### Opción 2: Atajo de Teclado
-Presiona `Ctrl + Shift + D` en cualquier momento durante la ejecución de la aplicación.
-
-### Funcionalidades Disponibles en Modo Debug
-
-1. **🚫 GPS Desactivado**: El sistema no utiliza la ubicación real del dispositivo
-2. **🖱️ Navegación por Click**: Haz click en cualquier punto del mapa para mover tu equipo
-3. **📊 Panel de Información**: Muestra datos en tiempo real:
-   - Posición actual del equipo
-   - Equipo seleccionado
-   - Evento activo
-   - Estado del GPS (desactivado)
-4. **🔴 Indicador Visual**: Badge rojo en la esquina superior derecha
-5. **📱 Popup de Bienvenida**: Información detallada al activar por primera vez
-6. **🎯 Proximidad Simulada**: Las notificaciones de actividades funcionan en la posición simulada
-
-### Desactivación
-- Click en el indicador visual (🔧 DEBUG MODE)
-- Click en la ✕ del panel de debug
-- Presiona nuevamente `Ctrl + Shift + D`
-- Establece `VITE_DEBUG_MODE=false` en `.env`
-
-### Casos de Uso del Modo Debug
-- **Testing de Actividades**: Probar proximidad sin moverse físicamente
-- **Demostración**: Mostrar funcionalidades sin depender de ubicación real
-- **Desarrollo**: Simular diferentes escenarios de posición
-- **QA**: Verificar comportamiento en ubicaciones específicas

@@ -4,6 +4,9 @@ import { Routes, Route } from "react-router-dom";
 import RouteListener from "./components/routeListener";
 import SubscriptionManager from "./components/subscriptionManager";
 import CacheEventAssets from "./components/cacheEventAssets";
+import Popup from "./components/popup";
+import DebugModeIndicator from "./components/DebugModeIndicator";
+import DebugWelcome from "./components/DebugWelcome";
 
 import WelcomePage from "./pages/welcomePage";
 import EventsPage from "./pages/eventsPage";
@@ -22,6 +25,9 @@ function App() {
 			<RouteListener />
 			<SubscriptionManager />
 			<CacheEventAssets />
+			<Popup />
+			<DebugModeIndicator />
+			<DebugWelcome />
 			<Routes>
 				<Route path="/" element={<WelcomePage />} />
 				<Route path="/events" element={<EventsPage />} />
