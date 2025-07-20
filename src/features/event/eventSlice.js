@@ -5,6 +5,7 @@ import { initActivities } from "../activities/activitiesSlice";
 
 import {
 	fetchInitialEvent,
+	updateEvent,
 } from "../../services/firebase";
 
 
@@ -29,6 +30,50 @@ export const initEventRoot = createAsyncThunk(
 	}
 );
 
+export const suspendEvent = createAsyncThunk(
+	"event/suspend",
+	async (_, { getState, dispatch, rejectWithValue }) => {
+		try {
+			const { event } = getState();
+			if (!event.id) {
+				throw new Error("No event ID found");
+			}
+
+			// Actualizar en Firebase
+			await updateEvent(event.id, { suspend: true });
+			
+			// Actualizar en el store local
+			dispatch(setSuspendEvent(true));
+
+			return true;
+		} catch (err) {
+			return rejectWithValue(err.message);
+		}
+	}
+);
+
+export const reactivateEvent = createAsyncThunk(
+	"event/reactivate",
+	async (_, { getState, dispatch, rejectWithValue }) => {
+		try {
+			const { event } = getState();
+			if (!event.id) {
+				throw new Error("No event ID found");
+			}
+
+			// Actualizar en Firebase
+			await updateEvent(event.id, { suspend: false });
+			
+			// Actualizar en el store local
+			dispatch(setSuspendEvent(false));
+
+			return false;
+		} catch (err) {
+			return rejectWithValue(err.message);
+		}
+	}
+);
+
 const slice = createSlice({
 	name: "event",
 	initialState: {
@@ -43,6 +88,11 @@ const slice = createSlice({
 		},
 		setEvent(state, { payload }) {
 			state.event = payload;
+		},
+		setSuspendEvent(state, { payload }) {
+			if (state.event) {
+				state.event.suspend = payload;
+			}
 		},
 	},
 	extraReducers: (builder) => {
@@ -61,7 +111,8 @@ const slice = createSlice({
 	},
 });
 
-export const { setEventId, setEvent } = slice.actions;
+export const { setEventId, setEvent, setSuspendEvent } = slice.actions;
+
 export default slice.reducer;
 
 

@@ -8,6 +8,7 @@ import Popup from "./components/popup";
 import NotificationContainer from "./components/notificationContainer";
 import DebugModeIndicator from "./components/DebugModeIndicator";
 import DebugWelcome from "./components/DebugWelcome";
+import { useEventSuspensionCheck } from "./hooks/useEventSuspensionCheck";
 
 import WelcomePage from "./pages/welcomePage";
 import EventsPage from "./pages/eventsPage";
@@ -28,6 +29,9 @@ import './styles/reset.css';
 import './styles/sessionControl.css';
 
 function App() {
+	// Hook para verificar suspensión del evento
+	useEventSuspensionCheck();
+
 	return (
 		<>
 			<RouteListener />

@@ -3,7 +3,7 @@ import React from "react";
 import { Marker } from "@react-google-maps/api";
 import { useDispatch } from "react-redux";
 import { useActivityIcon } from "../hooks/useActivityIcon";
-import { startActivity } from "../features/activities/activitiesSlice";
+import { startActivityWithSuspensionCheck } from "../features/activities/activitiesSlice";
 
 const ActivityMarker = ({ activity }) => {
 	const dispatch = useDispatch();
@@ -16,7 +16,7 @@ const ActivityMarker = ({ activity }) => {
 
 	const handleActivityClick = () => {
 		// Iniciar la actividad
-		dispatch(startActivity(activity));
+		dispatch(startActivityWithSuspensionCheck(activity));
 	};
 
 	return (

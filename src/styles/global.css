@@ -730,6 +730,18 @@ header.event-header {
   transform: translateY(0);
 }
 
+.admin-tool-button-active {
+  border: 3px solid #d32f2f;
+  border-radius: 8px;
+  background: rgba(211, 47, 47, 0.1);
+  padding: 4px;
+}
+
+.admin-tool-button-active:hover {
+  background: rgba(211, 47, 47, 0.2);
+  transform: translateY(-1px);
+}
+
 .admin-tool-button img {
   width: 64px;
   height: 64px;

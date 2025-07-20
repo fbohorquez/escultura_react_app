@@ -16,6 +16,7 @@ import {
 import { createListenerMiddleware, isAnyOf } from "@reduxjs/toolkit";
 import {
 	setEvent, // de eventSlice
+	setSuspendEvent, // de eventSlice
 } from "../features/event/eventSlice";
 
 import {
@@ -193,6 +194,17 @@ listener.startListening({
 		const eventId = listenerApi.getState().event.id;
 		const { teamId, changes } = action.payload;
 		await updateTeam(eventId, teamId, changes);
+	},
+});
+
+// Sincronizar cambio de suspensión del evento
+listener.startListening({
+	actionCreator: setSuspendEvent,
+	effect: async (action, listenerApi) => {
+		const eventId = listenerApi.getState().event.id;
+		if (eventId) {
+			await updateEvent(eventId, { suspend: action.payload });
+		}
 	},
 });
 
