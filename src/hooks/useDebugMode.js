@@ -61,4 +61,5 @@ export const useDebugMode = () => {
   };
 };
 
+// Exportación por defecto
 export default useDebugMode;

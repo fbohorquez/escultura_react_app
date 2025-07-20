@@ -7,6 +7,8 @@ import ActivityMarker from "./ActivityMarker";
 import markMe from "../assets/mark-me.png";
 import { usePopup } from "../hooks/usePopup";
 import { useDebugMode } from "../hooks/useDebugMode";
+import { useTranslation } from "react-i18next";
+import { startActivity } from "../features/activities/activitiesSlice";
 
 const containerStyle = { width: "100%", height: "100%" };
 const SMOOTHING_BUFFER_SIZE = 5;
@@ -83,6 +85,7 @@ const EventMap = () => {
 	
 	const { openPopup, closePopup } = usePopup();
 	const { isDebugMode } = useDebugMode();
+	const { t } = useTranslation();
 
 	const { isLoaded } = useJsApiLoader({
 		googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
@@ -93,6 +96,7 @@ const EventMap = () => {
 	const lastAvg = useRef(null);
 	const notifiedActivities = useRef(new Set());
 	const [initialCenter, setInitialCenter] = useState(null);
+	const mapRef = useRef(null);
 
 	const event = useSelector((state) => state.event.event);
 	const teams = useSelector((state) => state.teams.items);
@@ -111,19 +115,20 @@ const EventMap = () => {
 	const showActivityProximityPopup = useCallback((activity) => {
 		openPopup({
 			titulo: activity.name,
-			texto: `¡Estás cerca de la actividad "${activity.name}"! ¿Deseas iniciarla?`,
+			texto: t('activity_proximity_text', { activityName: activity.name }),
 			array_botones: [
 				{
-					titulo: "Cerrar",
+					titulo: t('close'),
 					callback: () => {
 						console.log('🚫 Popup de actividad cerrado:', activity.name);
 						closePopup();
 					}
 				},
 				{
-					titulo: "Iniciar Prueba",
+					titulo: t('start_activity'),
 					callback: () => {
-						console.log('🚀 Iniciando prueba para actividad:', activity.name, 'ID:', activity.id);
+						console.log('🚀 Iniciando actividad:', activity.name, 'ID:', activity.id);
+						dispatch(startActivity(activity));
 						closePopup();
 					}
 				}
@@ -132,7 +137,7 @@ const EventMap = () => {
 			overlay: true,
 			close_button: true
 		});
-	}, [openPopup, closePopup]);
+	}, [openPopup, closePopup, t, dispatch]);
 
 	// Función para verificar proximidad a actividades
 	const checkActivityProximity = useCallback((teamPosition) => {
@@ -254,6 +259,11 @@ const EventMap = () => {
 				
 				const newPosition = { lat: avgLat, lng: avgLng };
 				
+				// Centrar el mapa en la nueva posición del usuario
+				if (mapRef.current) {
+					mapRef.current.panTo(newPosition);
+				}
+				
 				// Verificar proximidad a actividades
 				checkActivityProximity(newPosition);
 				
@@ -325,8 +335,14 @@ const EventMap = () => {
 
 		const clickedLat = mapEvent.latLng.lat();
 		const clickedLng = mapEvent.latLng.lng();
+		const newPosition = { lat: clickedLat, lng: clickedLng };
 
-		console.log('🔧 Debug mode: Moving team to clicked position:', { lat: clickedLat, lng: clickedLng });
+		console.log('🔧 Debug mode: Moving team to clicked position:', newPosition);
+
+		// Centrar el mapa en la nueva posición
+		if (mapRef.current) {
+			mapRef.current.panTo(newPosition);
+		}
 
 		// Actualizar Firebase con la nueva posición
 		dispatch(
@@ -338,16 +354,25 @@ const EventMap = () => {
 		);
 
 		// Verificar proximidad a actividades en la nueva posición
-		checkActivityProximity({ lat: clickedLat, lng: clickedLng });
+		checkActivityProximity(newPosition);
 	}, [isDebugMode, selectedTeamData, event, dispatch, checkActivityProximity]);
+
+	// Efecto para centrar el mapa en la posición del equipo seleccionado cuando cambie
+	useEffect(() => {
+		if (mapRef.current && selectedTeamData && selectedTeamData.lat != null && selectedTeamData.lon != null) {
+			console.log('🎯 Centering map on selected team position:', { lat: selectedTeamData.lat, lng: selectedTeamData.lon });
+			mapRef.current.panTo({ lat: selectedTeamData.lat, lng: selectedTeamData.lon });
+		}
+	}, [selectedTeamData]);
 
 	if (!isLoaded || !initialCenter) return null;
 
 	const handleLoad = (map) => {
+		mapRef.current = map;
 		map.panTo(initialCenter);
 		map.setZoom(15);
 	};
-		
+
 	return (
 		<GoogleMap
 			id="event-map"
@@ -373,4 +398,5 @@ const EventMap = () => {
 };
 
 export default React.memo(EventMap);
+
 

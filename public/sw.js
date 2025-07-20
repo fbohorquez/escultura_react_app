@@ -31,6 +31,10 @@ self.addEventListener("fetch", (event) => {
 	if (req.url.includes("sw.js")) return;
 	if (!extensions.some((ext) => req.url.includes(ext))) return;
 	if (req.method !== "GET") return;
+	
+	// Filtrar esquemas no soportados por la Cache API
+	const url = new URL(req.url);
+	if (url.protocol !== "http:" && url.protocol !== "https:") return;
 
 	if (DEV_LOG) console.log("Fetching:", req.url);
 

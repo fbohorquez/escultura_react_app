@@ -56,6 +56,8 @@ const EventHeader = ({
 					<div className="logo-container">
 						<img src={teamPhoto} alt={teamName} className="team-photo" />
 					</div>
+				) || (
+					<div className="logo-container"></div>
 				)}
 			</div>
 		</header>

@@ -25,6 +25,7 @@ const TeamsPage = () => {
 
   const handleAdminClick = () => {
     dispatch(setIsAdmin(true));
+		navigate(`/event/${eventState.event.id}`);
   }
 
   const handleTeamClick = (teamId) => {
@@ -69,6 +70,7 @@ const TeamsPage = () => {
 };
 
 export default TeamsPage;
+
 
 
 

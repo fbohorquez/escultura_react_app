@@ -128,7 +128,8 @@ src/components/
 ├── subscriptionManager.jsx   # Gestor de suscripciones Firebase en tiempo real
 ├── cacheEventAssets.jsx      # Pre-carga y cache de assets del evento
 ├── popup.jsx                 # Sistema de popups modales con cola de gestión
-└── popupExample.jsx          # Componente de ejemplo para uso del sistema de popups
+├── notification.jsx          # Componente individual de notificación
+├── notificationContainer.jsx # Contenedor principal del sistema de notificaciones
 ```
 
 ### 📁 Gestión de Estado (/src/features)
@@ -146,8 +147,10 @@ src/features/
 │   └── activitiesSlice.js    # Estado: actividades/pruebas disponibles
 ├── admin/
 │   └── adminSlice.js         # Estado: configuración y datos de administrador
-└── popup/
-    └── popupSlice.js         # Estado: gestión de popups y cola de visualización
+├── popup/
+│   └── popupSlice.js         # Estado: gestión de popups y cola de visualización
+└── notification/
+    └── notificationSlice.js  # Estado: gestión de notificaciones múltiples
 ```
 
 ### 📁 Páginas (/src/pages)
@@ -176,7 +179,8 @@ src/
 ├── App.jsx                   # Componente raíz con definición de rutas
 ├── store.js                  # Configuración Redux con persistencia y middleware
 └── hooks/                    # Hooks personalizados
-    └── usePopup.js           # Hook para gestión simplificada de popups
+    ├── usePopup.js           # Hook para gestión simplificada de popups
+    └── useNotification.js    # Hook para gestión simplificada de notificaciones
 ```
 
 ### 📁 Internacionalización (/src/i18n)
@@ -345,155 +349,54 @@ openPopup({
 });
 ```
 
-### ✅ Características Técnicas Avanzadas
-
-#### 3.13 Internacionalización
-**Archivos**: `src/i18n/index.js`, `src/i18n/es.json`, `src/i18n/en.json`  
-**Funcionalidad**: Soporte multiidioma
-- React i18next configurado con español e inglés
-- Traducciones completas para toda la interfaz
-- Detección automática de idioma del navegador
-- Cambio dinámico de idioma
-
-#### 3.14 Navegación Persistente
-**Archivos**: `src/App.jsx`, `src/components/routeListener.jsx`  
-**Funcionalidad**: Navegación inteligente
-- React Router con MemoryRouter para aplicaciones móviles
-- Persistencia de última ruta en localStorage
-- Restauración automática de navegación al recargar
-- 5 rutas principales implementadas
-
-#### 3.15 Sistema de Componentes
-**Funcionalidad**: Arquitectura de componentes reutilizables
-- `BackgroundLayout`: Layout base con título y subtítulo
-- `BackButton`: Navegación hacia atrás consistente  
-- `EventHeader`: Header colapsable para maximizar mapa
-- `EventMap`: Integración Google Maps con marcadores
-- `SubscriptionManager`: Gestión automática de suscripciones Firebase
-- `CacheEventAssets`: Pre-carga inteligente de recursos
-- `Popup`: Sistema de popups modales con gestión de cola automática
-
-### ✅ Preparación para Funcionalidades Futuras
-
-#### 3.16 Estructura Preparada para
-- **Google Maps Integration**: Componente EventMap listo para mostrar equipos y pruebas
-- **Real-time Chat**: Assets de chat y estructura de comunicación
-- **Actividades Interactivas**: Sistema de iconos por tipo de prueba
-- **Modo Administrador**: Estructura de permisos y assets específicos
-- **Sistema de Puntuación**: Iconos de éxito/fallo y estados de equipo
-- **PWA Capabilities**: Manifiesto y Service Worker configurados
-
-#### 3.17 Sistema de Proximidad a Actividades
-**Archivo**: `src/components/eventMap.jsx`  
-**Funcionalidad**: Detección automática de proximidad y notificaciones
-- **Cálculo de Distancia**: Utiliza fórmula Haversine para precisión geográfica
-- **Detección Automática**: Monitoreo continuo de posición del equipo vs actividades visibles
-- **Filtrado Inteligente**: Solo evalúa actividades disponibles según configuración del equipo
-- **Popup de Proximidad**: Notificación modal cuando el equipo entra en rango de actividad
-- **Gestión de Estado**: Previene múltiples notificaciones para la misma actividad
-- **Limpieza Automática**: Reset de notificaciones al cambiar de equipo
-- **Configuración por Actividad**: Cada actividad define su propio radio de detección en metros
+#### 3.13 Sistema de Notificaciones
+**Archivos**: `src/components/notification.jsx`, `src/components/notificationContainer.jsx`, `src/features/notification/notificationSlice.js`, `src/hooks/useNotification.js`  
+**Funcionalidad**: Sistema de notificaciones emergentes no bloqueantes
+- **Múltiples Notificaciones**: Gestión simultánea de múltiples notificaciones en lista
+- **Auto-cierre**: Desaparición automática configurable por duración
+- **Tipos de Notificación**: Info, Success, Warning, Error con iconos y colores distintivos
+- **Posicionamiento Inteligente**: Layout configurable (top, center, bottom) con apilado direccional
+- **Interacción Avanzada**: Pausa del temporizador al hacer hover, cierre manual opcional
+- **Notificaciones Clickables**: Capacidad de ejecutar acciones al hacer clic en la notificación
+- **Animaciones Suaves**: Transiciones de entrada, salida y efectos visuales
+- **Hook Personalizado**: `useNotification()` con funciones de conveniencia por tipo
+- **Barra de Progreso**: Indicador visual del tiempo restante
+- **Responsive**: Adaptación automática para dispositivos móviles
 
 **Características Técnicas**:
-- Integración con sistema de popups existente
-- Uso de `useCallback` para optimización de renders
-- Logging detallado para debugging en consola
-- Compatibilidad con modo administrador (sin notificaciones)
+- Orden de apilado según posición: top/center añaden al final, bottom añaden al inicio
+- Sistema de pausado inteligente que recalcula tiempo restante
+- Z-index superior (2000) para aparecer sobre popups y otros elementos
+- Gestión de estado independiente que permite notificaciones simultáneas
+- Integración perfecta con sistema de chat para notificaciones de mensajes
+- Callbacks clickables para navegación o acciones específicas
 
-#### 3.18 Sistema de Modo Debug
-**Archivos**: `.env`, `src/hooks/useDebugMode.js`, `src/components/DebugModeIndicator.jsx`, `src/components/DebugPanel.jsx`  
-**Funcionalidad**: Herramientas avanzadas para desarrollo y testing
-- **Configuración por Entorno**: Control mediante variable `VITE_DEBUG_MODE` en `.env`
-- **Navegación Libre**: Desactiva tracking GPS y permite movimiento por click en mapa
-- **Indicador Visual**: Badge flotante que muestra estado activo del modo debug
-- **Panel de Información**: Muestra posición actual, equipo seleccionado y estado del sistema
-- **Atajo de Teclado**: Activación/desactivación con `Ctrl + Shift + D`
-- **Detección de Proximidad**: Mantiene funcionalidad de notificaciones en posición simulada
-- **Logs Detallados**: Registro completo de acciones y estados para debugging
+**Ejemplo de Uso**:
+```javascript
+const { showNotification, showSuccess, showClickableNotification } = useNotification();
 
-**Configuración del Modo Debug**:
-```bash
-# En el archivo .env
-VITE_DEBUG_MODE=true   # Activar modo debug
-VITE_DEBUG_MODE=false  # Desactivar modo debug (por defecto)
+// Notificación básica
+showNotification({
+  title: "Nuevo mensaje",
+  message: "Tienes un mensaje del Equipo Alpha",
+  type: "info",
+  duration: 5000,
+  position: "top"
+});
+
+// Notificación clickeable para navegación
+showClickableNotification(
+  "Chat: Equipo Beta",
+  "¿Habéis encontrado la pista? Haz clic para responder",
+  (notification) => {
+    // Navegar al chat o ejecutar acción
+    console.log("Abriendo chat:", notification.title);
+  },
+  { type: "info", duration: 8000 }
+);
+
+// Funciones de conveniencia
+showSuccess("¡Éxito!", "Operación completada correctamente");
+showError("Error", "No se pudo conectar al servidor");
 ```
-
-**Funcionalidades del Modo Debug**:
-1. **GPS Desactivado**: El sistema no escucha la posición real del dispositivo
-2. **Click para Mover**: Hacer click en cualquier punto del mapa mueve el equipo a esa posición
-3. **Panel de Control**: Información en tiempo real de posición, equipo y evento
-4. **Indicador Visual**: Badge rojo en esquina superior derecha cuando está activo
-5. **Proximidad Simulada**: Las actividades siguen detectando proximidad en la posición simulada
-6. **Control por Teclado**: `Ctrl + Shift + D` para activar/desactivar rápidamente
-
----
-
-## Estado de Desarrollo Actual
-
-### ✅ Completamente Implementado
-- Flujo de onboarding completo (5 pantallas)
-- Gestión de estado global con Redux
-- Integración Firebase en tiempo real
-- Sistema de persistencia y cache
-- Internacionalización completa
-- Navegación entre pantallas
-- Captura y subida de fotos
-- Identificación única de dispositivos
-- **Sistema de Popups Modales**: Componente completo con gestión de cola
-- **Sistema de Proximidad a Actividades**: Detección automática y notificaciones georreferenciadas
-
-### 🚧 En Preparación
-- Lógica específica de actividades/pruebas interactivas
-- Sistema de chat en tiempo real
-- Funcionalidades de administrador avanzadas
-- Sistema de puntuación y resultados
-- Notificaciones push y efectos visuales
-
-### 📋 Base Técnica Sólida
-La aplicación cuenta con una arquitectura robusta preparada para ser expandida con las funcionalidades específicas del gameplay, manteniendo:
-- Escalabilidad mediante Redux modular
-- Rendimiento con cache inteligente
-- Confiabilidad con cola de uploads resiliente
-- Experiencia offline con Service Workers
-- Sincronización tiempo real con Firebase
-- **Sistema de UI Modular**: Componentes reutilizables incluyendo popups modales
-
----
-
-## 5. Configuración del Modo Debug
-
-### Activación del Modo Debug
-
-#### Opción 1: Variables de Entorno
-Edita el archivo `.env` y establece:
-```bash
-VITE_DEBUG_MODE=true
-```
-
-#### Opción 2: Atajo de Teclado
-Presiona `Ctrl + Shift + D` en cualquier momento durante la ejecución de la aplicación.
-
-### Funcionalidades Disponibles en Modo Debug
-
-1. **🚫 GPS Desactivado**: El sistema no utiliza la ubicación real del dispositivo
-2. **🖱️ Navegación por Click**: Haz click en cualquier punto del mapa para mover tu equipo
-3. **📊 Panel de Información**: Muestra datos en tiempo real:
-   - Posición actual del equipo
-   - Equipo seleccionado
-   - Evento activo
-   - Estado del GPS (desactivado)
-4. **🔴 Indicador Visual**: Badge rojo en la esquina superior derecha
-5. **📱 Popup de Bienvenida**: Información detallada al activar por primera vez
-6. **🎯 Proximidad Simulada**: Las notificaciones de actividades funcionan en la posición simulada
-
-### Desactivación
-- Click en el indicador visual (🔧 DEBUG MODE)
-- Click en la ✕ del panel de debug
-- Presiona nuevamente `Ctrl + Shift + D`
-- Establece `VITE_DEBUG_MODE=false` en `.env`
-
-### Casos de Uso del Modo Debug
-- **Testing de Actividades**: Probar proximidad sin moverse físicamente
-- **Demostración**: Mostrar funcionalidades sin depender de ubicación real
-- **Desarrollo**: Simular diferentes escenarios de posición
-- **QA**: Verificar comportamiento en ubicaciones específicas
+````

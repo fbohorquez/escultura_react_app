@@ -5,6 +5,7 @@ import RouteListener from "./components/routeListener";
 import SubscriptionManager from "./components/subscriptionManager";
 import CacheEventAssets from "./components/cacheEventAssets";
 import Popup from "./components/popup";
+import NotificationContainer from "./components/notificationContainer";
 import DebugModeIndicator from "./components/DebugModeIndicator";
 import DebugWelcome from "./components/DebugWelcome";
 
@@ -26,6 +27,7 @@ function App() {
 			<SubscriptionManager />
 			<CacheEventAssets />
 			<Popup />
+			<NotificationContainer />
 			<DebugModeIndicator />
 			<DebugWelcome />
 			<Routes>
