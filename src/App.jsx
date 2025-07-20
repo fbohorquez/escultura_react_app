@@ -14,11 +14,13 @@ import EventsPage from "./pages/eventsPage";
 import TeamsPage from "./pages/teamsPage";
 import TeamPage from "./pages/teamPage";
 import EventPage from "./pages/eventPage";
+import SessionControlPage from "./pages/sessionControlPage";
 
 import './styles/global.css';
 import './styles/fonts.css';
 import './styles/medias.css';
 import './styles/reset.css';
+import './styles/sessionControl.css';
 
 function App() {
 	return (
@@ -36,6 +38,7 @@ function App() {
 				<Route path="/teams/:eventId" element={<TeamsPage />} />
 				<Route path="/team/:teamId" element={<TeamPage />} />
 				<Route path="/event/:eventId" element={<EventPage />} />
+				<Route path="/admin/session-control" element={<SessionControlPage />} />
 			</Routes>
 		</>
 	);
