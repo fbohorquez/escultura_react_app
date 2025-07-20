@@ -4,9 +4,18 @@ import { useTranslation } from "react-i18next";
 import { updateActivityTime, restoreActivity, startActivity, completeActivityWithSync, finishActivity } from "../features/activities/activitiesSlice";
 import PhotoVideoActivity from "./activities/PhotoVideoActivity";
 import QuestionActivity from "./activities/QuestionActivity";
+import ClueActivity from "./activities/ClueActivity";
 import { requiresManualReview } from "../utils/activityValidation";
 import { useDebugMode } from "../hooks/useDebugMode";
 import "../styles/ActivityRunner.css";
+
+// Utility function to detect if file is video based on extension
+const isVideoFile = (url) => {
+	if (!url) return false;
+	const videoExtensions = ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.ogg'];
+	const extension = url.toLowerCase().substring(url.lastIndexOf('.'));
+	return videoExtensions.includes(extension);
+};
 
 const ActivityRunner = ({ activity, onComplete, onExit }) => {
 	const { t } = useTranslation();
@@ -28,6 +37,8 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 	const [timeLeft, setTimeLeft] = useState(() => {
 		return storedTimeLeft || activity?.time || 0;
 	});
+
+	const isVideo = useMemo(() => isVideoFile(activity?.file), [activity?.file]);
 
 	const handleActivityComplete = useCallback((success, media = null) => {
 		const timeTaken = activity.time - timeLeft;
@@ -295,6 +306,15 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 						timeExpired={timeExpired}
 					/>
 				);
+			case 2:
+				return (
+					<ClueActivity
+						activity={activity}
+						onComplete={handleActivityComplete}
+						onExit={onExit}
+						timeExpired={timeExpired}
+					/>
+				);
 			case 3:
 				return (
 					<PhotoVideoActivity
@@ -333,8 +353,8 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 				</div>
 				<div className="header-actions">
 					{activity.file && (
-						<button onClick={toggleImageFullscreen} className="btn-image" title={t("view_activity_image")}>
-							<span>🖼️</span>
+						<button onClick={toggleImageFullscreen} className="btn-image" title={t("view_activity_media")}>
+							<span>{isVideo ? "🎥" : "🖼️"}</span>
 						</button>
 					)}
 					<button onClick={onExit} className="btn-close">
@@ -356,12 +376,22 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 				<div className="footer-center">
 					{activity.file && !showImageFullscreen && (
 						<div className="activity-image-thumbnail" onClick={toggleImageFullscreen}>
-							<img 
-								src={activity.file} 
-								alt={activity.name}
-								className="thumbnail-image"
-								title={t("view_activity_image")}
-							/>
+							{isVideo ? (
+								<video 
+									src={activity.file} 
+									className="thumbnail-image"
+									title={t("view_activity_media")}
+									muted
+									preload="metadata"
+								/>
+							) : (
+								<img 
+									src={activity.file} 
+									alt={activity.name}
+									className="thumbnail-image"
+									title={t("view_activity_media")}
+								/>
+							)}
 						</div>
 					)}
 				</div>
@@ -374,12 +404,23 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 			{showImageFullscreen && activity.file && (
 				<div className="image-fullscreen-overlay" onClick={toggleImageFullscreen}>
 					<div className="image-fullscreen-container">
-						<img 
-							src={activity.file} 
-							alt={activity.name}
-							className="image-fullscreen"
-							onClick={(e) => e.stopPropagation()}
-						/>
+						{isVideo ? (
+							<video 
+								src={activity.file} 
+								className="image-fullscreen"
+								controls
+								autoPlay
+								muted
+								onClick={(e) => e.stopPropagation()}
+							/>
+						) : (
+							<img 
+								src={activity.file} 
+								alt={activity.name}
+								className="image-fullscreen"
+								onClick={(e) => e.stopPropagation()}
+							/>
+						)}
 						<button 
 							className="btn-close-fullscreen" 
 							onClick={toggleImageFullscreen}

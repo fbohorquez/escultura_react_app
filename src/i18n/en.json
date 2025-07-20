@@ -39,6 +39,7 @@
   "close": "Close",
   "start_activity": "Start Activity",
   "view_activity_image": "View activity image",
+  "view_activity_media": "View activity media",
   "activity_proximity_text": "You are near the activity \"{{activityName}}\"! Do you want to start it?",
   "debug_panel": "DEBUG PANEL",
   "reset_timer": "Reset Timer",
@@ -67,6 +68,7 @@
   "pending_review_title": "Answer Submitted",
   "pending_review_message": "Your answer has been submitted successfully. The organizer will review your answer and assign the corresponding points.",
   "pending_review_note": "You will receive points once the organizer has reviewed your answer.",
-  "back_to_activities": "Back to Activities"
+  "back_to_activities": "Back to Activities",
+  "clue_understood": "Understood"
 }
 

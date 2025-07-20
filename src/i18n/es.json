@@ -39,6 +39,7 @@
   "close": "Cerrar",
   "start_activity": "Iniciar Actividad",
   "view_activity_image": "Ver imagen de la actividad",
+  "view_activity_media": "Ver contenido de la actividad",
   "activity_proximity_text": "¡Estás cerca de la actividad \"{{activityName}}\"! ¿Deseas iniciarla?",
   "debug_panel": "PANEL DEBUG",
   "reset_timer": "Reiniciar Tiempo",
@@ -67,5 +68,6 @@
   "pending_review_title": "Respuesta Enviada",
   "pending_review_message": "Tu respuesta ha sido enviada correctamente. El organizador valorará tu respuesta y asignará los puntos correspondientes.",
   "pending_review_note": "Recibirás los puntos una vez que el organizador haya revisado tu respuesta.",
-  "back_to_activities": "Volver a Actividades"
+  "back_to_activities": "Volver a Actividades",
+  "clue_understood": "Entendido"
 }
