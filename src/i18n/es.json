@@ -16,6 +16,18 @@
   "admin.mode": "Modo Organizador",
   "admin.tools_coming_soon": "Herramientas de organización (próximamente)",
   "admin.session_control": "Control de Sesión",
+  "admin.suspend_event": "Suspender Evento",
+  "suspend": {
+    "confirm_title": "Confirmar Suspensión",
+    "confirm_message": "¿Estás seguro de que quieres suspender el evento? Ningún equipo podrá realizar pruebas hasta que se reactive.",
+    "confirm_button": "Sí, suspender",
+    "cancel_button": "Cancelar",
+    "event_suspended_title": "Evento Suspendido",
+    "event_suspended_message": "El evento ha sido suspendido temporalmente. No se pueden realizar pruebas en este momento.",
+    "reactivate_title": "Reactivar Evento",
+    "reactivate_message": "¿Estás seguro de que quieres reactivar el evento? Los equipos podrán volver a realizar pruebas.",
+    "reactivate_button": "Sí, reactivar"
+  },
   "session_control": {
     "title": "Control de Sesión",
     "subtitle": "Administra las sesiones y dispositivos del evento",

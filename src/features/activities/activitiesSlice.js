@@ -2,6 +2,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { updateTeam } from "../../services/firebase";
 import { getValorateValue } from "../../utils/activityValidation";
+import { addToQueue } from "../popup/popupSlice";
 
 // Thunk para completar actividad y actualizar Firebase
 export const completeActivityWithSync = createAsyncThunk(
@@ -23,6 +24,13 @@ export const completeActivityWithSync = createAsyncThunk(
 		// Determinar el valor de valorate basado en el tipo de actividad y resultado
 		const valorateValue = getValorateValue(activity, success);
 		
+		// Calcular puntos a sumar si la actividad es exitosa y no requiere valoración manual
+		let pointsToAdd = 0;
+		if (success && valorateValue === 1) {
+			// Si la actividad es exitosa y no requiere valoración manual, sumar puntos automáticamente
+			pointsToAdd = activity.points || 0;
+		}
+		
 		// Actualizar activities_data del equipo
 		const updatedActivitiesData = team.activities_data.map(activityItem => {
 			if (activityItem.id === activityId) {
@@ -36,15 +44,53 @@ export const completeActivityWithSync = createAsyncThunk(
 			return activityItem;
 		});
 		
-		// Actualizar Firebase
-		await updateTeam(eventId, teamId, {
+		// Preparar cambios para Firebase
+		const changes = {
 			activities_data: updatedActivitiesData
-		});
+		};
+		
+		// Si hay puntos que sumar, actualizar también los puntos del equipo
+		if (pointsToAdd > 0) {
+			const currentPoints = team.points || 0;
+			changes.points = currentPoints + pointsToAdd;
+			console.log(`✅ Sumando ${pointsToAdd} puntos al equipo ${team.name}. Total: ${changes.points}`);
+		}
+		
+		// Actualizar Firebase
+		await updateTeam(eventId, teamId, changes);
 		
 		// Completar actividad localmente
 		dispatch(completeActivity({ activityId, success, media, timeTaken }));
 		
-		return { activityId, success, media, timeTaken };
+		return { activityId, success, media, timeTaken, pointsAwarded: pointsToAdd };
+	}
+);
+
+// Thunk para iniciar actividad verificando suspensión del evento
+export const startActivityWithSuspensionCheck = createAsyncThunk(
+	"activities/startActivityWithSuspensionCheck",
+	async (activity, { getState, dispatch, rejectWithValue }) => {
+		const state = getState();
+		const event = state.event.event;
+		
+		// Verificar si el evento está suspendido
+		if (event?.suspend === true) {
+			// Mostrar popup de evento suspendido que no se puede cerrar
+			dispatch(addToQueue({
+				titulo: "SUSPENDED_EVENT", // Identificador especial para el popup
+				texto: "suspend.event_suspended_message",
+				array_botones: [], // Sin botones
+				overlay: true,
+				close_button: false, // No se puede cerrar
+				layout: "center",
+				claseCss: "popup-suspended-event"
+			}));
+			return rejectWithValue("Event is suspended");
+		}
+		
+		// Si no está suspendido, iniciar la actividad normalmente
+		dispatch(startActivity(activity));
+		return activity;
 	}
 );
 
@@ -171,6 +217,23 @@ const activitiesSlice = createSlice({
 				item.complete_time = 0;
 			});
 		},
+	},
+	extraReducers: (builder) => {
+		builder
+			.addCase(completeActivityWithSync.pending, (state) => {
+				state.status = "loading";
+			})
+			.addCase(completeActivityWithSync.fulfilled, (state, action) => {
+				state.status = "succeeded";
+				if (action.payload.pointsAwarded > 0) {
+					console.log(`🎉 ¡${action.payload.pointsAwarded} puntos ganados!`);
+				}
+			})
+			.addCase(completeActivityWithSync.rejected, (state, action) => {
+				state.status = "failed";
+				state.error = action.error.message;
+				console.error("Error completando actividad:", action.error.message);
+			});
 	},
 });
 

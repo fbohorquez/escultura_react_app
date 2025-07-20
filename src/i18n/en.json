@@ -16,6 +16,18 @@
   "admin.mode": "Organizer Mode",
   "admin.tools_coming_soon": "Organization tools (coming soon)",
   "admin.session_control": "Session Control",
+  "admin.suspend_event": "Suspend Event",
+  "suspend": {
+    "confirm_title": "Confirm Suspension",
+    "confirm_message": "Are you sure you want to suspend the event? No team will be able to perform tests until reactivated.",
+    "confirm_button": "Yes, suspend",
+    "cancel_button": "Cancel",
+    "event_suspended_title": "Event Suspended",
+    "event_suspended_message": "The event has been temporarily suspended. No tests can be performed at this time.",
+    "reactivate_title": "Reactivate Event",
+    "reactivate_message": "Are you sure you want to reactivate the event? Teams will be able to perform tests again.",
+    "reactivate_button": "Yes, reactivate"
+  },
   "session_control": {
     "title": "Session Control",
     "subtitle": "Manage event sessions and devices",

@@ -8,7 +8,7 @@ import markMe from "../assets/mark-me.png";
 import { usePopup } from "../hooks/usePopup";
 import { useDebugMode } from "../hooks/useDebugMode";
 import { useTranslation } from "react-i18next";
-import { startActivity } from "../features/activities/activitiesSlice";
+import { startActivityWithSuspensionCheck } from "../features/activities/activitiesSlice";
 
 const containerStyle = { width: "100%", height: "100%" };
 const SMOOTHING_BUFFER_SIZE = 5;
@@ -128,7 +128,7 @@ const EventMap = () => {
 					titulo: t('start_activity'),
 					callback: () => {
 						console.log('🚀 Iniciando actividad:', activity.name, 'ID:', activity.id);
-						dispatch(startActivity(activity));
+						dispatch(startActivityWithSuspensionCheck(activity));
 						closePopup();
 					}
 				}
