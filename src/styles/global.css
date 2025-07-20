@@ -239,6 +239,15 @@ body:has(.event-header.collapsed) .map-container {
     height: calc(100dvh - 4rem);
 }
 
+/* Ajustes para cuando hay barra de tareas del administrador */
+body:has(.admin-taskbar) .map-container {
+    height: calc(100dvh - 10rem - 80px);
+}
+
+body:has(.event-header.collapsed):has(.admin-taskbar) .map-container {
+    height: calc(100dvh - 4rem - 50px);
+}
+
 .event-page {
     position: relative;
 }
@@ -654,6 +663,61 @@ header.event-header {
   }
 }
 
+/* Admin Taskbar Styles */
+.admin-taskbar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-bottom: 4px solid rgb(192, 0, 31);
+  padding: 15px 20px;
+  z-index: 1000;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.admin-taskbar-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-badge {
+  background: rgb(192, 0, 31);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.admin-label {
+  font-size: 14px;
+  color: rgb(192, 0, 31);
+  font-weight: 600;
+}
+
+.admin-tools {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.admin-tools-placeholder {
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
 /* Responsive para móviles */
 @media (max-width: 480px) {
   .notification-container {
@@ -682,5 +746,29 @@ header.event-header {
   
   .notification-message {
     font-size: 12px;
+  }
+  
+  .admin-taskbar-content {
+    padding: 12px 16px;
+    gap: 8px;
+  }
+  
+  .admin-indicator {
+    gap: 8px;
+  }
+  
+  .admin-badge {
+    padding: 4px 12px;
+    font-size: 11px;
+  }
+  
+  .admin-label {
+    font-size: 12px;
+  }
+  
+  .admin-tools-placeholder {
+    padding: 8px 16px;
+    font-size: 12px;
+    text-align: center;
   }
 }

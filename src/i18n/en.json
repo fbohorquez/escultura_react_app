@@ -13,6 +13,8 @@
   },
   "play": "Play",
   "admin": "Organizer",
+  "admin.mode": "Organizer Mode",
+  "admin.tools_coming_soon": "Organization tools (coming soon)",
   "enter": "Enter",
   "loading": "Loading...",
   "back": "Back",

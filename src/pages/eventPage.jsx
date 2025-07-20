@@ -5,6 +5,7 @@ import EventHeader from "../components/eventHeader";
 import EventMap from "../components/eventMap";
 import ActivityRunner from "../components/ActivityRunner";
 import DebugPanel from "../components/DebugPanel";
+import AdminTaskbar from "../components/adminTaskbar";
 import { endActivity } from "../features/activities/activitiesSlice";
 
 const EventPage = () => {
@@ -14,6 +15,7 @@ const EventPage = () => {
 	const event = useSelector((state) => state.event.event);
 	const selectedTeam = useSelector((state) => state.session.selectedTeam);
 	const teamPhoto = useSelector((state) => state.session.teamPhoto);
+	const isAdmin = useSelector((state) => state.session.isAdmin);
 	const { currentActivity, isActivityActive } = useSelector((state) => state.activities);
 	const [collapsed, setCollapsed] = useState(false);
 
@@ -49,6 +51,9 @@ const EventPage = () => {
 				onCollapse={handleCollapse}
 				collapsed={collapsed}
 			/>
+			{isAdmin && (
+				<AdminTaskbar />
+			)}
 			<div className="map-container">
 				<EventMap />
 			</div>
