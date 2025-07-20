@@ -14,6 +14,9 @@ import EventsPage from "./pages/eventsPage";
 import TeamsPage from "./pages/teamsPage";
 import TeamPage from "./pages/teamPage";
 import EventPage from "./pages/eventPage";
+import ChatPage from "./pages/chatPage";
+import RankingPage from "./pages/rankingPage";
+import GadgetsPage from "./pages/gadgetsPage";
 
 import './styles/global.css';
 import './styles/fonts.css';
@@ -36,6 +39,9 @@ function App() {
 				<Route path="/teams/:eventId" element={<TeamsPage />} />
 				<Route path="/team/:teamId" element={<TeamPage />} />
 				<Route path="/event/:eventId" element={<EventPage />} />
+				<Route path="/chat/:eventId" element={<ChatPage />} />
+				<Route path="/ranking/:eventId" element={<RankingPage />} />
+				<Route path="/gadgets/:eventId" element={<GadgetsPage />} />
 			</Routes>
 		</>
 	);

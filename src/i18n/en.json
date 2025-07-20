@@ -69,6 +69,56 @@
   "pending_review_title": "Answer Submitted",
   "pending_review_message": "Your answer has been submitted successfully. The organizer will review your answer and assign the corresponding points.",
   "pending_review_note": "You will receive points once the organizer has reviewed your answer.",
-  "back_to_activities": "Back to Activities"
+  "back_to_activities": "Back to Activities",
+  "footer": {
+    "chat": "Chat",
+    "position": "Position",
+    "ranking": "Ranking",
+    "manage": "Management",
+    "gadgets": "Gadgets"
+  },
+  "chat": {
+    "title": "Chat",
+    "admin_mode": "Administrator Mode",
+    "team_mode": "Team Chat",
+    "type_message": "Type your message...",
+    "send": "Send"
+  },
+  "ranking": {
+    "title": "Ranking",
+    "your_position": "Your position",
+    "general": "General Ranking",
+    "no_teams": "No teams ranked yet",
+    "stats": "Statistics",
+    "total_teams": "Total teams",
+    "active_teams": "Active teams",
+    "avg_points": "Average points"
+  },
+  "gadgets": {
+    "title": "Gadgets",
+    "description": "Gadgets help you complete activities. Some require points to unlock.",
+    "current_points": "Current points",
+    "camera": "Camera",
+    "camera_desc": "Capture photos for activities",
+    "compass": "Compass",
+    "compass_desc": "Find the right direction",
+    "magnifier": "Magnifier",
+    "magnifier_desc": "Examine clues more closely",
+    "flashlight": "Flashlight",
+    "flashlight_desc": "Illuminate dark places",
+    "map": "Detailed map",
+    "map_desc": "Shows special locations",
+    "radio": "Radio",
+    "radio_desc": "Special communication with organizer",
+    "category_tools": "Tools",
+    "category_navigation": "Navigation",
+    "category_communication": "Communication",
+    "requires_points": "Requires {{points}} points",
+    "available": "Available",
+    "locked": "Locked",
+    "admin_controls": "Administrator Controls",
+    "admin_description": "Here you can manage the gadgets available to teams.",
+    "manage_gadgets": "Manage Gadgets"
+  }
 }
 

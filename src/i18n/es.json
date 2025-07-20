@@ -69,5 +69,55 @@
   "pending_review_title": "Respuesta Enviada",
   "pending_review_message": "Tu respuesta ha sido enviada correctamente. El organizador valorará tu respuesta y asignará los puntos correspondientes.",
   "pending_review_note": "Recibirás los puntos una vez que el organizador haya revisado tu respuesta.",
-  "back_to_activities": "Volver a Actividades"
+  "back_to_activities": "Volver a Actividades",
+  "footer": {
+    "chat": "Chat",
+    "position": "Posición",
+    "ranking": "Ranking",
+    "manage": "Gestión",
+    "gadgets": "Gadgets"
+  },
+  "chat": {
+    "title": "Chat",
+    "admin_mode": "Modo Administrador",
+    "team_mode": "Chat del Equipo",
+    "type_message": "Escribe tu mensaje...",
+    "send": "Enviar"
+  },
+  "ranking": {
+    "title": "Clasificación",
+    "your_position": "Tu posición",
+    "general": "Clasificación General",
+    "no_teams": "Aún no hay equipos clasificados",
+    "stats": "Estadísticas",
+    "total_teams": "Equipos totales",
+    "active_teams": "Equipos activos",
+    "avg_points": "Puntos promedio"
+  },
+  "gadgets": {
+    "title": "Gadgets",
+    "description": "Los gadgets te ayudan a completar las actividades. Algunos requieren puntos para desbloquearse.",
+    "current_points": "Puntos actuales",
+    "camera": "Cámara",
+    "camera_desc": "Captura fotos para las actividades",
+    "compass": "Brújula",
+    "compass_desc": "Encuentra la dirección correcta",
+    "magnifier": "Lupa",
+    "magnifier_desc": "Examina pistas más de cerca",
+    "flashlight": "Linterna",
+    "flashlight_desc": "Ilumina lugares oscuros",
+    "map": "Mapa detallado",
+    "map_desc": "Muestra ubicaciones especiales",
+    "radio": "Radio",
+    "radio_desc": "Comunicación especial con el organizador",
+    "category_tools": "Herramientas",
+    "category_navigation": "Navegación",
+    "category_communication": "Comunicación",
+    "requires_points": "Requiere {{points}} puntos",
+    "available": "Disponible",
+    "locked": "Bloqueado",
+    "admin_controls": "Controles de Administrador",
+    "admin_description": "Aquí podrás gestionar los gadgets disponibles para los equipos.",
+    "manage_gadgets": "Gestionar Gadgets"
+  }
 }

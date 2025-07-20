@@ -718,6 +718,464 @@ header.event-header {
   font-style: italic;
 }
 
+/* Event Footer Styles */
+.event-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 2px solid rgb(192, 0, 31);
+  padding: 10px 20px;
+  z-index: 1001;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.footer-controls {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.footer-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  transition: transform 0.2s ease;
+  min-width: 60px;
+}
+
+.footer-control:hover {
+  transform: translateY(-2px);
+}
+
+.footer-control:active {
+  transform: translateY(0);
+}
+
+.control-icon {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 4px;
+}
+
+.control-label {
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: 600;
+}
+
+/* Posición control especial */
+.position-control .position-background {
+  width: 40px;
+  height: 40px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.position-number {
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: rgb(192, 0, 31);
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.admin-icon {
+  font-size: 1.2rem;
+}
+
+/* Chat Page Styles */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 200px);
+  max-width: 800px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.chat-header {
+  background: rgb(192, 0, 31);
+  color: white;
+  padding: 15px;
+  text-align: center;
+}
+
+.chat-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.team-info {
+  margin: 5px 0 0 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+  background: #f8f9fa;
+}
+
+.message {
+  margin-bottom: 15px;
+  max-width: 70%;
+}
+
+.message.admin.received {
+  align-self: flex-start;
+}
+
+.message.team,
+.message.admin:not(.received) {
+  align-self: flex-end;
+  margin-left: auto;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.sender {
+  font-weight: bold;
+}
+
+.message-text {
+  background: white;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  word-wrap: break-word;
+}
+
+.message.admin .message-text {
+  background: #e3f2fd;
+  border-color: #2196f3;
+}
+
+.message.team .message-text {
+  background: #f3e5f5;
+  border-color: rgb(192, 0, 31);
+}
+
+.chat-input {
+  display: flex;
+  padding: 15px;
+  background: white;
+  border-top: 1px solid #ddd;
+  gap: 10px;
+}
+
+.chat-input textarea {
+  flex: 1;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 10px;
+  resize: none;
+  font-family: inherit;
+}
+
+.send-button {
+  background: rgb(192, 0, 31);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.send-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* Ranking Page Styles */
+.ranking-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.current-team-position {
+  background: linear-gradient(135deg, rgb(192, 0, 31), #d63384);
+  color: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.current-team-position h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.2rem;
+}
+
+.position-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+}
+
+.position-badge .position-number {
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.position-badge .team-name {
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.position-badge .points {
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+.ranking-list {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.ranking-list h3 {
+  margin: 0 0 20px 0;
+  color: rgb(192, 0, 31);
+  text-align: center;
+}
+
+.teams-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.team-rank-item {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.team-rank-item.current-team {
+  border-color: rgb(192, 0, 31);
+  background: rgba(192, 0, 31, 0.1);
+}
+
+.team-rank-item .position {
+  font-size: 1.2rem;
+  font-weight: bold;
+  width: 50px;
+  text-align: center;
+}
+
+.team-rank-item .team-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.team-rank-item .team-name {
+  font-weight: bold;
+  color: #333;
+}
+
+.status.online {
+  color: #28a745;
+  font-size: 0.8rem;
+}
+
+.team-rank-item .points {
+  font-weight: bold;
+  color: rgb(192, 0, 31);
+  font-size: 1.1rem;
+}
+
+.no-teams {
+  text-align: center;
+  color: #666;
+  padding: 40px;
+}
+
+.admin-stats {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  margin-top: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.admin-stats h4 {
+  margin: 0 0 15px 0;
+  color: rgb(192, 0, 31);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 5px;
+}
+
+.stat-label {
+  color: #666;
+}
+
+.stat-value {
+  font-weight: bold;
+  color: rgb(192, 0, 31);
+}
+
+/* Gadgets Page Styles */
+.gadgets-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.gadgets-intro {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.gadgets-category {
+  margin-bottom: 30px;
+}
+
+.category-title {
+  color: rgb(192, 0, 31);
+  margin-bottom: 15px;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.gadgets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 15px;
+}
+
+.gadget-item {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.gadget-item.available {
+  border-color: #28a745;
+}
+
+.gadget-item.locked {
+  opacity: 0.6;
+  border-color: #dc3545;
+}
+
+.gadget-item:hover.available {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.gadget-icon {
+  font-size: 2rem;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.gadget-name {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin: 0 0 8px 0;
+  color: #333;
+}
+
+.gadget-description {
+  color: #666;
+  margin: 0 0 10px 0;
+  line-height: 1.4;
+}
+
+.requirement {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.gadget-status {
+  text-align: right;
+  margin-top: 10px;
+}
+
+.status-available {
+  color: #28a745;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.status-locked {
+  color: #dc3545;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.admin-controls {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-top: 20px;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.admin-controls h4 {
+  color: rgb(192, 0, 31);
+  margin: 0 0 10px 0;
+}
+
+.admin-controls p {
+  color: #666;
+  margin-bottom: 15px;
+}
+
 /* Responsive para móviles */
 @media (max-width: 480px) {
   .notification-container {
@@ -771,4 +1229,63 @@ header.event-header {
     font-size: 12px;
     text-align: center;
   }
+}
+
+@media (max-width: 768px) {
+  .event-footer {
+    padding: 8px 15px;
+  }
+  
+  .footer-controls {
+    max-width: 100%;
+  }
+  
+  .control-icon {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .control-label {
+    font-size: 0.7rem;
+  }
+  
+  .position-background {
+    width: 35px !important;
+    height: 35px !important;
+  }
+  
+  .position-number {
+    font-size: 1rem !important;
+  }
+  
+  .chat-container,
+  .ranking-container,
+  .gadgets-container {
+    padding: 10px;
+  }
+  
+  .gadgets-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ajustar el mapa para dejar espacio al footer */
+body:has(.event-footer) .map-container {
+  height: calc(100dvh - 10rem - 70px) !important;
+}
+
+body:has(.event-header.collapsed):has(.event-footer) .map-container {
+  height: calc(100dvh - 4rem - 70px) !important;
+}
+
+body:has(.admin-taskbar):has(.event-footer) .map-container {
+  height: calc(100dvh - 10rem - 80px - 70px) !important;
+}
+
+body:has(.event-header.collapsed):has(.admin-taskbar):has(.event-footer) .map-container {
+  height: calc(100dvh - 4rem - 50px - 70px) !important;
 }

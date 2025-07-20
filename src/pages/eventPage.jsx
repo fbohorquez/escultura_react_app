@@ -6,6 +6,7 @@ import EventMap from "../components/eventMap";
 import ActivityRunner from "../components/ActivityRunner";
 import DebugPanel from "../components/DebugPanel";
 import AdminTaskbar from "../components/adminTaskbar";
+import EventFooter from "../components/eventFooter";
 import { endActivity } from "../features/activities/activitiesSlice";
 
 const EventPage = () => {
@@ -58,7 +59,8 @@ const EventPage = () => {
 				<EventMap />
 			</div>
 			<DebugPanel />
-			{/* Aquí va la barra de acciones (chat, cronómetro, bromas) */}
+			{/* Footer flotante con controles */}
+			<EventFooter eventId={event.id} />
 		</div>
 	);
 };
