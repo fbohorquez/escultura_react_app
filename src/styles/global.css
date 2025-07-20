@@ -712,6 +712,30 @@ header.event-header {
   gap: 15px;
 }
 
+.admin-tool-button {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-tool-button:hover {
+  transform: translateY(-1px);
+}
+
+.admin-tool-button:active {
+  transform: translateY(0);
+}
+
+.admin-tool-button img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
 .admin-tools-placeholder {
   font-size: 12px;
   color: #666;
@@ -1228,6 +1252,15 @@ header.event-header {
     padding: 8px 16px;
     font-size: 12px;
     text-align: center;
+  }
+  
+  .admin-tool-button {
+    padding: 6px;
+  }
+  
+  .admin-tool-button img {
+    width: 20px;
+    height: 20px;
   }
 }
 

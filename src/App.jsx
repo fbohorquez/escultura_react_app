@@ -17,11 +17,13 @@ import EventPage from "./pages/eventPage";
 import ChatPage from "./pages/chatPage";
 import RankingPage from "./pages/rankingPage";
 import GadgetsPage from "./pages/gadgetsPage";
+import SessionControlPage from "./pages/sessionControlPage";
 
 import './styles/global.css';
 import './styles/fonts.css';
 import './styles/medias.css';
 import './styles/reset.css';
+import './styles/sessionControl.css';
 
 function App() {
 	return (
@@ -42,6 +44,7 @@ function App() {
 				<Route path="/chat/:eventId" element={<ChatPage />} />
 				<Route path="/ranking/:eventId" element={<RankingPage />} />
 				<Route path="/gadgets/:eventId" element={<GadgetsPage />} />
+				<Route path="/admin/session-control" element={<SessionControlPage />} />
 			</Routes>
 		</>
 	);

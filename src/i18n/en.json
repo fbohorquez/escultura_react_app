@@ -15,6 +15,23 @@
   "admin": "Organizer",
   "admin.mode": "Organizer Mode",
   "admin.tools_coming_soon": "Organization tools (coming soon)",
+  "admin.session_control": "Session Control",
+  "session_control": {
+    "title": "Session Control",
+    "subtitle": "Manage event sessions and devices",
+    "current_session": "Current Session",
+    "mode": "Mode",
+    "team_mode": "Team Mode",
+    "selected_team": "Selected Team",
+    "device_token": "Device Token",
+    "clear_local_session": "Clear Local Session",
+    "confirm_clear_local": "Are you sure you want to clear the local session? All data saved on this device will be removed.",
+    "associated_teams": "Associated Teams",
+    "no_associated_teams": "No teams are associated with devices",
+    "device": "Device",
+    "disassociate": "Disassociate",
+    "confirm_disassociate": "Are you sure you want to disassociate team \"{{teamName}}\" from its device?"
+  },
   "enter": "Enter",
   "loading": "Loading...",
   "back": "Back",
@@ -41,6 +58,7 @@
   "close": "Close",
   "start_activity": "Start Activity",
   "view_activity_image": "View activity image",
+  "view_activity_media": "View activity media",
   "activity_proximity_text": "You are near the activity \"{{activityName}}\"! Do you want to start it?",
   "debug_panel": "DEBUG PANEL",
   "reset_timer": "Reset Timer",
@@ -119,6 +137,7 @@
     "admin_controls": "Administrator Controls",
     "admin_description": "Here you can manage the gadgets available to teams.",
     "manage_gadgets": "Manage Gadgets"
-  }
+  },
+  "clue_understood": "Understood"
 }
 
