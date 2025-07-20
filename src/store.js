@@ -20,6 +20,7 @@ import adminReducer from "./features/admin/adminSlice";
 import sessionReducer from "./features/session/sessionSlice";
 import popupReducer from "./features/popup/popupSlice";
 import notificationReducer from "./features/notification/notificationSlice";
+import chatsReducer from "./features/chats/chatsSlice";
 
 import { firebaseSyncMiddleware } from "./services/firebase";
 
@@ -31,7 +32,8 @@ const rootReducer = combineReducers({
   activities:  activitiesReducer,
   session: sessionReducer,
   popup: popupReducer,
-  notification: notificationReducer
+  notification: notificationReducer,
+  chats: chatsReducer
 });
 
 const persistConfig = {

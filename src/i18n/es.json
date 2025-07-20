@@ -95,6 +95,26 @@
     "manage": "Gestión",
     "gadgets": "Gadgets"
   },
+  "common": {
+    "loading": "Cargando...",
+    "retry": "Reintentar",
+    "error": "Error",
+    "back": "Volver"
+  },
+  "chats": {
+    "title": "Chats",
+    "group": "Grupo",
+    "admin": "Organizador",
+    "team": "Equipo",
+    "team_chat": "Chat de Equipo",
+    "chat": "Chat",
+    "no_chats": "No hay chats disponibles",
+    "error_loading": "Error al cargar los chats",
+    "no_messages": "No hay mensajes aún",
+    "start_conversation": "¡Comienza la conversación!",
+    "type_message": "Escribe un mensaje...",
+    "coming_soon": "Próximamente disponible"
+  },
   "chat": {
     "title": "Chat",
     "admin_mode": "Modo Administrador",

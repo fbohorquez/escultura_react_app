@@ -15,6 +15,8 @@ import TeamsPage from "./pages/teamsPage";
 import TeamPage from "./pages/teamPage";
 import EventPage from "./pages/eventPage";
 import ChatPage from "./pages/chatPage";
+import ChatsListPage from "./pages/chatsListPage";
+import ChatRoomPage from "./pages/chatRoomPage";
 import RankingPage from "./pages/rankingPage";
 import GadgetsPage from "./pages/gadgetsPage";
 import SessionControlPage from "./pages/sessionControlPage";
@@ -42,6 +44,8 @@ function App() {
 				<Route path="/team/:teamId" element={<TeamPage />} />
 				<Route path="/event/:eventId" element={<EventPage />} />
 				<Route path="/chat/:eventId" element={<ChatPage />} />
+				<Route path="/event/:eventId/chats" element={<ChatsListPage />} />
+				<Route path="/event/:eventId/chat/:chatId" element={<ChatRoomPage />} />
 				<Route path="/ranking/:eventId" element={<RankingPage />} />
 				<Route path="/gadgets/:eventId" element={<GadgetsPage />} />
 				<Route path="/admin/session-control" element={<SessionControlPage />} />

@@ -6,6 +6,11 @@ import {
 	updateDoc,
 	onSnapshot,
 	collection,
+	addDoc,
+	arrayUnion,
+	getDocs,
+	query,
+	where,
 } from "firebase/firestore";
 
 import { createListenerMiddleware, isAnyOf } from "@reduxjs/toolkit";
@@ -193,6 +198,132 @@ listener.startListening({
 
 const firebaseSyncMiddleware = listener.middleware;
 export { firebaseSyncMiddleware };
+
+// === FUNCIONES DE CHAT ===
+
+/**
+ * Envía un mensaje a un chat específico
+ * @param {string|number} eventId
+ * @param {string} chatId
+ * @param {Object} message
+ */
+export const sendMessage = async (eventId, chatId, message) => {
+	const chatRef = doc(db, "events", `event_${eventId}`, "chats", chatId);
+	const chatDoc = await getDoc(chatRef);
+	
+	if (chatDoc.exists()) {
+		// Si el chat existe, agregar el mensaje al array
+		await updateDoc(chatRef, {
+			messages: arrayUnion(message)
+		});
+	} else {
+		// Si no existe, crear el chat con el primer mensaje
+		await updateDoc(chatRef, {
+			messages: [message]
+		});
+	}
+};
+
+/**
+ * Suscribirse a los mensajes de un chat específico
+ * @param {string|number} eventId
+ * @param {string} chatId
+ * @param {Function} callback
+ * @returns {Function} Función para cancelar la suscripción
+ */
+export const subscribeToChat = (eventId, chatId, callback) => {
+	const chatRef = doc(db, "events", `event_${eventId}`, "chats", chatId);
+	return onSnapshot(chatRef, (doc) => {
+		if (doc.exists()) {
+			const data = doc.data();
+			callback(data.messages || []);
+		} else {
+			callback([]);
+		}
+	});
+};
+
+/**
+ * Obtiene las salas de chat disponibles según el tipo de usuario
+ * @param {string|number} eventId
+ * @param {string|number} teamId
+ * @param {boolean} isAdmin
+ * @returns {Array} Lista de salas de chat
+ */
+export const getChatRooms = async (eventId, teamId, isAdmin) => {
+	const rooms = [];
+	
+	if (isAdmin) {
+		// El admin ve todos los chats admin_* y el grupo
+		try {
+			// Obtener el evento para acceder a los equipos
+			const eventData = await fetchInitialEvent(eventId);
+			const teams = eventData?.teams_data || [];
+			
+			// Agregar sala de grupo
+			rooms.push({
+				id: "group",
+				name: "Grupo",
+				type: "group",
+				description: "Chat grupal del evento"
+			});
+			
+			// Agregar salas admin con cada equipo
+			teams.forEach(team => {
+				rooms.push({
+					id: `admin_${team.id}`,
+					name: team.name,
+					type: "admin",
+					description: `Chat privado con ${team.name}`
+				});
+			});
+		} catch (error) {
+			console.error("Error getting chat rooms for admin:", error);
+		}
+	} else {
+		// Los equipos ven: grupo, su chat con admin, y chats con otros equipos
+		try {
+			// Agregar sala de grupo
+			rooms.push({
+				id: "group",
+				name: "Grupo",
+				type: "group",
+				description: "Chat grupal del evento"
+			});
+			
+			// Agregar chat con administrador
+			rooms.push({
+				id: `admin_${teamId}`,
+				name: "Organizador",
+				type: "admin",
+				description: "Chat privado con el organizador"
+			});
+			
+			// Obtener otros equipos para chats team a team
+			const eventData = await fetchInitialEvent(eventId);
+			const teams = eventData?.teams || [];
+			const otherTeams = teams.filter(team => team.id !== parseInt(teamId) && team.device !== "");
+			
+			otherTeams.forEach(team => {
+				// Crear ID consistente para el chat (menor ID primero)
+				const chatId = parseInt(teamId) < team.id 
+					? `team_${teamId}_${team.id}` 
+					: `team_${team.id}_${teamId}`;
+				
+				rooms.push({
+					id: chatId,
+					name: team.name,
+					type: "team",
+					description: `Chat con ${team.name}`
+				});
+			});
+		} catch (error) {
+			console.error("Error getting chat rooms for team:", error);
+		}
+	}
+	
+	return rooms;
+};
 
 
 
