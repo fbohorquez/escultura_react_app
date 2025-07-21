@@ -20,8 +20,10 @@ const ChatRoomPage = () => {
   
   const { activeChat, messages, sendingMessage } = useSelector((state) => state.chats);
   const { id: eventId } = useSelector((state) => state.event);
-  const { id: teamId, isAdmin } = useSelector((state) => state.session);
-  const { teams } = useSelector((state) => state.teams);
+  const session = useSelector((state) => state.session);
+  const { selectedTeam, isAdmin } = session;
+  const { id: teamId } = selectedTeam || { id: null };
+  const teams = useSelector((state) => state.teams.items);
   
   // Obtener el equipo actual
   const currentTeam = teams?.find(team => team.id === teamId);
@@ -190,3 +192,5 @@ const ChatRoomPage = () => {
 };
 
 export default ChatRoomPage;
+
+

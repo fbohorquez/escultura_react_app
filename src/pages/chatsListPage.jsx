@@ -13,20 +13,24 @@ const ChatsListPage = () => {
   const { rooms, status, error } = useSelector((state) => state.chats);
   const { id: eventId } = useSelector((state) => state.event);
   const session = useSelector((state) => state.session);
-  const { id: teamId, isAdmin } = session;
+  const teams = useSelector((state) => state.teams.items);
+  const { selectedTeam, isAdmin } = session;
+  const { id: teamId } = selectedTeam || { id: null };
 
   useEffect(() => {
     console.log('Session data:', session);
     console.log('EventId:', eventId, 'TeamId:', teamId, 'IsAdmin:', isAdmin);
+    console.log('Teams available:', teams);
     
     if (eventId && (teamId || isAdmin)) {
       dispatch(fetchChatRooms({ 
         eventId, 
         teamId: teamId || null, 
-        isAdmin: isAdmin || false 
+        isAdmin: isAdmin || false,
+        teams: teams || []
       }));
     }
-  }, [dispatch, eventId, teamId, isAdmin, session]);
+  }, [dispatch, eventId, teamId, isAdmin, session, teams]);
 
   const handleChatSelect = (room) => {
     dispatch(setActiveChat(room));
@@ -95,7 +99,7 @@ const ChatsListPage = () => {
           <p className="error-text">{t("chats.error_loading")}: {error}</p>
           <button 
             className="retry-btn"
-            onClick={() => dispatch(fetchChatRooms({ eventId, teamId, isAdmin }))}
+            onClick={() => dispatch(fetchChatRooms({ eventId, teamId, isAdmin, teams }))}
           >
             {t("common.retry")}
           </button>
@@ -151,3 +155,5 @@ const ChatsListPage = () => {
 };
 
 export default ChatsListPage;
+
+

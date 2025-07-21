@@ -1386,7 +1386,7 @@ header.event-header {
 
 .other-message .message-content {
   background: rgba(255, 255, 255, 0.1);
-  color: white;
+  color: #444;
   border-bottom-left-radius: 6px;
 }
 

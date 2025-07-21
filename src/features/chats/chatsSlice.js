@@ -2,7 +2,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { 
   sendMessage as sendMessageToFirebase,
-  subscribeToChat,
   getChatRooms 
 } from "../../services/firebase";
 
@@ -11,14 +10,16 @@ export const sendMessage = createAsyncThunk(
   "chats/sendMessage",
   async ({ eventId, chatId, message, senderName, senderId, senderType }, { rejectWithValue }) => {
     try {
-      await sendMessageToFirebase(eventId, chatId, {
+      const messageData = {
         date: Date.now(),
         message,
         name: senderName,
         team: senderType === "admin" ? null : senderId,
         type: senderType
-      });
-      return { chatId, message: { date: Date.now(), message, name: senderName, team: senderId, type: senderType } };
+      };
+      
+      await sendMessageToFirebase(eventId, chatId, messageData);
+      return { chatId, message: messageData };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -28,9 +29,9 @@ export const sendMessage = createAsyncThunk(
 // Thunk para obtener salas de chat
 export const fetchChatRooms = createAsyncThunk(
   "chats/fetchChatRooms",
-  async ({ eventId, teamId, isAdmin }, { rejectWithValue }) => {
+  async ({ eventId, teamId, isAdmin, teams }, { rejectWithValue }) => {
     try {
-      const rooms = await getChatRooms(eventId, teamId, isAdmin);
+      const rooms = await getChatRooms(eventId, teamId, isAdmin, teams);
       return rooms;
     } catch (error) {
       return rejectWithValue(error.message);
