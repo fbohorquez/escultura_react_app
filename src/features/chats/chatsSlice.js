@@ -2,7 +2,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { 
   sendMessage as sendMessageToFirebase,
-  subscribeToChat,
   getChatRooms 
 } from "../../services/firebase";
 
@@ -38,6 +37,24 @@ export const fetchChatRooms = createAsyncThunk(
   }
 );
 
+// Thunk para inicializar conexiones automáticas a todas las salas
+export const initializeChatConnections = createAsyncThunk(
+  "chats/initializeChatConnections",
+  async ({ eventId, teamId, isAdmin }, { rejectWithValue }) => {
+    try {
+      // Primero obtenemos las salas de chat
+      const rooms = await getChatRooms(eventId, teamId, isAdmin);
+      
+      // Luego inicializamos las conexiones automáticas
+      console.log(`[ChatSlice] Inicializando conexiones automáticas para ${rooms.length} salas`);
+      
+      return { rooms, eventId, teamId, isAdmin };
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 const chatsSlice = createSlice({
   name: "chats",
   initialState: {
@@ -46,7 +63,12 @@ const chatsSlice = createSlice({
     activeChat: null, // Chat actualmente abierto
     status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
     error: null,
-    sendingMessage: false
+    sendingMessage: false,
+    connections: {
+      status: "disconnected", // 'disconnected' | 'connecting' | 'connected' | 'error'
+      connectedRooms: [], // Lista de IDs de salas conectadas
+      lastConnectedAt: null
+    }
   },
   reducers: {
     setActiveChat(state, action) {
@@ -67,12 +89,40 @@ const chatsSlice = createSlice({
       state.rooms = action.payload;
       state.status = "succeeded";
     },
+    // Nuevos reducers para manejar conexiones
+    setConnectionStatus(state, action) {
+      const { status, connectedRooms } = action.payload;
+      state.connections.status = status;
+      if (connectedRooms) {
+        state.connections.connectedRooms = connectedRooms;
+      }
+      if (status === "connected") {
+        state.connections.lastConnectedAt = Date.now();
+      }
+    },
+    addConnectedRoom(state, action) {
+      const roomId = action.payload;
+      if (!state.connections.connectedRooms.includes(roomId)) {
+        state.connections.connectedRooms.push(roomId);
+      }
+    },
+    removeConnectedRoom(state, action) {
+      const roomId = action.payload;
+      state.connections.connectedRooms = state.connections.connectedRooms.filter(
+        id => id !== roomId
+      );
+    },
     clearChats(state) {
       state.rooms = [];
       state.messages = {};
       state.activeChat = null;
       state.status = "idle";
       state.error = null;
+      state.connections = {
+        status: "disconnected",
+        connectedRooms: [],
+        lastConnectedAt: null
+      };
     }
   },
   extraReducers: (builder) => {
@@ -99,6 +149,21 @@ const chatsSlice = createSlice({
       .addCase(fetchChatRooms.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
+      })
+      // Nuevos casos para inicialización de conexiones
+      .addCase(initializeChatConnections.pending, (state) => {
+        state.connections.status = "connecting";
+        state.error = null;
+      })
+      .addCase(initializeChatConnections.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.rooms = action.payload.rooms;
+        state.connections.status = "connected";
+        state.connections.lastConnectedAt = Date.now();
+      })
+      .addCase(initializeChatConnections.rejected, (state, action) => {
+        state.connections.status = "error";
+        state.error = action.payload;
       });
   },
 });
@@ -108,6 +173,9 @@ export const {
   setChatMessages, 
   addMessageToChat, 
   setChatRooms,
+  setConnectionStatus,
+  addConnectedRoom,
+  removeConnectedRoom,
   clearChats 
 } = chatsSlice.actions;
 

@@ -1537,7 +1537,7 @@ header.event-header {
   justify-content: center;
   padding: 60px 20px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.7);
+  color: #444;
 }
 
 .empty-state .empty-icon {
@@ -1568,4 +1568,8 @@ header.event-header {
   .chats-list {
     padding: 16px;
   }
+}
+img.photo-preview {
+  width: 100%;
+  margin-top: 8px;
 }

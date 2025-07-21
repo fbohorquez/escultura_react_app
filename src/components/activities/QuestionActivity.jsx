@@ -86,7 +86,7 @@ const QuestionActivity = ({ activity, onComplete, timeExpired }) => {
 			// Preguntas abiertas - requiere valoración manual
 			onComplete("pending_review", {
 				type: "open",
-				answers: openAnswers
+				data: openAnswers
 			});
 		}
 	};

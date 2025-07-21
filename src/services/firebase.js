@@ -265,12 +265,16 @@ export const subscribeToChat = (eventId, chatId, callback) => {
 export const getChatRooms = async (eventId, teamId, isAdmin) => {
 	const rooms = [];
 	
+	console.log(`[getChatRooms] Obteniendo salas para eventId: ${eventId}, teamId: ${teamId}, isAdmin: ${isAdmin}`);
+	
 	if (isAdmin) {
 		// El admin ve todos los chats admin_* y el grupo
 		try {
 			// Obtener el evento para acceder a los equipos
 			const eventData = await fetchInitialEvent(eventId);
 			const teams = eventData?.teams_data || [];
+			
+			console.log(`[getChatRooms] Admin - Equipos encontrados: ${teams.length}`);
 			
 			// Agregar sala de grupo
 			rooms.push({
@@ -282,6 +286,7 @@ export const getChatRooms = async (eventId, teamId, isAdmin) => {
 			
 			// Agregar salas admin con cada equipo
 			teams.forEach(team => {
+				console.log(`[getChatRooms] Admin - Agregando sala admin_${team.id} para equipo: ${team.name}`);
 				rooms.push({
 					id: `admin_${team.id}`,
 					name: team.name,
@@ -295,6 +300,8 @@ export const getChatRooms = async (eventId, teamId, isAdmin) => {
 	} else {
 		// Los equipos ven: grupo, su chat con admin, y chats con otros equipos
 		try {
+			console.log(`[getChatRooms] Equipo - Configurando salas para equipo ID: ${teamId}`);
+			
 			// Agregar sala de grupo
 			rooms.push({
 				id: "group",
@@ -313,14 +320,18 @@ export const getChatRooms = async (eventId, teamId, isAdmin) => {
 			
 			// Obtener otros equipos para chats team a team
 			const eventData = await fetchInitialEvent(eventId);
-			const teams = eventData?.teams || [];
+			const teams = eventData?.teams_data || [];
 			const otherTeams = teams.filter(team => team.id !== parseInt(teamId) && team.device !== "");
+			
+			console.log(`[getChatRooms] Equipo - Total equipos: ${teams.length}, Otros equipos activos: ${otherTeams.length}`);
 			
 			otherTeams.forEach(team => {
 				// Crear ID consistente para el chat (menor ID primero)
 				const chatId = parseInt(teamId) < team.id 
 					? `team_${teamId}_${team.id}` 
 					: `team_${team.id}_${teamId}`;
+				
+				console.log(`[getChatRooms] Equipo - Agregando sala ${chatId} para chat con: ${team.name}`);
 				
 				rooms.push({
 					id: chatId,
@@ -333,6 +344,8 @@ export const getChatRooms = async (eventId, teamId, isAdmin) => {
 			console.error("Error getting chat rooms for team:", error);
 		}
 	}
+	
+	console.log(`[getChatRooms] Total salas configuradas: ${rooms.length}`, rooms);
 	
 	return rooms;
 };

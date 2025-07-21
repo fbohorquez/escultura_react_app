@@ -133,7 +133,7 @@ const PhotoVideoActivity = ({ activity, onComplete, timeExpired }) => {
 			const event_path = "event_" + String(event.id);
 			const team_path = "team_" + String(selectedTeam.id);
 			const fileExtension = isVideo ? 'webm' : 'jpeg';
-			const file_name = `activity_${activity.id}_${timestamp}.${fileExtension}`;
+			const file_name = `activity_${activity.id}.${fileExtension}`;
 			const file_path = event_path + "@" + team_path + "@" + file_name;
 			
 			const uploadUrl = `/${file_path}/upload`;
@@ -156,12 +156,17 @@ const PhotoVideoActivity = ({ activity, onComplete, timeExpired }) => {
 						},
 					});
 					
+					// Construir la URL completa del archivo subido para guardar en data
+					const baseUrl = import.meta.env.VITE_API_BASE_URL.replace('/api', '');
+					const fileUrl = `${baseUrl}/uploads/events/event_${event.id}/team_${selectedTeam.id}/${file_name}`;
+					
 					// Completar actividad con éxito
 					onComplete(true, {
 						type: isVideo ? 'video' : 'photo',
 						path: file_path,
 						uploadedAt: timestamp,
-						source: 'camera'
+						source: 'camera',
+						data: fileUrl
 					});
 					
 				} catch (error) {
@@ -214,7 +219,7 @@ const PhotoVideoActivity = ({ activity, onComplete, timeExpired }) => {
 				const event_path = "event_" + String(event.id);
 				const team_path = "team_" + String(selectedTeam.id);
 				const fileExtension = file.type.split('/')[1] || (isVideo ? 'mp4' : 'jpg');
-				const file_name = `activity_${activity.id}_${timestamp}.${fileExtension}`;
+				const file_name = `activity_${activity.id}.${fileExtension}`;
 				const file_path = event_path + "@" + team_path + "@" + file_name;
 				
 				const uploadUrl = `/${file_path}/upload`;
@@ -231,13 +236,18 @@ const PhotoVideoActivity = ({ activity, onComplete, timeExpired }) => {
 					},
 				});
 				
+				// Construir la URL completa del archivo subido para guardar en data
+				const baseUrl = import.meta.env.VITE_API_BASE_URL.replace('/api', '');
+				const fileUrl = `${baseUrl}/uploads/events/event_${event.id}/team_${selectedTeam.id}/${file_name}`;
+				
 				// Completar actividad con éxito
 				onComplete(true, {
 					type: isVideo ? 'video' : 'photo',
 					path: file_path,
 					uploadedAt: timestamp,
 					originalFile: file.name,
-					source: 'upload'
+					source: 'upload',
+					data: fileUrl
 				});
 				
 			} catch (error) {

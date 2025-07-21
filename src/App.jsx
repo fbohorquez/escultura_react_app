@@ -4,6 +4,8 @@ import { Routes, Route } from "react-router-dom";
 import RouteListener from "./components/routeListener";
 import SubscriptionManager from "./components/subscriptionManager";
 import CacheEventAssets from "./components/cacheEventAssets";
+import ChatConnectionManager from "./components/ChatConnectionManager";
+import ChatConnectionStatus from "./components/ChatConnectionStatus";
 import Popup from "./components/popup";
 import NotificationContainer from "./components/notificationContainer";
 import DebugModeIndicator from "./components/DebugModeIndicator";
@@ -21,12 +23,16 @@ import ChatRoomPage from "./pages/chatRoomPage";
 import RankingPage from "./pages/rankingPage";
 import GadgetsPage from "./pages/gadgetsPage";
 import SessionControlPage from "./pages/sessionControlPage";
+import ValoratePage from "./pages/valoratePage";
+import ActivityValorate from "./components/ActivityValorate";
+import PhotoManagementPage from "./pages/photoManagementPage";
 
 import './styles/global.css';
 import './styles/fonts.css';
 import './styles/medias.css';
 import './styles/reset.css';
 import './styles/sessionControl.css';
+import './styles/valorate.css';
 
 function App() {
 	// Hook para verificar suspensión del evento
@@ -37,6 +43,7 @@ function App() {
 			<RouteListener />
 			<SubscriptionManager />
 			<CacheEventAssets />
+			<ChatConnectionManager />
 			<Popup />
 			<NotificationContainer />
 			<DebugModeIndicator />
@@ -53,6 +60,9 @@ function App() {
 				<Route path="/ranking/:eventId" element={<RankingPage />} />
 				<Route path="/gadgets/:eventId" element={<GadgetsPage />} />
 				<Route path="/admin/session-control" element={<SessionControlPage />} />
+				<Route path="/admin/photos/:eventId" element={<PhotoManagementPage />} />
+				<Route path="/admin/valorate/:eventId" element={<ValoratePage />} />
+				<Route path="/admin/valorate/:eventId/activity/:teamId/:activityId" element={<ActivityValorate />} />
 			</Routes>
 		</>
 	);
