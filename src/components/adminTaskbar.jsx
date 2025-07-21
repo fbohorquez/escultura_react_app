@@ -7,6 +7,9 @@ import { addToQueue } from "../features/popup/popupSlice";
 import { suspendEvent, reactivateEvent } from "../features/event/eventSlice";
 import iconAsignar from "../assets/icon_asignar.png";
 import iconSuspender from "../assets/icon_suspender.png";
+import iconPuntuar from "../assets/Puntuar.png";
+import iconResultados from "../assets/icon_resultados.png";
+import iconFoto from "../assets/icon_foto.png";
 
 const AdminTaskbar = () => {
 	const { t } = useTranslation();
@@ -17,6 +20,18 @@ const AdminTaskbar = () => {
 
 	const handleSessionControl = () => {
 		navigate("/admin/session-control");
+	};
+
+	const handleRanking = () => {
+		navigate(`/ranking/${event.id}`);
+	};
+
+	const handleValorateActivities = () => {
+		navigate(`/admin/valorate/${event.id}`);
+	};
+
+	const handlePhotoManagement = () => {
+		navigate(`/admin/photos/${event.id}`);
 	};
 
 	const handleSuspendToggle = () => {
@@ -72,22 +87,64 @@ const AdminTaskbar = () => {
 					<span className="admin-badge">{t("admin")}</span>
 					<span className="admin-label">{t("admin.mode")}</span>
 				</div>
-				
+
 				<div className="admin-tools">
-					<button 
+					<button
+						className="admin-tool-button"
+						onClick={handlePhotoManagement}
+						title={t("admin.photo_management", "Gestión de Fotos")}
+					>
+						<img
+							src={iconFoto}
+							alt={t("admin.photo_management", "Gestión de Fotos")}
+						/>
+					</button>
+					<button
+						className="admin-tool-button"
+						onClick={handleRanking}
+						title={t("admin.ranking", "Ver ranking")}
+					>
+						<img
+							src={iconResultados}
+							alt={t("admin.ranking", "Ver ranking")}
+						/>
+					</button>
+					<button
+						className="admin-tool-button"
+						onClick={handleValorateActivities}
+						title={t("admin.valorate_activities", "Valorar actividades")}
+					>
+						<img
+							src={iconPuntuar}
+							alt={t("admin.valorate_activities", "Valorar actividades")}
+						/>
+					</button>
+					<button
 						className="admin-tool-button"
 						onClick={handleSessionControl}
 						title={t("admin.session_control")}
 					>
 						<img src={iconAsignar} alt={t("admin.session_control")} />
 					</button>
-					
-					<button 
-						className={`admin-tool-button ${isSuspended ? 'admin-tool-button-active' : ''}`}
+					<button
+						className={`admin-tool-button ${
+							isSuspended ? "admin-tool-button-active" : ""
+						}`}
 						onClick={handleSuspendToggle}
-						title={isSuspended ? t("suspend.reactivate_title") : t("admin.suspend_event")}
+						title={
+							isSuspended
+								? t("suspend.reactivate_title")
+								: t("admin.suspend_event")
+						}
 					>
-						<img src={iconSuspender} alt={isSuspended ? t("suspend.reactivate_title") : t("admin.suspend_event")} />
+						<img
+							src={iconSuspender}
+							alt={
+								isSuspended
+									? t("suspend.reactivate_title")
+									: t("admin.suspend_event")
+							}
+						/>
 					</button>
 				</div>
 			</div>
@@ -96,3 +153,4 @@ const AdminTaskbar = () => {
 };
 
 export default AdminTaskbar;
+

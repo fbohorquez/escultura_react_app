@@ -1,6 +1,6 @@
 // src/features/activities/activitiesSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { updateTeam } from "../../services/firebase";
+import { updateTeamData } from "../teams/teamsSlice";
 import { getValorateValue } from "../../utils/activityValidation";
 import { addToQueue } from "../popup/popupSlice";
 
@@ -38,6 +38,7 @@ export const completeActivityWithSync = createAsyncThunk(
 					...activityItem,
 					complete: true,
 					complete_time: Math.floor(Date.now() / 1000),
+					data: media.data || null,
 					valorate: valorateValue
 				};
 			}
@@ -56,8 +57,8 @@ export const completeActivityWithSync = createAsyncThunk(
 			console.log(`✅ Sumando ${pointsToAdd} puntos al equipo ${team.name}. Total: ${changes.points}`);
 		}
 		
-		// Actualizar Firebase
-		await updateTeam(eventId, teamId, changes);
+		// Actualizar Firebase usando el thunk de teams para asegurar sincronización
+		await dispatch(updateTeamData({ eventId, teamId, changes })).unwrap();
 		
 		// Completar actividad localmente
 		dispatch(completeActivity({ activityId, success, media, timeTaken }));
