@@ -2,14 +2,17 @@
 import React, { useState, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { updateTeamData } from "../features/teams/teamsSlice";
 import { addToQueue } from "../features/popup/popupSlice";
-import "../styles/photoManagement.css";
+import BackgroundLayout from "./backgroundLayout";
+import BackButton from "./backButton";
+import "../styles/valorate.css";
 
 const ActivityValorate = () => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
+	const location = useLocation();
 	const dispatch = useDispatch();
 	const { eventId, teamId, activityId } = useParams();
 
@@ -18,6 +21,7 @@ const ActivityValorate = () => {
 
 
 	const teams = useSelector((state) => state.teams.items);
+	const event = useSelector((state) => state.event.event);
 
 	// Encontrar el equipo y la actividad
 	const { team, activity } = useMemo(() => {
@@ -40,9 +44,13 @@ const ActivityValorate = () => {
 	}, [isAlreadyValued, activity?.awarded_points]);
 
 	const handleBack = () => {
-		// Verificar si venimos de la página de gestión de fotos
-		const fromPhotos = window.location.pathname.includes('/admin/photos/');
-		if (fromPhotos) {
+		// Verificar si venimos de la página de gestión de fotos usando location.state
+		const fromPhotos = location.state?.from === 'photos';
+		
+		// Fallback: si no hay state, intentar detectar por URL como antes
+		const fallbackFromPhotos = !location.state && window.location.pathname.includes('/admin/photos/');
+		
+		if (fromPhotos || fallbackFromPhotos) {
 			navigate(`/admin/photos/${eventId}`);
 		} else {
 			navigate(`/admin/valorate/${eventId}`);
@@ -269,114 +277,143 @@ const ActivityValorate = () => {
 
 	if (!activity || !team) {
 		return (
-			<div className="activity-valorate error">
-				<h2>{t("valorate.not_found", "Actividad no encontrada")}</h2>
-				<button onClick={handleBack} className="btn btn-secondary">
-					{t("back", "Volver")}
-				</button>
-			</div>
+			<BackgroundLayout
+				title={t("valorate.not_found", "Actividad no encontrada")}
+			>
+				<BackButton onClick={handleBack} />
+				<div className="error-container">
+					<div className="error-content">
+						<h2>{t("valorate.not_found", "Actividad no encontrada")}</h2>
+						<p>{t("valorate.not_found_desc", "No se pudo encontrar la actividad o el equipo solicitado")}</p>
+					</div>
+				</div>
+			</BackgroundLayout>
 		);
 	}
 
 	return (
-		<div className="activity-valorate">
-			<div className="valorate-header">
-				<div className="activity-info">
-					<h2 className="activity-title">{activity.name}</h2>
-					<div className="team-info">
-						<span className="team-label">{t("valorate.team", "Equipo")}:</span>
-						<span className="team-name">{team.name}</span>
-					</div>
+		<BackgroundLayout
+			title={activity.name}
+			subtitle={`${t("valorate.team", "Equipo")}: ${team.name}`}
+		>
+			<BackButton onClick={handleBack} />
+			
+			{/* Indicador de color del evento */}
+			{event?.color && (
+				<div style={{
+					position: "fixed",
+					top: "10px",
+					right: "10px",
+					display: "flex",
+					alignItems: "center",
+					gap: "8px",
+					background: "rgba(255, 255, 255, 0.9)",
+					padding: "6px 12px",
+					borderRadius: "20px",
+					fontSize: "0.8rem",
+					fontWeight: "500",
+					color: "#666",
+					zIndex: 1000,
+					boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+				}}>
+					<span>Color del evento:</span>
+					<div style={{
+						width: "16px",
+						height: "16px",
+						borderRadius: "50%",
+						backgroundColor: event.color,
+						border: "1px solid #ccc"
+					}}></div>
+					<span style={{ fontSize: "0.7rem", color: "#999" }}>{event.color}</span>
 				</div>
-				<button onClick={handleBack} className="btn-close">
-					<span>&times;</span>
-				</button>
-			</div>
+			)}
+			
+			<div className="valorate-container">
+				<div className="valorate-content">
+					{renderActivityContent()}
 
-			<div className="valorate-content">
-				{renderActivityContent()}
-
-				<div className="valorate-form">
-					{isAlreadyValued ? (
-						<div className="form-section">
-							<h4>{t("valorate.already_valued", "Actividad Ya Valorada")}</h4>
-							<div className="already-valued-info">
-								<p className="form-description">
-									{t("valorate.edit_valued_desc", "Esta actividad ya ha sido valorada. Puedes modificar los puntos otorgados si es necesario.")}
-								</p>
-								<div className="valued-status">
-									<span className="status-badge valued">
-										✅ {t("valorate.reviewed", "Revisada")}
-									</span>
+					<div className="valorate-form">
+						{isAlreadyValued ? (
+							<div className="form-section">
+								<h4>{t("valorate.already_valued", "Actividad Ya Valorada")}</h4>
+								<div className="already-valued-info">
+									<p className="form-description">
+										{t("valorate.edit_valued_desc", "Esta actividad ya ha sido valorada. Puedes modificar los puntos otorgados si es necesario.")}
+									</p>
+									<div className="valued-status">
+										<span className="status-badge valued">
+											✅ {t("valorate.reviewed", "Revisada")}
+										</span>
+									</div>
+									<div className="points-input-group">
+										<label htmlFor="points">{t("valorate.awarded_points", "Puntos Otorgados")}:</label>
+										<input
+											type="number"
+											id="points"
+											min="0"
+											value={points}
+											onChange={(e) => setPoints(e.target.value)}
+											placeholder="0"
+											disabled={isSubmitting}
+											className="points-input"
+										/>
+										<span className="suggested-points">
+											{t("valorate.current_points", "Puntos actuales")}: {activity.awarded_points || 0}
+										</span>
+									</div>
 								</div>
+							</div>
+						) : (
+							<div className="form-section">
+								<h4>{t("valorate.award_points", "Otorgar Puntos")}</h4>
+								<p className="form-description">
+									{t("valorate.points_description", "Introduce los puntos a otorgar al equipo por esta actividad (0 para marcar como revisada sin puntos)")}
+								</p>
+								
 								<div className="points-input-group">
-									<label htmlFor="points">{t("valorate.awarded_points", "Puntos Otorgados")}:</label>
+									<label htmlFor="points">{t("valorate.points", "Puntos")}:</label>
 									<input
 										type="number"
 										id="points"
 										min="0"
 										value={points}
 										onChange={(e) => setPoints(e.target.value)}
-										placeholder="0"
+										placeholder={activity.points?.toString() || "0"}
 										disabled={isSubmitting}
 										className="points-input"
 									/>
 									<span className="suggested-points">
-										{t("valorate.current_points", "Puntos actuales")}: {activity.awarded_points || 0}
+										{t("valorate.suggested", "Sugerido")}: {activity.points || 0}
 									</span>
 								</div>
 							</div>
-						</div>
-					) : (
-						<div className="form-section">
-							<h4>{t("valorate.award_points", "Otorgar Puntos")}</h4>
-							<p className="form-description">
-								{t("valorate.points_description", "Introduce los puntos a otorgar al equipo por esta actividad (0 para marcar como revisada sin puntos)")}
-							</p>
-							
-							<div className="points-input-group">
-								<label htmlFor="points">{t("valorate.points", "Puntos")}:</label>
-								<input
-									type="number"
-									id="points"
-									min="0"
-									value={points}
-									onChange={(e) => setPoints(e.target.value)}
-									placeholder={activity.points?.toString() || "0"}
-									disabled={isSubmitting}
-									className="points-input"
-								/>
-								<span className="suggested-points">
-									{t("valorate.suggested", "Sugerido")}: {activity.points || 0}
-								</span>
-							</div>
-						</div>
-					)}
+						)}
 
-					<div className="form-actions">
-						<button 
-							onClick={handleBack}
-							className="btn btn-secondary"
-							disabled={isSubmitting}
-						>
-							{t("back", "Volver")}
-						</button>
-						<button 
-							onClick={handleSubmit}
-							className="btn btn-primary"
-							disabled={isSubmitting}
-						>
-							{isSubmitting 
-								? t("valorate.submitting", "Enviando...") 
-								: isAlreadyValued 
-									? t("valorate.update", "Actualizar Puntos")
-									: t("valorate.submit", "Valorar Actividad")
-							}
-						</button>
+						<div className="form-actions">
+							<button 
+								onClick={handleBack}
+								className="btn btn-secondary"
+								disabled={isSubmitting}
+							>
+								{t("back", "Volver")}
+							</button>
+							<button 
+								onClick={handleSubmit}
+								className="btn btn-primary"
+								disabled={isSubmitting}
+							>
+								{isSubmitting 
+									? t("valorate.submitting", "Enviando...") 
+									: isAlreadyValued 
+										? t("valorate.update", "Actualizar Puntos")
+										: t("valorate.submit", "Valorar Actividad")
+								}
+							</button>
+						</div>
 					</div>
 				</div>
 			</div>
-		</div>
+		</BackgroundLayout>
 	);
 };
 

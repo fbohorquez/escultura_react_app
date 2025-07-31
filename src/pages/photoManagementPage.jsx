@@ -44,7 +44,9 @@ const PhotoManagementPage = () => {
 	}, [teams]);
 
 	const handleActivityClick = (activity) => {
-		navigate(`/admin/valorate/${eventId}/activity/${activity.teamId}/${activity.id}`);
+		navigate(`/admin/valorate/${eventId}/activity/${activity.teamId}/${activity.id}`, {
+			state: { from: 'photos' }
+		});
 	};
 
 	const formatCompletedTime = (timestamp) => {

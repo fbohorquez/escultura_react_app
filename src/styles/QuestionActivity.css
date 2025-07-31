@@ -37,7 +37,7 @@
 }
 
 .question-type {
-  background: rgb(192, 0, 31);
+  background: var(--primary-color);
   color: white;
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
@@ -50,7 +50,7 @@
   font-family: 'Courier New', monospace;
   font-size: 1.2rem;
   font-weight: bold;
-  color: rgb(192, 0, 31);
+  color: var(--primary-color);
 }
 
 .question-content {
@@ -74,7 +74,7 @@
   padding: 1rem;
   background: #f8f9fa;
   border-radius: 8px;
-  border-left: 4px solid rgb(192, 0, 31);
+  border-left: 4px solid var(--primary-color);
 }
 
 /* Test Questions Styles */
@@ -99,13 +99,13 @@
 }
 
 .answer-option:hover {
-  border-color: rgb(192, 0, 31);
+  border-color: var(--primary-color);
   background: #fff5f5;
 }
 
 .answer-option.selected {
-  border-color: rgb(192, 0, 31);
-  background: rgba(192, 0, 31, 0.1);
+  border-color: var(--primary-color);
+  background: var(--primary-color-alpha-1);
 }
 
 .answer-option:disabled {
@@ -119,7 +119,7 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: rgb(192, 0, 31);
+  background: var(--primary-color);
   color: white;
   border-radius: 50%;
   font-weight: bold;
@@ -129,7 +129,7 @@
 
 .answer-option.selected .answer-letter {
   background: white;
-  color: rgb(192, 0, 31);
+  color: var(--primary-color);
 }
 
 .answer-text {
@@ -157,8 +157,8 @@
 
 .open-answer-input:focus {
   outline: none;
-  border-color: rgb(192, 0, 31);
-  box-shadow: 0 0 0 3px rgba(192, 0, 31, 0.1);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-color-alpha-1);
 }
 
 .open-answer-input:disabled {
@@ -185,14 +185,14 @@
 }
 
 .btn-primary {
-  background: rgb(192, 0, 31);
+  background: var(--primary-color);
   color: white;
-  border: 2px solid rgb(192, 0, 31);
+  border: 2px solid var(--primary-color);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #b8001c;
-  border-color: #b8001c;
+  background: var(--primary-color-darker);
+  border-color: var(--primary-color-darker);
 }
 
 .btn-primary:disabled {

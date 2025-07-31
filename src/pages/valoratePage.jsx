@@ -80,7 +80,9 @@ const ValoratePage = () => {
 	}, [teamsDataHash]);
 
 	const handleActivityClick = (activity) => {
-		navigate(`/admin/valorate/${eventId}/activity/${activity.teamId}/${activity.id}`);
+		navigate(`/admin/valorate/${eventId}/activity/${activity.teamId}/${activity.id}`, {
+			state: { from: 'valorate' }
+		});
 	};
 
 	const formatCompletedTime = (timestamp) => {
