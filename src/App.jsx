@@ -6,6 +6,7 @@ import SubscriptionManager from "./components/subscriptionManager";
 import CacheEventAssets from "./components/cacheEventAssets";
 import ChatConnectionManager from "./components/ChatConnectionManager";
 import ChatConnectionStatus from "./components/ChatConnectionStatus";
+import GadgetDetector from "./components/GadgetDetector";
 import Popup from "./components/popup";
 import NotificationContainer from "./components/notificationContainer";
 import DebugModeIndicator from "./components/DebugModeIndicator";
@@ -33,6 +34,7 @@ import './styles/medias.css';
 import './styles/reset.css';
 import './styles/sessionControl.css';
 import './styles/valorate.css';
+import './styles/gadgets.css';
 
 function App() {
 	// Hook para verificar suspensión del evento
@@ -44,6 +46,7 @@ function App() {
 			<SubscriptionManager />
 			<CacheEventAssets />
 			<ChatConnectionManager />
+			<GadgetDetector />
 			<Popup />
 			<NotificationContainer />
 			<DebugModeIndicator />

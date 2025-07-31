@@ -27,7 +27,7 @@ const sessionSlice = createSlice({
 		},
 		updateSelectedTeam(state, action) {
 			if (state.selectedTeam && state.selectedTeam.id === action.payload.id) {
-				console.log('✅ selectedTeam updated:', action.payload.id, action.payload.activities_data?.length);
+				console.log('✅ selectedTeam updated:', action.payload.id, 'gadget:', action.payload.gadget);
 				state.selectedTeam = { ...state.selectedTeam, ...action.payload };
 			}
 		},

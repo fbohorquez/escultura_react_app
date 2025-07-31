@@ -12,6 +12,24 @@ import { setTeams } from "../features/teams/teamsSlice";
 import { setAdmin } from "../features/admin/adminSlice";
 import { clearSession, updateSelectedTeam } from "../features/session/sessionSlice";
 
+// Función para comparar objetos recursivamente
+const compareRecursive = (obj1, obj2) => {
+	if (Array.isArray(obj1) && Array.isArray(obj2)) {
+		if (obj1.length !== obj2.length) return false;
+		return obj1.every((item, index) => compareRecursive(item, obj2[index]));
+	} else if (typeof obj1 === "object" && typeof obj2 === "object") {
+		const keys1 = Object.keys(obj1);
+		const keys2 = Object.keys(obj2);
+		if (keys1.length !== keys2.length) return false;
+		return keys1.every((key) => {
+			if (!keys2.includes(key)) return false;
+			return compareRecursive(obj1[key], obj2[key]);
+		});
+	} else {
+		return obj1 === obj2;
+	}
+};
+
 export default function SubscriptionManager() {
 	const dispatch = useDispatch();
 	const eventId = useSelector((s) => s.event.id);
@@ -19,24 +37,6 @@ export default function SubscriptionManager() {
   const refresh = useSelector((s) => s.session.refresh);
 	const sessionToken = useSelector((s) => s.session.token);
 	const selectedTeam = useSelector((s) => s.session.selectedTeam);
-	
-
-  let compareRecursive = (obj1, obj2) => {
-		if (Array.isArray(obj1) && Array.isArray(obj2)) {
-			if (obj1.length !== obj2.length) return false;
-			return obj1.every((item, index) => compareRecursive(item, obj2[index]));
-		} else if (typeof obj1 === "object" && typeof obj2 === "object") {
-			const keys1 = Object.keys(obj1);
-			const keys2 = Object.keys(obj2);
-			if (keys1.length !== keys2.length) return false;
-			return keys1.every((key) => {
-				if (!keys2.includes(key)) return false;
-				return compareRecursive(obj1[key], obj2[key]);
-			});
-		} else {
-			return obj1 === obj2;
-		}
-	};
 
 	useEffect(() => {
 		if (!eventId) return;
@@ -52,7 +52,12 @@ export default function SubscriptionManager() {
 		const unsubTeams = [];
 		teams.forEach((team) => {
 			const unsubTeam = subscribeTeam(eventId, team.id, (teamData) => {
-				console.log('🔄 Team update received:', teamData.id, teamData.activities_data?.length);
+				console.log('🔄 Team update received:', {
+					id: teamData.id, 
+					name: teamData.name, 
+					gadget: teamData.gadget,
+					gadgetType: typeof teamData.gadget
+				});
 				const currentItems = teams;
 				const teamExists = currentItems.some((item) => item.id === teamData.id);
 				if (!teamExists) {
@@ -73,6 +78,11 @@ export default function SubscriptionManager() {
 					
 					// NUEVO: Sincronizar selectedTeam si es el mismo equipo
 					if (selectedTeam && teamData.id === selectedTeam.id) {
+						console.log('🔄 Updating selectedTeam:', {
+							oldGadget: selectedTeam.gadget,
+							newGadget: teamData.gadget,
+							changed: !compareRecursive(teamData, selectedTeam)
+						});
 						if (!compareRecursive(teamData, selectedTeam)) {
 							dispatch(updateSelectedTeam(teamData));
 						}					

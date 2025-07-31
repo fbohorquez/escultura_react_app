@@ -342,6 +342,150 @@ export const getChatRooms = async (eventId, teamId, isAdmin, teams = []) => {
 	return rooms;
 };
 
+// === FUNCIONES DE GADGETS ===
+
+/**
+ * Definición de gadgets disponibles en el sistema
+ */
+export const GADGETS = {
+	rotate_screen: {
+		id: "rotate_screen",
+		name: "Rotar Pantalla",
+		description: "Rota la pantalla del equipo objetivo",
+		icon: "🔄",
+		cooldownMinutes: 5
+	},
+	susto: {
+		id: "susto",
+		name: "Susto",
+		description: "Provoca un efecto de susto en el equipo objetivo",
+		icon: "😱",
+		cooldownMinutes: 10
+	}
+};
+
+/**
+ * Envía un gadget a un equipo específico
+ * @param {string|number} eventId
+ * @param {string|number} fromTeamId - ID del equipo que envía el gadget
+ * @param {string|number} toTeamId - ID del equipo que recibe el gadget
+ * @param {string} gadgetId - ID del gadget a enviar
+ * @returns {Promise<boolean>} true si se envió correctamente, false si hay restricciones
+ */
+export const sendGadget = async (eventId, fromTeamId, toTeamId, gadgetId) => {
+	const gadgetLogRef = doc(db, "events", `event_${eventId}`, "gadget_log", `log_${fromTeamId}`);
+	const targetTeamRef = doc(db, "events", `event_${eventId}`, "teams", `team_${toTeamId}`);
+	
+	try {
+		// Verificar restricciones de cooldown
+		const logDoc = await getDoc(gadgetLogRef);
+		const now = Date.now();
+		
+		if (logDoc.exists()) {
+			const logData = logDoc.data();
+			const lastGadgetTime = logData.lastGadgetTime || 0;
+			const lastTargetTeam = logData.lastTargetTeam;
+			const cooldownMinutes = GADGETS[gadgetId]?.cooldownMinutes || 5;
+			
+			// Verificar cooldown global del equipo
+			if (false && now - lastGadgetTime < cooldownMinutes * 60 * 1000) {
+				console.log('Team is in cooldown period');
+				return false;
+			}
+			
+			// Verificar que no sea el mismo equipo objetivo consecutivo
+			if (false && lastTargetTeam === toTeamId) {
+				console.log('Cannot send gadget to the same team consecutively');
+				return false;
+			}
+		}
+		
+		// Actualizar el gadget del equipo objetivo
+		await updateDoc(targetTeamRef, {
+			gadget: gadgetId
+		});
+		
+		console.log(`🚀 Firebase: Gadget ${gadgetId} sent from team ${fromTeamId} to team ${toTeamId}`);
+		
+		// Registrar el envío en el log
+		await setDoc(gadgetLogRef, {
+			lastGadgetTime: now,
+			lastTargetTeam: toTeamId,
+			totalGadgetsSent: (logDoc.exists() ? (logDoc.data().totalGadgetsSent || 0) + 1 : 1)
+		});
+		
+		console.log(`Gadget ${gadgetId} sent from team ${fromTeamId} to team ${toTeamId}`);
+		return true;
+		
+	} catch (error) {
+		console.error("Error sending gadget:", error);
+		throw error;
+	}
+};
+
+/**
+ * Marca un gadget como completado para un equipo
+ * @param {string|number} eventId
+ * @param {string|number} teamId
+ */
+export const completeGadget = async (eventId, teamId) => {
+	const teamRef = doc(db, "events", `event_${eventId}`, "teams", `team_${teamId}`);
+	
+	try {
+		await updateDoc(teamRef, {
+			gadget: "0"
+		});
+		console.log(`Gadget completed for team ${teamId}`);
+	} catch (error) {
+		console.error("Error completing gadget:", error);
+		throw error;
+	}
+};
+
+/**
+ * Obtiene la información de cooldown de un equipo
+ * @param {string|number} eventId
+ * @param {string|number} teamId
+ * @returns {Promise<Object>} Información de cooldown
+ */
+export const getGadgetCooldown = async (eventId, teamId) => {
+	const gadgetLogRef = doc(db, "events", `event_${eventId}`, "gadget_log", `log_${teamId}`);
+	
+	try {
+		const logDoc = await getDoc(gadgetLogRef);
+		const now = Date.now();
+		
+		if (!logDoc.exists()) {
+			return {
+				canSendGadget: true,
+				remainingCooldown: 0,
+				lastTargetTeam: null
+			};
+		}
+		
+		const logData = logDoc.data();
+		const lastGadgetTime = logData.lastGadgetTime || 0;
+		const lastTargetTeam = logData.lastTargetTeam;
+		const cooldownTime = 5 * 60 * 1000; // 5 minutos por defecto
+		
+		const remainingCooldown = Math.max(0, cooldownTime - (now - lastGadgetTime));
+		
+		return {
+			canSendGadget: remainingCooldown === 0,
+			remainingCooldown,
+			lastTargetTeam
+		};
+		
+	} catch (error) {
+		console.error("Error getting gadget cooldown:", error);
+		return {
+			canSendGadget: false,
+			remainingCooldown: 0,
+			lastTargetTeam: null
+		};
+	}
+};
+
 
 
 

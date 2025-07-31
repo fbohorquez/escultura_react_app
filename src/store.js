@@ -21,6 +21,7 @@ import sessionReducer from "./features/session/sessionSlice";
 import popupReducer from "./features/popup/popupSlice";
 import notificationReducer from "./features/notification/notificationSlice";
 import chatsReducer from "./features/chats/chatsSlice";
+import gadgetsReducer from "./features/gadgets/gadgetsSlice";
 
 import { firebaseSyncMiddleware } from "./services/firebase";
 
@@ -33,7 +34,8 @@ const rootReducer = combineReducers({
   session: sessionReducer,
   popup: popupReducer,
   notification: notificationReducer,
-  chats: chatsReducer
+  chats: chatsReducer,
+  gadgets: gadgetsReducer
 });
 
 const persistConfig = {
