@@ -11,6 +11,7 @@ import NotificationContainer from "./components/notificationContainer";
 import DebugModeIndicator from "./components/DebugModeIndicator";
 import DebugWelcome from "./components/DebugWelcome";
 import { useEventSuspensionCheck } from "./hooks/useEventSuspensionCheck";
+import { useTheme } from "./hooks/useTheme";
 
 import WelcomePage from "./pages/welcomePage";
 import EventsPage from "./pages/eventsPage";
@@ -26,6 +27,7 @@ import SessionControlPage from "./pages/sessionControlPage";
 import ValoratePage from "./pages/valoratePage";
 import ActivityValorate from "./components/ActivityValorate";
 import PhotoManagementPage from "./pages/photoManagementPage";
+import ThemeTestPage from "./pages/themeTestPage";
 
 import './styles/global.css';
 import './styles/fonts.css';
@@ -37,6 +39,9 @@ import './styles/valorate.css';
 function App() {
 	// Hook para verificar suspensión del evento
 	useEventSuspensionCheck();
+	
+	// Hook para aplicar el tema de colores basado en el evento
+	useTheme();
 
 	return (
 		<>
@@ -63,6 +68,7 @@ function App() {
 				<Route path="/admin/photos/:eventId" element={<PhotoManagementPage />} />
 				<Route path="/admin/valorate/:eventId" element={<ValoratePage />} />
 				<Route path="/admin/valorate/:eventId/activity/:teamId/:activityId" element={<ActivityValorate />} />
+				<Route path="/theme-test" element={<ThemeTestPage />} />
 			</Routes>
 		</>
 	);

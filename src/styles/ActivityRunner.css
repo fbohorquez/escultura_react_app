@@ -188,16 +188,16 @@
   align-items: center;
   justify-content: flex-end;
   padding: 0.5rem 1rem;
-  background: rgba(192, 0, 31, 0.1);
+  background: var(--primary-color-alpha-1);
   border-radius: 20px;
-  border: 2px solid rgba(192, 0, 31, 0.3);
+  border: 2px solid var(--primary-color-alpha-3);
   flex: 1;
 }
 
 .time-left {
   font-size: 1.5rem;
   font-weight: bold;
-  color: rgb(192, 0, 31);
+  color: var(--primary-color);
   font-family: 'Courier New', monospace;
 }
 
@@ -356,7 +356,7 @@
 }
 
 .activity-image-thumbnail:hover {
-  border-color: rgb(192, 0, 31);
+  border-color: var(--primary-color);
   transform: scale(1.05);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
@@ -517,7 +517,7 @@
 .stat-value {
   font-size: 1.2rem;
   font-weight: bold;
-  color: rgb(192, 0, 31);
+  color: var(--primary-color);
 }
 
 .result-actions {

@@ -8,6 +8,8 @@ import {
   setChatMessages 
 } from "../features/chats/chatsSlice";
 import { subscribeToChat } from "../services/firebase";
+import BackgroundLayout from "../components/backgroundLayout";
+import BackButton from "../components/backButton";
 
 const ChatRoomPage = () => {
   const { t } = useTranslation();
@@ -114,80 +116,81 @@ const ChatRoomPage = () => {
     return t("chats.chat");
   };
 
+  const getChatSubtitle = () => {
+    if (activeChat?.description) {
+      return activeChat.description;
+    }
+    return "";
+  };
+
+  const handleBack = () => {
+    console.log('Navigating back to chats list');
+    navigate(`/event/${eventId}/chats`);
+  };
+
   return (
-    <div className="page chat-room-page">
-      <div className="chat-header">
-        <button 
-          className="back-btn" 
-          onClick={() => {
-            console.log('Navigating back to chats list');
-            navigate(`/event/${eventId}/chats`);
-          }}
-        >
-          ←
-        </button>
-        <div className="chat-title">
-          <h1>{getChatTitle()}</h1>
-          {activeChat?.description && (
-            <p className="chat-subtitle">{activeChat.description}</p>
-          )}
-        </div>
-      </div>
+    <BackgroundLayout 
+      title={getChatTitle()} 
+      subtitle={getChatSubtitle()}
+    >
+      <BackButton onClick={handleBack} />
       
-      <div className="chat-messages">
-        {chatMessages.length === 0 ? (
-          <div className="empty-chat">
-            <div className="empty-icon">💬</div>
-            <p>{t("chats.no_messages")}</p>
-            <small>{t("chats.start_conversation")}</small>
-          </div>
-        ) : (
-          <div className="messages-list">
-            {chatMessages.map((message, index) => (
-              <div 
-                key={index} 
-                className={`message ${isMyMessage(message) ? 'my-message' : 'other-message'}`}
-              >
-                <div className="message-content">
-                  {!isMyMessage(message) && (
-                    <div className="message-sender">
-                      {getMessageSenderName(message)}
+      <div className="chat-container">
+        <div className="chat-messages">
+          {chatMessages.length === 0 ? (
+            <div className="empty-chat">
+              <div className="empty-icon">💬</div>
+              <p>{t("chats.no_messages")}</p>
+              <small>{t("chats.start_conversation")}</small>
+            </div>
+          ) : (
+            <div className="messages-list">
+              {chatMessages.map((message, index) => (
+                <div 
+                  key={index} 
+                  className={`message ${isMyMessage(message) ? 'my-message' : 'other-message'}`}
+                >
+                  <div className="message-content">
+                    {!isMyMessage(message) && (
+                      <div className="message-sender">
+                        {getMessageSenderName(message)}
+                      </div>
+                    )}
+                    <div className="message-text">
+                      {message.message}
                     </div>
-                  )}
-                  <div className="message-text">
-                    {message.message}
-                  </div>
-                  <div className="message-time">
-                    {formatMessageTime(message.date)}
+                    <div className="message-time">
+                      {formatMessageTime(message.date)}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
-      </div>
-      
-      <form className="chat-input-form" onSubmit={handleSendMessage}>
-        <div className="input-container">
-          <input
-            type="text"
-            value={messageText}
-            onChange={(e) => setMessageText(e.target.value)}
-            placeholder={t("chats.type_message")}
-            className="message-input"
-            disabled={sendingMessage}
-          />
-          <button 
-            type="submit" 
-            className="send-button"
-            disabled={!messageText.trim() || sendingMessage}
-          >
-            {sendingMessage ? "..." : "➤"}
-          </button>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
         </div>
-      </form>
-    </div>
+        
+        <form className="chat-input-form" onSubmit={handleSendMessage}>
+          <div className="input-container">
+            <input
+              type="text"
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              placeholder={t("chats.type_message")}
+              className="message-input"
+              disabled={sendingMessage}
+            />
+            <button 
+              type="submit" 
+              className="send-button"
+              disabled={!messageText.trim() || sendingMessage}
+            >
+              {sendingMessage ? "..." : "➤"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </BackgroundLayout>
   );
 };
 

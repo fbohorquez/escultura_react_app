@@ -83,11 +83,6 @@ const AdminTaskbar = () => {
 	return (
 		<div className="admin-taskbar">
 			<div className="admin-taskbar-content">
-				<div className="admin-indicator">
-					<span className="admin-badge">{t("admin")}</span>
-					<span className="admin-label">{t("admin.mode")}</span>
-				</div>
-
 				<div className="admin-tools">
 					<button
 						className="admin-tool-button"
