@@ -160,6 +160,26 @@ export const updateTeam = async (eventId, teamId, partial) => {
 	await updateDoc(ref, partial);
 };
 
+/**
+ * Actualiza el estado de actividad activa para un equipo
+ * @param {string|number} eventId
+ * @param {string|number} teamId
+ * @param {boolean} isActivityActive
+ */
+export const updateTeamActivityStatus = async (eventId, teamId, isActivityActive) => {
+	const teamRef = doc(db, "events", `event_${eventId}`, "teams", `team_${teamId}`);
+	
+	try {
+		await updateDoc(teamRef, {
+			isActivityActive: isActivityActive
+		});
+		console.log(`Team ${teamId} activity status updated: ${isActivityActive}`);
+	} catch (error) {
+		console.error("Error updating team activity status:", error);
+		throw error;
+	}
+};
+
 
 
 
@@ -377,26 +397,48 @@ export const sendGadget = async (eventId, fromTeamId, toTeamId, gadgetId) => {
 	const targetTeamRef = doc(db, "events", `event_${eventId}`, "teams", `team_${toTeamId}`);
 	
 	try {
-		// Verificar restricciones de cooldown
-		const logDoc = await getDoc(gadgetLogRef);
-		const now = Date.now();
+		// Los administradores pueden enviar gadgets sin restricciones
+		const isAdmin = fromTeamId === "admin";
 		
-		if (logDoc.exists()) {
-			const logData = logDoc.data();
-			const lastGadgetTime = logData.lastGadgetTime || 0;
-			const lastTargetTeam = logData.lastTargetTeam;
-			const cooldownMinutes = GADGETS[gadgetId]?.cooldownMinutes || 5;
+		if (!isAdmin) {
+			// Obtener configuración de los parámetros de entorno (solo para equipos normales)
+			const gadgetTimeout = parseInt(import.meta.env.VITE_GADGET_TIMEOUT) || 30000; // ms
+			const allowSameTeam = import.meta.env.VITE_GADGET_SAME_TEAM === 'true';
+			const preventActivity = import.meta.env.VITE_GADGET_PREVENT_ACTIVITY === 'true';
 			
-			// Verificar cooldown global del equipo
-			if (false && now - lastGadgetTime < cooldownMinutes * 60 * 1000) {
-				console.log('Team is in cooldown period');
-				return false;
+			// Verificar si el equipo objetivo está haciendo una actividad
+			if (preventActivity) {
+				const targetTeamDoc = await getDoc(targetTeamRef);
+				if (targetTeamDoc.exists()) {
+					const targetTeamData = targetTeamDoc.data();
+					// Verificar si hay una actividad activa
+					if (targetTeamData.isActivityActive) {
+						console.log('Target team is currently doing an activity, gadget prevented');
+						return false;
+					}
+				}
 			}
 			
-			// Verificar que no sea el mismo equipo objetivo consecutivo
-			if (false && lastTargetTeam === toTeamId) {
-				console.log('Cannot send gadget to the same team consecutively');
-				return false;
+			// Verificar restricciones de cooldown
+			const logDoc = await getDoc(gadgetLogRef);
+			const now = Date.now();
+			
+			if (logDoc.exists()) {
+				const logData = logDoc.data();
+				const lastGadgetTime = logData.lastGadgetTime || 0;
+				const lastTargetTeam = logData.lastTargetTeam;
+				
+				// Verificar cooldown global del equipo
+				if (now - lastGadgetTime < gadgetTimeout) {
+					console.log('Team is in cooldown period');
+					return false;
+				}
+				
+				// Verificar que no sea el mismo equipo objetivo consecutivo
+				if (!allowSameTeam && lastTargetTeam === toTeamId) {
+					console.log('Cannot send gadget to the same team consecutively');
+					return false;
+				}
 			}
 		}
 		
@@ -407,12 +449,16 @@ export const sendGadget = async (eventId, fromTeamId, toTeamId, gadgetId) => {
 		
 		console.log(`🚀 Firebase: Gadget ${gadgetId} sent from team ${fromTeamId} to team ${toTeamId}`);
 		
-		// Registrar el envío en el log
-		await setDoc(gadgetLogRef, {
-			lastGadgetTime: now,
-			lastTargetTeam: toTeamId,
-			totalGadgetsSent: (logDoc.exists() ? (logDoc.data().totalGadgetsSent || 0) + 1 : 1)
-		});
+		// Registrar el envío en el log (incluso para administradores para estadísticas)
+		if (!isAdmin) {
+			const logDoc = await getDoc(gadgetLogRef);
+			const now = Date.now();
+			await setDoc(gadgetLogRef, {
+				lastGadgetTime: now,
+				lastTargetTeam: toTeamId,
+				totalGadgetsSent: (logDoc.exists() ? (logDoc.data().totalGadgetsSent || 0) + 1 : 1)
+			});
+		}
 		
 		console.log(`Gadget ${gadgetId} sent from team ${fromTeamId} to team ${toTeamId}`);
 		return true;
@@ -449,6 +495,15 @@ export const completeGadget = async (eventId, teamId) => {
  * @returns {Promise<Object>} Información de cooldown
  */
 export const getGadgetCooldown = async (eventId, teamId) => {
+	// Los administradores no tienen cooldown
+	if (teamId === "admin") {
+		return {
+			canSendGadget: true,
+			remainingCooldown: 0,
+			lastTargetTeam: null
+		};
+	}
+	
 	const gadgetLogRef = doc(db, "events", `event_${eventId}`, "gadget_log", `log_${teamId}`);
 	
 	try {
@@ -466,9 +521,11 @@ export const getGadgetCooldown = async (eventId, teamId) => {
 		const logData = logDoc.data();
 		const lastGadgetTime = logData.lastGadgetTime || 0;
 		const lastTargetTeam = logData.lastTargetTeam;
-		const cooldownTime = 5 * 60 * 1000; // 5 minutos por defecto
 		
-		const remainingCooldown = Math.max(0, cooldownTime - (now - lastGadgetTime));
+		// Usar el timeout configurado en el .env
+		const gadgetTimeout = parseInt(import.meta.env.VITE_GADGET_TIMEOUT) || 30000; // ms
+		
+		const remainingCooldown = Math.max(0, gadgetTimeout - (now - lastGadgetTime));
 		
 		return {
 			canSendGadget: remainingCooldown === 0,

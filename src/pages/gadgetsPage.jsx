@@ -103,7 +103,34 @@ const GadgetsPage = () => {
 
 				<div className="gadgets-intro">
 					<h2>{t("gadgets.new_system_title", "Sistema de Gadgets")}</h2>
-					<p>{t("gadgets.new_description", "Envía gadgets a otros equipos para afectar su experiencia de juego. Cada gadget tiene un tiempo de espera y no puedes enviar dos gadgets seguidos al mismo equipo.")}</p>
+					<p>{t("gadgets.new_description", "Envía gadgets a otros equipos para afectar su experiencia de juego.")}</p>
+					
+					{/* Información de configuración */}
+					<div className="gadgets-config-info">
+						<h4>{t("gadgets.current_config", "Configuración Actual")}</h4>
+						<div className="config-items">
+							<div className="config-item">
+								<span className="config-label">{t("gadgets.config_timeout", "Tiempo de espera")}:</span>
+								<span className="config-value">{Math.round((parseInt(import.meta.env.VITE_GADGET_TIMEOUT) || 30000) / 1000)}s</span>
+							</div>
+							<div className="config-item">
+								<span className="config-label">{t("gadgets.config_same_team", "Envío al mismo equipo")}:</span>
+								<span className={`config-value ${import.meta.env.VITE_GADGET_SAME_TEAM === 'true' ? 'enabled' : 'disabled'}`}>
+									{import.meta.env.VITE_GADGET_SAME_TEAM === 'true' 
+										? t("gadgets.config_allowed", "Permitido") 
+										: t("gadgets.config_blocked", "Bloqueado")}
+								</span>
+							</div>
+							<div className="config-item">
+								<span className="config-label">{t("gadgets.config_prevent_activity", "Bloqueo durante actividad")}:</span>
+								<span className={`config-value ${import.meta.env.VITE_GADGET_PREVENT_ACTIVITY === 'true' ? 'enabled' : 'disabled'}`}>
+									{import.meta.env.VITE_GADGET_PREVENT_ACTIVITY === 'true' 
+										? t("gadgets.config_active", "Activo") 
+										: t("gadgets.config_inactive", "Inactivo")}
+								</span>
+							</div>
+						</div>
+					</div>
 				</div>
 
 				{/* Sección principal de gadgets */}
@@ -155,8 +182,15 @@ const GadgetsPage = () => {
 				<div className="gadgets-rules">
 					<h4>{t("gadgets.rules_title", "Reglas de Uso")}</h4>
 					<ul>
-						<li>{t("gadgets.rule_cooldown", "Tiempo de espera entre envíos de gadgets")}</li>
-						<li>{t("gadgets.rule_no_repeat", "No puedes enviar dos gadgets seguidos al mismo equipo")}</li>
+						<li>{t("gadgets.rule_timeout", "Tiempo de espera entre envíos: {{seconds}}s", { 
+							seconds: Math.round((parseInt(import.meta.env.VITE_GADGET_TIMEOUT) || 30000) / 1000) 
+						})}</li>
+						{import.meta.env.VITE_GADGET_SAME_TEAM !== 'true' && (
+							<li>{t("gadgets.rule_no_repeat", "No puedes enviar dos gadgets seguidos al mismo equipo")}</li>
+						)}
+						{import.meta.env.VITE_GADGET_PREVENT_ACTIVITY === 'true' && (
+							<li>{t("gadgets.rule_activity_block", "Los gadgets no se pueden enviar a equipos que están haciendo actividades")}</li>
+						)}
 						<li>{t("gadgets.rule_device_required", "Solo equipos con dispositivo asignado pueden recibir gadgets")}</li>
 					</ul>
 				</div>

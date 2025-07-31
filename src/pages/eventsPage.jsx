@@ -3,6 +3,8 @@ import React, { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchEvents } from "../features/events/eventsSlice";
 import { initEventRoot } from "../features/event/eventSlice";
+import { setSelectedTeam, setTeamPhoto, setToken } from "../features/session/sessionSlice";
+import { tryRestoreSavedSession, getSavedSession, removeSavedSession } from "../services/eventLoadBehavior";
 import iconDate from "../assets/icon_date.png";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -22,9 +24,33 @@ const EventsPage = () => {
 	}, [status, dispatch]);
 
 	const handleSelect = async (eventId) => {
-		try {			
-      await dispatch(initEventRoot({ eventId }))
-      navigate(`/teams/${eventId}`);
+		try {
+			// Verificar si hay una sesión guardada para este evento
+			if (tryRestoreSavedSession(eventId)) {
+				const savedSession = getSavedSession(eventId);
+				if (savedSession) {
+					console.log('🔄 Restoring saved session for event:', eventId);
+					
+					// Inicializar el evento
+					await dispatch(initEventRoot({ eventId }));
+					
+					// Restaurar la sesión
+					dispatch(setSelectedTeam(savedSession.selectedTeam));
+					dispatch(setTeamPhoto(savedSession.teamPhoto));
+					dispatch(setToken(savedSession.token));
+					
+					// Ir directamente al evento
+					navigate(`/event/${eventId}`);
+					
+					// Remover la sesión guardada (ya se restauró)
+					removeSavedSession(eventId);
+					return;
+				}
+			}
+			
+			// Comportamiento normal si no hay sesión guardada
+			await dispatch(initEventRoot({ eventId }));
+			navigate(`/teams/${eventId}`);
 		} catch (err) {
 			console.error(err);
 		}

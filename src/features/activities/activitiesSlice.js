@@ -3,6 +3,44 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { updateTeamData } from "../teams/teamsSlice";
 import { getValorateValue } from "../../utils/activityValidation";
 import { addToQueue } from "../popup/popupSlice";
+import { updateTeamActivityStatus } from "../../services/firebase";
+
+// Thunk para actualizar estado de actividad en Firebase
+export const syncActivityStatus = createAsyncThunk(
+	"activities/syncActivityStatus",
+	async ({ eventId, teamId, isActivityActive }, { rejectWithValue }) => {
+		try {
+			await updateTeamActivityStatus(eventId, teamId, isActivityActive);
+			return { isActivityActive };
+		} catch (error) {
+			return rejectWithValue(error.message);
+		}
+	}
+);
+
+// Thunk para terminar actividad y sincronizar con Firebase
+export const finishActivityWithSync = createAsyncThunk(
+	"activities/finishActivityWithSync",
+	async (_, { getState, dispatch }) => {
+		const state = getState();
+		const event = state.event.event;
+		const selectedTeam = state.session.selectedTeam;
+		
+		// Terminar actividad localmente
+		dispatch(finishActivity());
+		
+		// Sincronizar estado de actividad con Firebase
+		if (selectedTeam && event) {
+			dispatch(syncActivityStatus({ 
+				eventId: event.id, 
+				teamId: selectedTeam.id, 
+				isActivityActive: false 
+			}));
+		}
+		
+		return true;
+	}
+);
 
 // Thunk para completar actividad y actualizar Firebase
 export const completeActivityWithSync = createAsyncThunk(
@@ -73,6 +111,7 @@ export const startActivityWithSuspensionCheck = createAsyncThunk(
 	async (activity, { getState, dispatch, rejectWithValue }) => {
 		const state = getState();
 		const event = state.event.event;
+		const selectedTeam = state.session.selectedTeam;
 		
 		// Verificar si el evento está suspendido
 		if (event?.suspend === true) {
@@ -91,6 +130,16 @@ export const startActivityWithSuspensionCheck = createAsyncThunk(
 		
 		// Si no está suspendido, iniciar la actividad normalmente
 		dispatch(startActivity(activity));
+		
+		// Sincronizar estado de actividad con Firebase
+		if (selectedTeam && event) {
+			dispatch(syncActivityStatus({ 
+				eventId: event.id, 
+				teamId: selectedTeam.id, 
+				isActivityActive: true 
+			}));
+		}
+		
 		return activity;
 	}
 );
@@ -234,6 +283,17 @@ const activitiesSlice = createSlice({
 				state.status = "failed";
 				state.error = action.error.message;
 				console.error("Error completando actividad:", action.error.message);
+			})
+			// Casos para sincronización de estado de actividad
+			.addCase(syncActivityStatus.fulfilled, (state, action) => {
+				console.log("Activity status synced with Firebase:", action.payload.isActivityActive);
+			})
+			.addCase(syncActivityStatus.rejected, (state, action) => {
+				console.error("Error syncing activity status:", action.error.message);
+			})
+			// Casos para terminar actividad con sincronización
+			.addCase(finishActivityWithSync.fulfilled, () => {
+				console.log("Activity finished and synced with Firebase");
 			});
 	},
 });

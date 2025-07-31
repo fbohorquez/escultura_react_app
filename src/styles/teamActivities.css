@@ -1,0 +1,350 @@
+/* src/styles/teamActivities.css */
+
+/* Contenedor principal */
+.team-activities-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* Estados vacíos */
+.no-teams,
+.no-activities {
+  text-align: center;
+  padding: 60px 20px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  margin: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.no-teams .empty-icon,
+.no-activities .empty-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  opacity: 0.7;
+}
+
+.no-teams h3,
+.no-activities h3 {
+  margin-bottom: 15px;
+  color: #333;
+  font-weight: 600;
+}
+
+.no-teams p,
+.no-activities p {
+  color: #666;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* Estadísticas del equipo */
+.team-activities-stats {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 30px;
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 20px;
+  text-align: center;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 80px;
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #444;
+  margin-top: 5px;
+}
+
+/* Lista de equipos */
+.teams-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.team-item {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  position: relative;
+}
+
+.team-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.team-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.team-name {
+  margin: 0;
+  color: #444;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.team-stats {
+  display: flex;
+  gap: 15px;
+  margin-left: 20px;
+  align-items: center;
+}
+
+.team-stats .stat-item {
+  min-width: auto;
+}
+
+.team-stats .stat-number {
+  font-size: 1.2rem;
+}
+
+.team-stats .stat-label {
+  font-size: 0.75rem;
+}
+
+.team-details {
+  margin-bottom: 15px;
+}
+
+.detail-item {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.detail-label {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.detail-value {
+  color: #444;
+  font-weight: 500;
+}
+
+.team-arrow {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.5rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Lista de actividades */
+.activities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.activity-item {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  position: relative;
+}
+
+.activity-item.activity-clickable {
+  cursor: pointer;
+}
+
+.activity-item.activity-clickable:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.activity-name {
+  margin: 0;
+  color: #444;
+  font-size: 1.2rem;
+  font-weight: 600;
+  flex: 1;
+  margin-right: 15px;
+}
+
+.activity-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.activity-status {
+  background: #6c757d;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.activity-status.status-not-started {
+  background: #6c757d;
+}
+
+.activity-status.status-completed {
+  background: #28a745;
+}
+
+.activity-status.status-pending {
+  background: #ffc107;
+  color: #856404;
+}
+
+.activity-status.status-reviewed {
+  background: #17a2b8;
+}
+
+.activity-type {
+  background: var(--primary-color);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.activity-details {
+  display: flex;
+  gap: 30px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.activity-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.send-activity-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.send-activity-btn:hover {
+  background: var(--primary-color-darker, #0056b3);
+  transform: translateY(-1px);
+}
+
+.activity-arrow {
+  font-size: 1.5rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Error container */
+.error-container {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.error-content {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.error-content h2 {
+  color: #dc3545;
+  margin-bottom: 1rem;
+}
+
+.error-content p {
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .team-activities-container {
+    margin: 0 1rem;
+  }
+  
+  .team-header {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .team-stats {
+    gap: 10px;
+  }
+  
+  .activity-header {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .activity-actions {
+    justify-content: flex-start;
+  }
+  
+  .activity-details {
+    gap: 15px;
+  }
+  
+  .activity-bottom {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .team-activities-stats {
+    gap: 15px;
+  }
+}

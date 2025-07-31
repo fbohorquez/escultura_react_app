@@ -8,6 +8,7 @@ import PropTypes from "prop-types";
 import iconChat from "../assets/icon_chat.png";
 import formPoint from "../assets/form_point.png";
 import iconGadgets from "../assets/icon_gadgets.png";
+import BackgroundDecagon from "../assets/decagon.svg";
 
 const EventFooter = ({ eventId }) => {
 	const { t } = useTranslation();
@@ -45,45 +46,64 @@ const EventFooter = ({ eventId }) => {
 		<div className="event-footer">
 			<div className="footer-controls">
 				{/* Control de Chat */}
-				<button 
+				<button
 					className="footer-control chat-control"
 					onClick={handleChatClick}
 					title={t("footer.chat", "Chat")}
 				>
 					<img src={iconChat} alt="Chat" className="control-icon" />
-					<span className="control-label">{t("footer.chat", "Chat")}</span>
 				</button>
 
 				{/* Control de Posición */}
-				<button 
+				<button
 					className="footer-control position-control"
 					onClick={handlePositionClick}
 					title={t("footer.ranking", "Ranking")}
 				>
-					<div 
+					<svg
+						width="80" height="80"
+						viewBox="-110 -110 220 220"
+						xmlns="http://www.w3.org/2000/svg"
+					>
+						<polygon
+							fill="none"
+							stroke="var(--primary-color)"
+							strokeWidth="2"
+							points="
+								100,0
+								80.90,58.78
+								30.90,95.11
+								-30.90,95.11
+								-80.90,58.78
+								-100,0
+								-80.90,-58.78
+								-30.90,-95.11
+								30.90,-95.11
+								80.90,-58.78
+							"
+						/>
+					</svg>
+					<div
 						className="position-background"
-						style={{ backgroundImage: `url(${formPoint})` }}
+						style={{ backgroundImage: `url(${BackgroundDecagon})` }}
 					>
 						{!isAdmin && teamPosition && (
 							<span className="position-number">{teamPosition}</span>
 						)}
-						{isAdmin && (
-							<span className="admin-icon">👑</span>
-						)}
+						{isAdmin && <span className="admin-icon">👑</span>}
 					</div>
-					<span className="control-label">
+					{/* <span className="control-label">
 						{isAdmin ? t("footer.manage", "Gestión") : t("footer.position", "Posición")}
-					</span>
+					</span> */}
 				</button>
 
 				{/* Control de Gadgets */}
-				<button 
+				<button
 					className="footer-control gadgets-control"
 					onClick={handleGadgetsClick}
 					title={t("footer.gadgets", "Gadgets")}
 				>
 					<img src={iconGadgets} alt="Gadgets" className="control-icon" />
-					<span className="control-label">{t("footer.gadgets", "Gadgets")}</span>
 				</button>
 			</div>
 		</div>
@@ -95,3 +115,4 @@ EventFooter.propTypes = {
 };
 
 export default EventFooter;
+

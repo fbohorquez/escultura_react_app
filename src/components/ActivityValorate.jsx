@@ -1,5 +1,5 @@
 // src/components/ActivityValorate.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
@@ -18,6 +18,7 @@ const ActivityValorate = () => {
 
 	const [points, setPoints] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const pointsInputRef = useRef(null);
 
 
 	const teams = useSelector((state) => state.teams.items);
@@ -36,22 +37,34 @@ const ActivityValorate = () => {
 
 	const isAlreadyValued = activity?.valorate === 1;
 
-	// Inicializar el campo de puntos con los puntos ya otorgados si la actividad está valorada
+	// Inicializar el campo de puntos
 	React.useEffect(() => {
 		if (isAlreadyValued && activity?.awarded_points !== undefined) {
+			// Si ya está valorada, usar los puntos otorgados
 			setPoints(activity.awarded_points.toString());
+		} else if (activity?.points !== undefined) {
+			// Si no está valorada, usar los puntos por defecto de la actividad
+			setPoints(activity.points.toString());
 		}
-	}, [isAlreadyValued, activity?.awarded_points]);
+	}, [isAlreadyValued, activity?.awarded_points, activity?.points]);
+
+	// Función para manejar el enfoque del input y seleccionar todo el texto
+	const handleInputFocus = (event) => {
+		event.target.select();
+	};
 
 	const handleBack = () => {
-		// Verificar si venimos de la página de gestión de fotos usando location.state
+		// Verificar si venimos de diferentes páginas usando location.state
 		const fromPhotos = location.state?.from === 'photos';
+		const fromTeamActivities = location.state?.from === 'team-activities';
 		
 		// Fallback: si no hay state, intentar detectar por URL como antes
 		const fallbackFromPhotos = !location.state && window.location.pathname.includes('/admin/photos/');
 		
 		if (fromPhotos || fallbackFromPhotos) {
 			navigate(`/admin/photos/${eventId}`);
+		} else if (fromTeamActivities) {
+			navigate(`/admin/team-activities/${eventId}/team/${teamId}`);
 		} else {
 			navigate(`/admin/valorate/${eventId}`);
 		}
@@ -348,12 +361,13 @@ const ActivityValorate = () => {
 									<div className="points-input-group">
 										<label htmlFor="points">{t("valorate.awarded_points", "Puntos Otorgados")}:</label>
 										<input
+											ref={pointsInputRef}
 											type="number"
 											id="points"
 											min="0"
 											value={points}
 											onChange={(e) => setPoints(e.target.value)}
-											placeholder="0"
+											onFocus={handleInputFocus}
 											disabled={isSubmitting}
 											className="points-input"
 										/>
@@ -373,12 +387,13 @@ const ActivityValorate = () => {
 								<div className="points-input-group">
 									<label htmlFor="points">{t("valorate.points", "Puntos")}:</label>
 									<input
+										ref={pointsInputRef}
 										type="number"
 										id="points"
 										min="0"
 										value={points}
 										onChange={(e) => setPoints(e.target.value)}
-										placeholder={activity.points?.toString() || "0"}
+										onFocus={handleInputFocus}
 										disabled={isSubmitting}
 										className="points-input"
 									/>

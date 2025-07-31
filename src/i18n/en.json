@@ -177,6 +177,7 @@
   "valorate": {
     "title": "Rate Activities",
     "no_pending": "No activities pending rating",
+    "no_pending_desc": "No activities requiring manual review have been completed yet, or all activities have already been reviewed",
     "all_reviewed": "All activities have been reviewed",
     "pending_count": "Pending rating",
     "team": "Team",

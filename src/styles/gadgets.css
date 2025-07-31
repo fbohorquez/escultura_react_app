@@ -1,5 +1,55 @@
 /* Gadget System Styles */
 
+/* Configuration Info */
+.gadgets-config-info {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid var(--primary-color);
+}
+
+.gadgets-config-info h4 {
+  margin: 0 0 12px 0;
+  color: var(--primary-color);
+  font-size: 1rem;
+}
+
+.config-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.config-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.config-label {
+  color: #666;
+  font-weight: 500;
+}
+
+.config-value {
+  font-weight: bold;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.config-value.enabled {
+  background: #d4edda;
+  color: #155724;
+}
+
+.config-value.disabled {
+  background: #f8d7da;
+  color: #721c24;
+}
+
 /* Gadget Selector Modal */
 .gadget-selector-overlay {
   position: fixed;
@@ -33,7 +83,7 @@
   align-items: center;
   padding: 20px;
   border-bottom: 1px solid #eee;
-  background: rgb(192, 0, 31);
+  background: var(--primary-color);
   color: white;
 }
 
@@ -87,7 +137,7 @@
 }
 
 .gadget-option:hover {
-  border-color: rgb(192, 0, 31);
+  border-color: var(--primary-color);
   background: rgba(192, 0, 31, 0.05);
   transform: translateY(-1px);
 }
@@ -155,7 +205,7 @@
   align-items: center;
   padding: 20px;
   border-bottom: 1px solid #eee;
-  background: rgb(192, 0, 31);
+  background: var(--primary-color);
   color: white;
 }
 
@@ -205,7 +255,7 @@
 
 .gadget-preview .gadget-name {
   font-weight: bold;
-  color: rgb(192, 0, 31);
+  color: var(--primary-color);
 }
 
 .team-selector-description {
@@ -233,7 +283,7 @@
 }
 
 .team-option:hover:not(.disabled) {
-  border-color: rgb(192, 0, 31);
+  border-color: var(--primary-color);
   background: rgba(192, 0, 31, 0.05);
   transform: translateY(-1px);
 }
@@ -241,6 +291,18 @@
 .team-option.disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.team-option.blocked {
+  opacity: 0.7;
+  border-color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.team-option.blocked:hover {
+  border-color: #ff5252;
+  background: rgba(255, 82, 82, 0.15);
+  transform: none;
 }
 
 .team-option .team-info {
@@ -260,10 +322,35 @@
   font-size: 0.9rem;
 }
 
+.team-restrictions {
+  margin-top: 6px;
+}
+
+.restriction-reason {
+  display: block;
+  color: #ff6b6b;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
 .team-option .team-device {
   color: #999;
   font-size: 0.8rem;
   font-style: italic;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.activity-indicator {
+  color: #ff9800;
+  font-size: 0.75rem;
+  margin-top: 4px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .no-teams-available {
@@ -290,7 +377,7 @@
   width: 40px;
   height: 40px;
   border: 4px solid #f3f3f3;
-  border-top: 4px solid rgb(192, 0, 31);
+  border-top: 4px solid var(--primary-color);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 10px;
@@ -316,7 +403,7 @@
 
 .available-gadgets-preview h4 {
   margin: 0 0 15px 0;
-  color: rgb(192, 0, 31);
+  color: var(--primary-color);
   font-size: 1.2rem;
 }
 
@@ -393,7 +480,7 @@
 
 .admin-gadgets-section h4 {
   margin: 0 0 10px 0;
-  color: rgb(192, 0, 31);
+  color: var(--primary-color);
 }
 
 .admin-gadgets-section p {

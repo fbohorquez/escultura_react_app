@@ -7,12 +7,14 @@ import CacheEventAssets from "./components/cacheEventAssets";
 import ChatConnectionManager from "./components/ChatConnectionManager";
 import ChatConnectionStatus from "./components/ChatConnectionStatus";
 import GadgetDetector from "./components/GadgetDetector";
+import ActivitySendDetector from "./components/ActivitySendDetector";
 import Popup from "./components/popup";
 import NotificationContainer from "./components/notificationContainer";
 import DebugModeIndicator from "./components/DebugModeIndicator";
 import DebugWelcome from "./components/DebugWelcome";
 import { useEventSuspensionCheck } from "./hooks/useEventSuspensionCheck";
 import { useTheme } from "./hooks/useTheme";
+import EventLoadBehaviorManager from "./components/EventLoadBehaviorManager";
 
 import WelcomePage from "./pages/welcomePage";
 import EventsPage from "./pages/eventsPage";
@@ -28,6 +30,8 @@ import SessionControlPage from "./pages/sessionControlPage";
 import ValoratePage from "./pages/valoratePage";
 import ActivityValorate from "./components/ActivityValorate";
 import PhotoManagementPage from "./pages/photoManagementPage";
+import TeamActivitiesPage from "./pages/teamActivitiesPage";
+import TeamActivityDetailPage from "./pages/teamActivityDetailPage";
 import ThemeTestPage from "./pages/themeTestPage";
 
 import './styles/global.css';
@@ -48,10 +52,12 @@ function App() {
 	return (
 		<>
 			<RouteListener />
+			<EventLoadBehaviorManager />
 			<SubscriptionManager />
 			<CacheEventAssets />
 			<ChatConnectionManager />
 			<GadgetDetector />
+			<ActivitySendDetector />
 			<Popup />
 			<NotificationContainer />
 			<DebugModeIndicator />
@@ -69,6 +75,8 @@ function App() {
 				<Route path="/gadgets/:eventId" element={<GadgetsPage />} />
 				<Route path="/admin/session-control" element={<SessionControlPage />} />
 				<Route path="/admin/photos/:eventId" element={<PhotoManagementPage />} />
+				<Route path="/admin/team-activities/:eventId" element={<TeamActivitiesPage />} />
+				<Route path="/admin/team-activities/:eventId/team/:teamId" element={<TeamActivityDetailPage />} />
 				<Route path="/admin/valorate/:eventId" element={<ValoratePage />} />
 				<Route path="/admin/valorate/:eventId/activity/:teamId/:activityId" element={<ActivityValorate />} />
 				<Route path="/theme-test" element={<ThemeTestPage />} />

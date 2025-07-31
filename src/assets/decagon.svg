@@ -1,0 +1,24 @@
+<svg width="220" height="220" viewBox="-110 -110 220 220"
+  xmlns="http://www.w3.org/2000/svg" style="--border-color: black; --border-width: 2;">
+  <style>
+    .decagon {
+      fill: none;
+      stroke: var(--primary-color);
+      stroke-width: 1px;
+    }
+  </style>
+
+  <!-- Decágono centrado en (0,0), radio = 100 -->
+  <polygon class="decagon" points="
+      100,0
+      80.90,58.78
+      30.90,95.11
+      -30.90,95.11
+      -80.90,58.78
+      -100,0
+      -80.90,-58.78
+      -30.90,-95.11
+      30.90,-95.11
+      80.90,-58.78
+    " />
+</svg>

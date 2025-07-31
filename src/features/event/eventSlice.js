@@ -114,10 +114,3 @@ const slice = createSlice({
 export const { setEventId, setEvent, setSuspendEvent } = slice.actions;
 
 export default slice.reducer;
-
-
-
-
-
-
-

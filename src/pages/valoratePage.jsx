@@ -111,9 +111,9 @@ const ValoratePage = () => {
 			<div className="valorate-container">
 				{pendingActivities.length === 0 ? (
 					<div className="no-pending-activities">
-						<div className="empty-icon">✅</div>
+						<div className="empty-icon">📋</div>
 						<h3>{t("valorate.no_pending", "No hay actividades pendientes de valoración")}</h3>
-						<p>{t("valorate.all_reviewed", "Todas las actividades han sido revisadas")}</p>
+						<p>{t("valorate.no_pending_desc", "Aún no se han completado actividades que requieran valoración manual, o todas las actividades ya han sido revisadas")}</p>
 					</div>
 				) : (
 					<>

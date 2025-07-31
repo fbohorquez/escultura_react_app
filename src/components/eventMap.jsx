@@ -87,6 +87,45 @@ const EventMap = () => {
 	const { isDebugMode } = useDebugMode();
 	const { t } = useTranslation();
 
+	// Obtener el nivel de detalle del mapa desde las variables de entorno
+	const mapDetailLevel = import.meta.env.VITE_GOOGLE_MAPS_DETAIL_LEVEL || 'basic';
+
+	// Configurar estilos del mapa según el nivel de detalle
+	const getMapStyles = () => {
+		switch (mapDetailLevel) {
+			case 'minimal':
+				return [
+					// Ocultar casi todos los POIs y elementos secundarios
+					{ featureType: "poi", stylers: [{ visibility: "off" }] },
+					{ featureType: "transit", stylers: [{ visibility: "off" }] },
+					{ featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
+					{ featureType: "administrative.neighborhood", stylers: [{ visibility: "off" }] },
+					{ featureType: "road.local", elementType: "labels", stylers: [{ visibility: "off" }] },
+				];
+			case 'detailed':
+				return [
+					// Mostrar todos los detalles, solo ocultar iconos de POI por defecto
+					{ featureType: "poi", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+				];
+			case 'all':
+				return [
+					// Mostrar todos los detalles, incluyendo iconos de POI
+					{ featureType: "poi", elementType: "labels.icon", stylers: [{ visibility: "on" }] },
+					{ featureType: "poi.business", stylers: [{ visibility: "on" }] },
+					{ featureType: "transit.station", stylers: [{ visibility: "on" }] },
+				];
+			// Si no se especifica o es un valor desconocido, usar configuración básica
+			case 'basic':
+			default:
+				return [
+					// Configuración equilibrada - ocultar POIs pero mantener elementos importantes
+					{ featureType: "poi", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+					{ featureType: "poi.business", stylers: [{ visibility: "off" }] },
+					{ featureType: "transit.station", stylers: [{ visibility: "simplified" }] },
+				];
+		}
+	};
+
 	const { isLoaded } = useJsApiLoader({
 		googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
 	});
@@ -380,13 +419,7 @@ const EventMap = () => {
 			onLoad={handleLoad}
 			onClick={handleMapClick}
 			options={{
-				styles: [
-					{
-						featureType: "poi",
-						elementType: "labels.icon",
-						stylers: [{ visibility: "off" }],
-					},
-				],
+				styles: getMapStyles(),
 				disableDefaultUI: true,
 				gestureHandling: "greedy",
 			}}

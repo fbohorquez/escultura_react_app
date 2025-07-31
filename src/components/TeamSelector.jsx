@@ -1,5 +1,5 @@
 // src/components/TeamSelector.jsx
-import React from "react";
+import React, { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
@@ -8,6 +8,7 @@ import {
 	sendGadgetAction,
 	resetGadgetFlow,
 	setSelectedGadget,
+	canSendGadgetToTeam,
 } from "../features/gadgets/gadgetsSlice";
 import { useNotification } from "../hooks/useNotification";
 
@@ -17,7 +18,7 @@ const TeamSelector = () => {
 	const { eventId } = useParams();
 	const { showNotification } = useNotification();
 	
-	const { selectedGadget, showTeamSelector, availableGadgets, status } = useSelector((state) => state.gadgets);
+	const { selectedGadget, showTeamSelector, availableGadgets, status, cooldownInfo } = useSelector((state) => state.gadgets);
 	const teams = useSelector((state) => state.teams.items || []);
 	const { selectedTeam, isAdmin } = useSelector((state) => state.session);
 
@@ -28,10 +29,60 @@ const TeamSelector = () => {
 		(!isAdmin ? team.id !== selectedTeam?.id : true)
 	);
 
+	// Función para determinar si un equipo puede recibir gadgets
+	const getTeamStatus = useMemo(() => {
+		const allowSameTeam = import.meta.env.VITE_GADGET_SAME_TEAM === 'true';
+		const preventActivity = import.meta.env.VITE_GADGET_PREVENT_ACTIVITY === 'true';
+		
+		return (team) => {
+			const reasons = [];
+			
+			// Los administradores pueden enviar gadgets sin restricciones
+			if (isAdmin) {
+				return {
+					canReceive: true,
+					reasons: []
+				};
+			}
+			
+			// Verificar si está haciendo actividad
+			if (preventActivity && team.isActivityActive) {
+				reasons.push(t("gadgets.team_busy", "Haciendo actividad"));
+			}
+			
+			// Verificar último equipo objetivo (si no se permite mismo equipo)
+			const fromTeamId = selectedTeam?.id;
+			const teamCooldownInfo = cooldownInfo[fromTeamId];
+			if (!allowSameTeam && teamCooldownInfo?.lastTargetTeam === team.id) {
+				reasons.push(t("gadgets.team_last_target", "Último equipo seleccionado"));
+			}
+			
+			return {
+				canReceive: reasons.length === 0,
+				reasons: reasons
+			};
+		};
+	}, [isAdmin, selectedTeam?.id, cooldownInfo, t]);
+
 	const handleTeamSelect = async (targetTeam) => {
-		if (!selectedGadget || !selectedTeam) return;
+		if (!selectedGadget) return;
+		
+		// Para administradores no se requiere selectedTeam
+		if (!isAdmin && !selectedTeam) return;
 
 		const fromTeamId = isAdmin ? "admin" : selectedTeam.id;
+		const teamStatus = getTeamStatus(targetTeam);
+		
+		// Verificar si el equipo puede recibir gadgets
+		if (!teamStatus.canReceive) {
+			showNotification({
+				type: "warning",
+				title: t("gadgets.cannot_send", "No se puede enviar"),
+				message: teamStatus.reasons.join(', '),
+				duration: 4000
+			});
+			return;
+		}
 		
 		try {
 			await dispatch(sendGadgetAction({
@@ -124,23 +175,42 @@ const TeamSelector = () => {
 						</div>
 					) : (
 						<div className="teams-list">
-							{availableTeams.map((team) => (
-								<div
-									key={team.id}
-									className={`team-option ${status === "loading" ? "disabled" : ""}`}
-									onClick={() => status !== "loading" && handleTeamSelect(team)}
-								>
-									<div className="team-info">
-										<h4 className="team-name">{team.name}</h4>
-										<p className="team-points">
-											{t("gadgets.team_points", "Puntos")}: {team.points || 0}
-										</p>
+							{availableTeams.map((team) => {
+								const teamStatus = getTeamStatus(team);
+								const isDisabled = status === "loading" || !teamStatus.canReceive;
+								
+								return (
+									<div
+										key={team.id}
+										className={`team-option ${isDisabled ? "disabled" : ""} ${!teamStatus.canReceive ? "blocked" : ""}`}
+										onClick={() => !isDisabled && handleTeamSelect(team)}
+									>
+										<div className="team-info">
+											<h4 className="team-name">{team.name}</h4>
+											<p className="team-points">
+												{t("gadgets.team_points", "Puntos")}: {team.points || 0}
+											</p>
+											{teamStatus.reasons.length > 0 && (
+												<div className="team-restrictions">
+													{teamStatus.reasons.map((reason, index) => (
+														<small key={index} className="restriction-reason">
+															{reason}
+														</small>
+													))}
+												</div>
+											)}
+										</div>
+										<div className="team-device">
+											<small>{team.device}</small>
+											{team.isActivityActive && (
+												<div className="activity-indicator">
+													🔄 {t("gadgets.doing_activity", "En actividad")}
+												</div>
+											)}
+										</div>
 									</div>
-									<div className="team-device">
-										<small>{team.device}</small>
-									</div>
-								</div>
-							))}
+								);
+							})}
 						</div>
 					)}
 				</div>

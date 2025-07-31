@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useTranslation } from "react-i18next";
-import { updateActivityTime, restoreActivity, startActivity, completeActivityWithSync, finishActivity } from "../features/activities/activitiesSlice";
+import { updateActivityTime, restoreActivity, startActivity, completeActivityWithSync, finishActivityWithSync } from "../features/activities/activitiesSlice";
 import PhotoVideoActivity from "./activities/PhotoVideoActivity";
 import QuestionActivity from "./activities/QuestionActivity";
 import ClueActivity from "./activities/ClueActivity";
@@ -175,7 +175,7 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 	};
 
 	const handleContinue = () => {
-		dispatch(finishActivity());
+		dispatch(finishActivityWithSync());
 		
 		if (onComplete && activityResult) {
 			onComplete(activityResult.success, activityResult.media);

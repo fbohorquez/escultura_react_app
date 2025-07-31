@@ -10,6 +10,7 @@ import iconSuspender from "../assets/icon_suspender.png";
 import iconPuntuar from "../assets/Puntuar.png";
 import iconResultados from "../assets/icon_resultados.png";
 import iconFoto from "../assets/icon_foto.png";
+import iconActivities from "../assets/icon_prueba.png";
 
 const AdminTaskbar = () => {
 	const { t } = useTranslation();
@@ -28,6 +29,10 @@ const AdminTaskbar = () => {
 
 	const handleValorateActivities = () => {
 		navigate(`/admin/valorate/${event.id}`);
+	};
+
+	const handleTeamActivities = () => {
+		navigate(`/admin/team-activities/${event.id}`);
 	};
 
 	const handlePhotoManagement = () => {
@@ -99,10 +104,7 @@ const AdminTaskbar = () => {
 						onClick={handleRanking}
 						title={t("admin.ranking", "Ver ranking")}
 					>
-						<img
-							src={iconResultados}
-							alt={t("admin.ranking", "Ver ranking")}
-						/>
+						<img src={iconResultados} alt={t("admin.ranking", "Ver ranking")} />
 					</button>
 					<button
 						className="admin-tool-button"
@@ -112,6 +114,16 @@ const AdminTaskbar = () => {
 						<img
 							src={iconPuntuar}
 							alt={t("admin.valorate_activities", "Valorar actividades")}
+						/>
+					</button>
+					<button
+						className="admin-tool-button"
+						onClick={handleTeamActivities}
+						title={t("admin.team_activities", "Actividades por Equipos")}
+					>
+						<img
+							src={iconActivities}
+							alt={t("admin.team_activities", "Actividades por Equipos")}
 						/>
 					</button>
 					<button
@@ -148,4 +160,7 @@ const AdminTaskbar = () => {
 };
 
 export default AdminTaskbar;
+
+
+
 

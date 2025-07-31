@@ -2,6 +2,40 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { sendGadget, getGadgetCooldown, GADGETS } from "../../services/firebase";
 
+// Thunk para verificar si un gadget puede enviarse a un equipo específico
+export const canSendGadgetToTeam = createAsyncThunk(
+	"gadgets/canSendGadgetToTeam",
+	async ({ eventId, fromTeamId, toTeamId }, { getState, rejectWithValue }) => {
+		try {
+			const state = getState();
+			const teams = state.teams.items;
+			const allowSameTeam = import.meta.env.VITE_GADGET_SAME_TEAM === 'true';
+			const preventActivity = import.meta.env.VITE_GADGET_PREVENT_ACTIVITY === 'true';
+			
+			// Encontrar equipo objetivo
+			const targetTeam = teams.find(team => team.id === toTeamId);
+			if (!targetTeam) {
+				return rejectWithValue("Equipo objetivo no encontrado");
+			}
+			
+			// Verificar si el equipo objetivo está haciendo una actividad
+			if (preventActivity && targetTeam.isActivityActive) {
+				return rejectWithValue("El equipo objetivo está realizando una actividad");
+			}
+			
+			// Verificar restricción de mismo equipo usando datos del log
+			const cooldownInfo = await getCooldownInfo({ eventId, teamId: fromTeamId });
+			if (!allowSameTeam && cooldownInfo.payload?.lastTargetTeam === toTeamId) {
+				return rejectWithValue("No puedes enviar gadgets consecutivos al mismo equipo");
+			}
+			
+			return { canSend: true };
+		} catch (error) {
+			return rejectWithValue(error.message);
+		}
+	}
+);
+
 // Thunk para enviar un gadget
 export const sendGadgetAction = createAsyncThunk(
 	"gadgets/sendGadget",
@@ -84,6 +118,10 @@ const gadgetsSlice = createSlice({
 			.addCase(getCooldownInfo.fulfilled, (state, action) => {
 				const { teamId, ...cooldownData } = action.payload;
 				state.cooldownInfo[teamId] = cooldownData;
+			})
+			// Can send gadget to team validation
+			.addCase(canSendGadgetToTeam.rejected, (state, action) => {
+				state.error = action.payload;
 			});
 	},
 });

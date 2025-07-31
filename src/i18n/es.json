@@ -20,6 +20,7 @@
   "admin.ranking": "Ver ranking",
   "admin.photo_management": "Gestión de Fotos",
   "admin.valorate_activities": "Valorar actividades",
+  "admin.team_activities": "Actividades por Equipos",
   "suspend": {
     "confirm_title": "Confirmar Suspensión",
     "confirm_message": "¿Estás seguro de que quieres suspender el evento? Ningún equipo podrá realizar pruebas hasta que se reactive.",
@@ -177,6 +178,7 @@
   "valorate": {
     "title": "Valorar Actividades",
     "no_pending": "No hay actividades pendientes de valoración",
+    "no_pending_desc": "Aún no se han completado actividades que requieran valoración manual, o todas las actividades ya han sido revisadas",
     "all_reviewed": "Todas las actividades han sido revisadas",
     "pending_count": "Pendientes de valorar",
     "team": "Equipo",
@@ -222,6 +224,37 @@
     "awarded_points": "Puntos Otorgados",
     "current_points": "Puntos actuales",
     "update": "Actualizar Puntos"
+  },
+  "team_activities": {
+    "title": "Actividades por Equipos",
+    "no_teams": "No hay equipos disponibles",
+    "no_teams_desc": "Aún no se han configurado equipos para este evento",
+    "team": "Equipo",
+    "activities_count": "Actividades",
+    "completed": "Completadas",
+    "pending": "Pendientes",
+    "activity_status": {
+      "not_started": "Sin comenzar",
+      "completed": "Completada",
+      "pending_review": "Pendiente de valorar",
+      "reviewed": "Valorada"
+    },
+    "send_activity": "Enviar Actividad",
+    "send_confirm": "¿Estás seguro de que quieres enviar la actividad \"{{activityName}}\" al equipo \"{{teamName}}\"?",
+    "send_confirm_desc": "El equipo recibirá una notificación para realizar esta actividad.",
+    "send_button": "Sí, enviar",
+    "cancel_button": "Cancelar",
+    "activity_sent": "Actividad Enviada",
+    "activity_sent_message": "La actividad \"{{activityName}}\" ha sido enviada al equipo \"{{teamName}}\".",
+    "points": "Puntos",
+    "type": "Tipo",
+    "status": "Estado"
+  },
+  "activity_notification": {
+    "title": "Nueva Actividad Asignada",
+    "message": "El organizador te ha asignado una nueva actividad: \"{{activityName}}\"",
+    "accept": "Hacer Prueba",
+    "decline": "Ahora No"
   },
   "photo_management": {
     "title": "Gestión de Fotos/Videos",
