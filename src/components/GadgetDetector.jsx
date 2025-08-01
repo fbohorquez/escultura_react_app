@@ -408,12 +408,14 @@ const GadgetDetector = () => {
 		}
 		
 		// Mostrar notificación del gadget recibido
-		showNotification({
-			type: "warning",
-			title: "¡Gadget Recibido!",
-			message: `${gadgetInfo.name}: ${gadgetInfo.description}`,
-			duration: 5000
-		});
+		if (import.meta.env.VITE_GADGET_NOTIFICATION === 'true' || !import.meta.env.VITE_GADGET_NOTIFICATION) {
+			showNotification({
+				type: "warning",
+				title: "¡Gadget Recibido!",
+				message: `${gadgetInfo.name}: ${gadgetInfo.description}`,
+				duration: 5000
+			});
+		}
 		
 		// Ejecutar la acción específica del gadget y esperar a que termine
 		try {

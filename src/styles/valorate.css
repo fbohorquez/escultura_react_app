@@ -37,9 +37,7 @@
   text-align: center;
   padding: 60px 20px;
   background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
   margin: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
 .no-pending-activities .empty-icon {
@@ -150,7 +148,6 @@
 .activity-details {
   display: flex;
   gap: 30px;
-  margin-bottom: 10px;
 }
 
 .detail-item {

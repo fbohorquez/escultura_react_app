@@ -72,6 +72,7 @@ const gadgetsSlice = createSlice({
 		selectedGadget: null,
 		showGadgetSelector: false,
 		showTeamSelector: false,
+		isDirectFlow: false, // Indica si se seleccionó un gadget directamente desde el listado
 		cooldownInfo: {},
 		status: "idle",
 		error: null,
@@ -81,8 +82,13 @@ const gadgetsSlice = createSlice({
 		setSelectedGadget: (state, action) => {
 			state.selectedGadget = action.payload;
 		},
+		setSelectedGadgetDirect: (state, action) => {
+			state.selectedGadget = action.payload;
+			state.isDirectFlow = true;
+		},
 		setShowGadgetSelector: (state, action) => {
 			state.showGadgetSelector = action.payload;
+			if (action.payload) state.isDirectFlow = false;
 		},
 		setShowTeamSelector: (state, action) => {
 			state.showTeamSelector = action.payload;
@@ -91,6 +97,7 @@ const gadgetsSlice = createSlice({
 			state.selectedGadget = null;
 			state.showGadgetSelector = false;
 			state.showTeamSelector = false;
+			state.isDirectFlow = false;
 			state.error = null;
 		},
 		clearError: (state) => {
@@ -128,6 +135,7 @@ const gadgetsSlice = createSlice({
 
 export const {
 	setSelectedGadget,
+	setSelectedGadgetDirect,
 	setShowGadgetSelector,
 	setShowTeamSelector,
 	resetGadgetFlow,
