@@ -8,13 +8,14 @@ import BackgroundLayout from "../components/backgroundLayout";
 import BackButton from "../components/backButton";
 import NotificationBubble from "../components/notificationBubble";
 import useChatReadStatus from "../hooks/useChatReadStatus";
+import { formatMessageTime } from "../utils/chatUtils";
 
 const ChatsListPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   
-  const { rooms, status, error } = useSelector((state) => state.chats);
+  const { rooms, status, error, messages } = useSelector((state) => state.chats);
   const unreadCounts = useSelector((state) => state.chats.unreadCounts);
   const { id: eventId } = useSelector((state) => state.event);
   const session = useSelector((state) => state.session);
@@ -46,6 +47,36 @@ const ChatsListPage = () => {
   const handleChatSelect = (room) => {
     dispatch(setActiveChat(room));
     navigate(`/event/${eventId}/chat/${room.id}`);
+  };
+
+  // Función para obtener el último mensaje de un chat
+  const getLastMessage = (roomId) => {
+    const chatMessages = messages[roomId];
+    if (!chatMessages || chatMessages.length === 0) {
+      return null;
+    }
+    return chatMessages[chatMessages.length - 1];
+  };
+
+  // Función para formatear el último mensaje
+  const formatLastMessage = (message) => {
+    if (!message) {
+      return t("chats.no_messages_short", "Sin mensajes");
+    }
+
+    const maxLength = window.innerWidth < 960 ? 50 : 100; // Ajustar longitud según el ancho de la pantalla
+    const text = message.message;
+    const truncatedText = text.length > maxLength ? `${text.substring(0, maxLength)}...` : text;
+    
+    return truncatedText;
+  };
+
+  // Función para obtener el tiempo del último mensaje
+  const getLastMessageTime = (message) => {
+    if (!message) {
+      return "";
+    }
+    return formatMessageTime(message.date);
   };
 
   const getChatIcon = (type) => {
@@ -172,25 +203,43 @@ const ChatsListPage = () => {
         </div>
       ) : (
         <div className="listing">
-          {rooms.map((room) => (
-            <div 
-              key={room.id} 
-              className="listing-item"
-              onClick={() => handleChatSelect(room)}
-            >
-              <div className="chat-icon-container">
-                <span className="chat-icon">{getChatIcon(room.type)}</span>
-                <NotificationBubble count={unreadCounts[room.id]} size="small" />
-              </div>
-              <div className="listing-item-details">
-                <h3 className="listing-item-name">{room.name}</h3>
-                <p className="chat-type">{getChatTypeText(room.type)}</p>
-                {room.description && (
-                  <p className="chat-description">{room.description}</p>
-                )}
-              </div>
-            </div>
-          ))}
+          {rooms.map((room) => {
+            const lastMessage = getLastMessage(room.id);
+            
+            return (
+							<div
+								key={room.id}
+								className="listing-item"
+								onClick={() => handleChatSelect(room)}
+							>
+								<div className="chat-icon-container">
+									<span className="chat-icon">{getChatIcon(room.type)}</span>
+									<NotificationBubble
+										count={unreadCounts[room.id]}
+										size="small"
+									/>
+								</div>
+								<div className="listing-item-details" style={{ width: "calc(100% - 110px)" }}>
+									<h3 className="listing-item-name">{room.name}</h3>
+									<p className="chat-type">{getChatTypeText(room.type)}</p>
+									{room.description && (
+										<p className="chat-description">{room.description}</p>
+									)}
+									<div className="chat-last-message">
+                    <br />
+										<p className="last-message-text">
+											{formatLastMessage(lastMessage)}{" "}
+											{lastMessage && (
+												<span className="last-message-time" style={{ float: "right" }}>
+													{getLastMessageTime(lastMessage)}
+												</span>
+											)}
+										</p>
+									</div>
+								</div>
+							</div>
+						);
+          })}
         </div>
       )}
     </BackgroundLayout>
@@ -198,6 +247,8 @@ const ChatsListPage = () => {
 };
 
 export default ChatsListPage;
+
+
 
 
 

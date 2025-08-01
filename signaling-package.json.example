@@ -1,0 +1,24 @@
+{
+  "name": "webrtc-signaling-server",
+  "version": "1.0.0",
+  "description": "WebRTC signaling server for team sharing functionality",
+  "main": "servidor-signaling.cjs",
+  "scripts": {
+    "start": "node servidor-signaling.cjs",
+    "dev": "nodemon servidor-signaling.cjs"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  },
+  "keywords": [
+    "webrtc",
+    "signaling",
+    "websocket",
+    "screen-sharing"
+  ],
+  "author": "Escultura Team",
+  "license": "ISC"
+}

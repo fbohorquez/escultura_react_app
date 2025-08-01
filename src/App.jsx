@@ -13,6 +13,8 @@ import Popup from "./components/popup";
 import NotificationContainer from "./components/notificationContainer";
 import DebugModeIndicator from "./components/DebugModeIndicator";
 import DebugWelcome from "./components/DebugWelcome";
+import URLHandler from "./components/URLHandler";
+import AutoReconnectHost from "./components/AutoReconnectHost";
 import { useEventSuspensionCheck } from "./hooks/useEventSuspensionCheck";
 import { useTheme } from "./hooks/useTheme";
 import EventLoadBehaviorManager from "./components/EventLoadBehaviorManager";
@@ -33,6 +35,7 @@ import ActivityValorate from "./components/ActivityValorate";
 import PhotoManagementPage from "./pages/photoManagementPage";
 import TeamActivitiesPage from "./pages/teamActivitiesPage";
 import TeamActivityDetailPage from "./pages/teamActivityDetailPage";
+import TeamViewerPage from "./pages/teamViewerPage";
 import ThemeTestPage from "./pages/themeTestPage";
 
 import './styles/global.css';
@@ -52,6 +55,8 @@ function App() {
 
 	return (
 		<>
+			<URLHandler />
+			<AutoReconnectHost />
 			<RouteListener />
 			<EventLoadBehaviorManager />
 			<SubscriptionManager />
@@ -79,9 +84,9 @@ function App() {
 				<Route path="/admin/photos/:eventId" element={<PhotoManagementPage />} />
 				<Route path="/admin/team-activities/:eventId" element={<TeamActivitiesPage />} />
 				<Route path="/admin/team-activities/:eventId/team/:teamId" element={<TeamActivityDetailPage />} />
+				<Route path="/viewer/:eventId/:teamId" element={<TeamViewerPage />} />
 				<Route path="/admin/valorate/:eventId" element={<ValoratePage />} />
 				<Route path="/admin/valorate/:eventId/activity/:teamId/:activityId" element={<ActivityValorate />} />
-				<Route path="/theme-test" element={<ThemeTestPage />} />
 			</Routes>
 		</>
 	);

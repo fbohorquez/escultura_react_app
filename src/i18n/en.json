@@ -23,6 +23,7 @@
   "admin.ranking": "View ranking",
   "admin.photo_management": "Photo Management",
   "admin.valorate_activities": "Rate activities",
+  "team_positions": "Team Positions",
   "suspend": {
     "confirm_title": "Confirm Suspension",
     "confirm_message": "Are you sure you want to suspend the event? No team will be able to perform tests until reactivated.",
@@ -132,6 +133,24 @@
     "manage": "Management",
     "gadgets": "Gadgets"
   },
+  "share": {
+    "title": "Share Team",
+    "start": "Share team",
+    "stop": "Stop sharing",
+    "instructions": "Share this URL so others can view your team's screen:",
+    "copy": "Copy URL",
+    "close": "Close",
+    "copied": "URL copied to clipboard",
+    "error": "Error starting screen share"
+  },
+  "viewer": {
+    "watching": "Watching team",
+    "connecting": "Connecting...",
+    "connecting_desc": "Establishing connection with team",
+    "connection_failed": "Connection Failed",
+    "error": "Error connecting to team",
+    "retry": "Retry"
+  },
   "common": {
     "loading": "Loading...",
     "retry": "Retry",
@@ -150,7 +169,8 @@
     "no_messages": "No messages yet",
     "start_conversation": "Start the conversation!",
     "type_message": "Type a message...",
-    "coming_soon": "Coming soon"
+    "coming_soon": "Coming soon",
+    "no_messages_short": "No messages"
   },
   "chat": {
     "title": "Chat",

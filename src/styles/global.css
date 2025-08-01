@@ -325,7 +325,7 @@ body:has(.event-header.collapsed):has(.admin-taskbar) .map-container {
     display: flex;
     height: 10rem;
     justify-content: space-between;
-    border-bottom: 4px solid var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
 }
 
 .event-page .event-header .header-content img.team-photo, .event-page .event-header .header-content .event-logo {
@@ -739,7 +739,7 @@ header.event-header {
   left: 0;
   right: 0;
   background: white;
-  border-bottom: 4px solid var(--primary-color);
+  border-bottom: 2px solid var(--primary-color);
   padding: 15px 20px;
   z-index: 9;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -875,6 +875,270 @@ header.event-header {
   align-items: center;
   max-width: 400px;
   margin: 0 auto;
+}
+
+/* Share Team Button Styles */
+.share-team-button {
+  position: fixed;
+  bottom: 100px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.share-team-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.share-team-button:active {
+  transform: translateY(0);
+}
+
+.share-team-button .share-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  filter: brightness(0) invert(1); /* Hacer el icono blanco */
+}
+
+.share-team-button .share-error {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: #ff4444;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  max-width: 200px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+/* Team Viewer Styles */
+.viewer-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  overflow: hidden;
+}
+
+/* Overlay para el botón de inicio */
+.viewer-start-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-align: center;
+  z-index: 200;
+}
+
+.start-content {
+  max-width: 400px;
+  padding: 2rem;
+}
+
+.start-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.8;
+}
+
+.start-button {
+  background: var(--primary-color, #c0001f);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(192, 0, 31, 0.3);
+}
+
+.start-button:hover {
+  background: #a00018;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(192, 0, 31, 0.4);
+}
+
+.start-button:active {
+  transform: translateY(0);
+}
+
+.start-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Loading overlay que se muestra encima del video */
+.viewer-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-align: center;
+  z-index: 100;
+}
+
+.viewer-loading, 
+.viewer-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-align: center;
+}
+
+.loading-content,
+.error-content {
+  max-width: 400px;
+  padding: 2rem;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+.reconnect-delay {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+.loading-content h2 {
+  color: white;
+  margin-bottom: 0.5rem;
+}
+
+.loading-content p {
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0.5rem 0;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.main-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.main-video.hidden,
+.camera-video.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.camera-video {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 200px;
+  height: 150px;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  object-fit: cover;
+  background: #333;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+}
+
+.viewer-info {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 10px 15px;
+  border-radius: 8px;
+  z-index: 10;
+}
+
+.team-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.team-label {
+  opacity: 0.8;
+}
+
+.team-id {
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+.retry-button {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.retry-button:hover {
+  opacity: 0.9;
+}
+
+/* Responsive para móviles */
+@media (max-width: 768px) {
+  .camera-video {
+    width: 120px;
+    height: 90px;
+    bottom: 10px;
+    right: 10px;
+  }
+  
+  .viewer-info {
+    top: 10px;
+    left: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
 }
 
 .footer-control {
@@ -1396,6 +1660,30 @@ header.event-header {
   margin: 0.5rem 0;
 }
 
+/* Chat Last Message Styles */
+.chat-last-message {
+  margin: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.last-message-text {
+  color: #555;
+  font-size: 0.9rem;
+  margin: 0;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.last-message-time {
+  color: #999;
+  font-size: 0.8rem;
+  align-self: flex-end;
+}
+
 /* Chat Container Styles */
 .chat-container {
   display: flex;
@@ -1714,4 +2002,53 @@ header.event-header {
 img.photo-preview {
   width: 100%;
   margin-top: 8px;
+}
+
+/* Estilos para el botón de compartir en el footer */
+.footer-control.share-control {
+  position: relative;
+}
+
+.sharing-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 12px;
+  height: 12px;
+  background: #28a745;
+  border-radius: 50%;
+  border: 2px solid white;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+  }
+}
+
+button.share-control .control-icon {
+    width: 25px;
+    height: 25px;
+    margin:0;
+    /*Color wite*/
+    filter: brightness(0) invert(1);
+    transition: transform 0.2s;
+}
+
+button.share-control {
+  padding: 6px;
+  border: 1px solid var(--primary-color);
+  background: var(--primary-color);
+  border-radius: 50%;
+  transition: background-color 0.2s, transform 0.2s;
+  position: absolute;
+  top: calc(50% - 20px);
+  right: 20px;
 }

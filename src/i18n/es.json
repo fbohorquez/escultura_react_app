@@ -24,6 +24,7 @@
   "admin.photo_management": "Gestión de Fotos",
   "admin.valorate_activities": "Valorar actividades",
   "admin.team_activities": "Actividades por Equipos",
+  "team_positions": "Posiciones de Equipos",
   "suspend": {
     "confirm_title": "Confirmar Suspensión",
     "confirm_message": "¿Estás seguro de que quieres suspender el evento? Ningún equipo podrá realizar pruebas hasta que se reactive.",
@@ -140,6 +141,24 @@
     "manage": "Gestión",
     "gadgets": "Gadgets"
   },
+  "share": {
+    "title": "Compartir Equipo",
+    "start": "Compartir equipo",
+    "stop": "Detener compartir",
+    "instructions": "Comparte esta URL para que otros puedan ver la pantalla de tu equipo:",
+    "copy": "Copiar URL",
+    "close": "Cerrar",
+    "copied": "URL copiada al portapapeles",
+    "error": "Error al iniciar la compartición de pantalla"
+  },
+  "viewer": {
+    "watching": "Viendo equipo",
+    "connecting": "Conectando...",
+    "connecting_desc": "Estableciendo conexión con el equipo",
+    "connection_failed": "Conexión Fallida",
+    "error": "Error al conectar con el equipo",
+    "retry": "Reintentar"
+  },
   "common": {
     "loading": "Cargando...",
     "retry": "Reintentar",
@@ -155,10 +174,11 @@
     "chat": "Chat",
     "no_chats": "No hay chats disponibles",
     "error_loading": "Error al cargar los chats",
-    "no_messages": "No hay mensajes aún",
-    "start_conversation": "¡Comienza la conversación!",
+        "no_messages": "Aún no hay mensajes",
+    "start_conversation": "¡Empieza la conversación!",
     "type_message": "Escribe un mensaje...",
-    "coming_soon": "Próximamente disponible"
+    "coming_soon": "Próximamente disponible",
+    "no_messages_short": "Sin mensajes"
   },
   "chat": {
     "title": "Chat",

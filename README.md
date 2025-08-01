@@ -8,14 +8,16 @@ Escultura es una aplicación web React que permite gestionar y participar en eve
 - Capturar fotos de equipo
 - Navegar por mapas interactivos durante el evento
 - Participar en actividades georreferenciadas en tiempo real
+- **🆕 Compartir pantalla del equipo en tiempo real mediante WebRTC**
 
 ### Arquitectura del Sistema
 **Tipo de aplicación**: Single Page Application (SPA)  
-**Patrón arquitectónico**: Redux + Firebase + Google Maps API  
+**Patrón arquitectónico**: Redux + Firebase + Google Maps API + WebRTC  
 **Renderizado**: Client-side rendering con Vite  
 **Estado global**: Redux Toolkit con persistencia  
 **Sincronización**: Firebase Firestore en tiempo real  
 **Navegación**: React Router con Memory Router  
+**Streaming**: WebRTC para compartir pantalla en tiempo real  
 
 ### Tecnologías Implementadas
 
@@ -31,6 +33,8 @@ Escultura es una aplicación web React que permite gestionar y participar en eve
 - **Firebase 11.6.1** - Base de datos en tiempo real y autenticación
 - **Google Maps API** (via @react-google-maps/api 2.20.6) - Mapas interactivos
 - **React i18next 15.5.1** - Internacionalización (ES/EN)
+- **🆕 WebRTC** - Protocolo para streaming de video/audio en tiempo real
+- **🆕 WebSocket** - Servidor de señalización para coordinar conexiones WebRTC
 
 #### Desarrollo y Calidad
 - **ESLint 9.22.0** - Linting con configuración moderna
@@ -47,7 +51,10 @@ Escultura es una aplicación web React que permite gestionar y participar en eve
 ├── package-lock.json         # Lockfile de dependencias
 ├── vite.config.js            # Configuración de Vite build tool
 ├── eslint.config.js          # Configuración de linting
-└── index.html                # Template HTML principal
+├── index.html                # Template HTML principal
+├── 🆕 servidor-signaling.js  # Servidor WebRTC para compartir equipos
+├── 🆕 start-signaling-server.sh # Script para iniciar servidor WebRTC
+└── 🆕 signaling-package.json.example # Package.json para servidor WebRTC
 ```
 
 ### 📁 Assets Públicos (/public)

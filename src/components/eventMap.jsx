@@ -10,6 +10,16 @@ import { useDebugMode } from "../hooks/useDebugMode";
 import { useTranslation } from "react-i18next";
 import { startActivityWithSuspensionCheck } from "../features/activities/activitiesSlice";
 
+// Importar assets de equipos (Equipo_0.png a Equipo_29.png)
+const teamAssets = {};
+for (let i = 0; i <= 29; i++) {
+	try {
+		teamAssets[i] = new URL(`../assets/Equipo_${i}.png`, import.meta.url).href;
+	} catch {
+		console.warn(`Asset Equipo_${i}.png not found`);
+	}
+}
+
 const containerStyle = { width: "100%", height: "100%" };
 const SMOOTHING_BUFFER_SIZE = 5;
 const ACCURACY_THRESHOLD = 200; // metros - Aumentado para desarrollo/testing
@@ -339,22 +349,64 @@ const EventMap = () => {
 
 	const renderMarkers = () => {
 		console.log('🎯 Rendering markers for teams:', teams.length, 'selectedTeam:', selectedTeamData?.id);
-		return teams.map((team) => {
+		
+		// Si es admin, mostrar información de posición de todos los equipos
+		if (isAdmin) {
+			console.log('👑 Admin view - Team positions:');
+			teams.forEach(team => {
+				if (team.lat != null && team.lon != null) {
+					console.log(`📍 Team ${team.id} (${team.name || 'Sin nombre'}): lat: ${team.lat.toFixed(6)}, lng: ${team.lon.toFixed(6)}, direction: ${team.direction || 0}°`);
+				} else {
+					console.log(`❌ Team ${team.id} (${team.name || 'Sin nombre'}): No position data`);
+				}
+			});
+		}
+		
+		return teams.map((team, index) => {
 			console.log('🎯 Team marker:', team.id, 'lat:', team.lat, 'lon:', team.lon, 'isSelected:', team.id === selectedTeamData?.id);
-			return team.lat != null && team.lon != null ? (
+			
+			if (team.lat == null || team.lon == null) return null;
+			
+			// Determinar qué icono usar
+			let iconUrl;
+			let rotation = 0;
+			let scale = 1;
+			let anchor = new window.google.maps.Point(ICON_SIZE / 2, ICON_SIZE / 2);
+			
+			if (team.id === selectedTeamData?.id) {
+				// Equipo seleccionado - usar mark-me.png
+				iconUrl = markMe;
+				rotation = selectedTeamData.direction || 0;
+				scale = new window.google.maps.Size(ICON_SIZE, ICON_SIZE);
+			} else {
+				// Verificar si se debe mostrar otros equipos según el tipo de usuario
+				const adminCanViewTeams = isAdmin && import.meta.env.VITE_ADMIN_VIEW_TEAMS_POSITION === 'true';
+				const teamsCanViewOthers = !isAdmin && import.meta.env.VITE_TEAMS_VIEW_OTHER_TEAMS === 'true';
+				
+				if (!adminCanViewTeams && !teamsCanViewOthers) {
+					return null; // No mostrar otros equipos
+				}
+				
+				// Otros equipos - usar asset de equipo correspondiente o fallback
+				const teamAssetIndex = index % 30; // Ciclar entre 0-29
+				iconUrl = teamAssets[teamAssetIndex] || "/icons/marker-team.png";
+				rotation = team.direction || 0;
+				scale = new window.google.maps.Size(20, 20);
+				anchor = new window.google.maps.Point(10, 10); // Ajustar ancla para iconos más pequeños
+			}
+			
+			return (
 				<Marker
 					key={team.id}
 					position={{ lat: team.lat, lng: team.lon }}
 					icon={{
-						url:
-							team.id === selectedTeamData?.id ? markMe : "/icons/marker-team.png",
-						scaledSize: new window.google.maps.Size(ICON_SIZE, ICON_SIZE),
-						anchor: new window.google.maps.Point(ICON_SIZE / 2, ICON_SIZE / 2),
-						rotation:
-							team.id === selectedTeamData?.id ? selectedTeamData.direction || 0 : 0,
+						url: iconUrl,
+						scaledSize: scale,
+						anchor: anchor,
+						rotation: rotation,
 					}}
 				/>
-			) : null;
+			);
 		});
 	};
 
@@ -431,21 +483,24 @@ const EventMap = () => {
 	};
 
 	return (
-		<GoogleMap
-			id="event-map"
-			mapContainerStyle={containerStyle}
-			onLoad={handleLoad}
-			onClick={handleMapClick}
-			options={{
-				styles: getMapStyles(),
-				disableDefaultUI: true,
-				gestureHandling: "greedy",
-				...getZoomLimits(), // Añadir límites de zoom
-			}}
-		>
-			{renderMarkers()}
-			{renderActivities()}
-		</GoogleMap>
+		<div style={{ position: 'relative', width: '100%', height: '100%' }}>
+			<GoogleMap
+				id="event-map"
+				mapContainerStyle={containerStyle}
+				onLoad={handleLoad}
+				onClick={handleMapClick}
+				options={{
+					styles: getMapStyles(),
+					disableDefaultUI: true,
+					gestureHandling: "greedy",
+					clickableIcons: false, // Deshabilitar clicks en POIs de Google Maps
+					...getZoomLimits(), // Añadir límites de zoom
+				}}
+			>
+				{renderMarkers()}
+				{renderActivities()}
+			</GoogleMap>
+		</div>
 	);
 };
 

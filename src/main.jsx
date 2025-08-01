@@ -9,22 +9,34 @@ import "./i18n";
 import { PersistGate } from "redux-persist/integration/react";
 import { initUploadQueue } from "./services/uploadQueue";
 import { initAssetCaching } from "./services/assetCache";
+
+// Función para determinar la ruta inicial
+const getInitialRoute = () => {
+	const urlParams = new URLSearchParams(window.location.search);
+	const action = urlParams.get('action');
 	
-const lastRoute = localStorage.getItem("lastRoute") || "/";
+	// Si es una URL de viewer, usar la ruta raíz con parámetros
+	if (action === 'viewer') {
+		return `/${window.location.search}`;
+	}
+	
+	// Comportamiento normal
+	return localStorage.getItem("lastRoute") || "/";
+};
+
+const initialRoute = getInitialRoute();
 
 initUploadQueue();
 initAssetCaching();
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-	<React.StrictMode>
-		<Provider store={store}>
-			<PersistGate loading={null} persistor={persistor}>
-				<Router initialEntries={[lastRoute]} >
-					<App />
-				</Router>
-			</PersistGate>
-		</Provider>
-	</React.StrictMode>
+	<Provider store={store}>
+		<PersistGate loading={null} persistor={persistor}>
+			<Router initialEntries={[initialRoute]} >
+				<App />
+			</Router>
+		</PersistGate>
+	</Provider>
 );
 
 
