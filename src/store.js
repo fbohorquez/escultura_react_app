@@ -64,21 +64,34 @@ const activityRestoreMiddleware = (store) => (next) => (action) => {
 			try {
 				const data = JSON.parse(stored);
 				const elapsed = Math.floor((Date.now() - data.startTime) / 1000);
-				const remaining = Math.max(0, data.timeLeft - elapsed);
 				
-				// Si aún queda tiempo, restaurar la actividad
-				if (remaining > 0) {
+				// Si el tiempo es infinito, no calcular remaining
+				if (data.timeLeft === Infinity || data.activity.time === 0) {
 					store.dispatch({
 						type: 'activities/restoreActivity',
 						payload: {
 							activity: data.activity,
 							startTime: data.startTime,
-							timeLeft: remaining
+							timeLeft: Infinity
 						}
 					});
 				} else {
-					// Si se agotó el tiempo, limpiar
-					localStorage.removeItem('currentActivity');
+					const remaining = Math.max(0, data.timeLeft - elapsed);
+					
+					// Si aún queda tiempo, restaurar la actividad
+					if (remaining > 0) {
+						store.dispatch({
+							type: 'activities/restoreActivity',
+							payload: {
+								activity: data.activity,
+								startTime: data.startTime,
+								timeLeft: remaining
+							}
+						});
+					} else {
+						// Si se agotó el tiempo, limpiar
+						localStorage.removeItem('currentActivity');
+					}
 				}
 			} catch (error) {
 				console.error('Error restoring activity:', error);

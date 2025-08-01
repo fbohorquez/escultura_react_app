@@ -5,6 +5,9 @@ import { updateActivityTime, restoreActivity, startActivity, completeActivityWit
 import PhotoVideoActivity from "./activities/PhotoVideoActivity";
 import QuestionActivity from "./activities/QuestionActivity";
 import ClueActivity from "./activities/ClueActivity";
+import PuzzleActivity from "./activities/PuzzleActivity";
+import PairsActivity from "./activities/PairsActivity";
+import WordRelationsActivity from "./activities/WordRelationsActivity";
 import { requiresManualReview } from "../utils/activityValidation";
 import { useDebugMode } from "../hooks/useDebugMode";
 import "../styles/ActivityRunner.css";
@@ -35,13 +38,25 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 	const activityResults = useSelector((state) => state.activities.activityResults);
 	
 	const [timeLeft, setTimeLeft] = useState(() => {
-		return storedTimeLeft || activity?.time || 0;
+		if (storedTimeLeft !== null && storedTimeLeft !== undefined) {
+			return storedTimeLeft;
+		}
+		// Si activity.time es 0, el tiempo es infinito
+		return activity?.time === 0 ? Infinity : (activity?.time || 0);
 	});
 
 	const isVideo = useMemo(() => isVideoFile(activity?.file), [activity?.file]);
 
 	const handleActivityComplete = useCallback((success, media = null) => {
-		const timeTaken = activity.time - timeLeft;
+		// Si el tiempo es infinito, calcular el tiempo transcurrido desde el inicio
+		let timeTaken;
+		if (activity.time === 0) {
+			const elapsed = activityStartTime ? Math.floor((Date.now() - activityStartTime) / 1000) : 0;
+			timeTaken = elapsed;
+		} else {
+			timeTaken = activity.time - timeLeft;
+		}
+		
 		const result = { success, media, timeTaken };
 		
 		dispatch(completeActivityWithSync({
@@ -54,9 +69,12 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 		}));
 		
 		setActivityResult(result);
-	}, [activity.time, activity.id, timeLeft, dispatch, event.id, selectedTeam.id]);
+	}, [activity.time, activity.id, timeLeft, dispatch, event.id, selectedTeam.id, activityStartTime]);
 
 	const formattedTime = useMemo(() => {
+		if (timeLeft === Infinity) {
+			return "∞";
+		}
 		const mins = Math.floor(timeLeft / 60);
 		const secs = timeLeft % 60;
 		return `${mins}:${secs.toString().padStart(2, "0")}`;
@@ -100,7 +118,7 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 			setTimeExpired(false);
 			
 			if (!hasStoredActivity) {
-				setTimeLeft(activity.time || 0);
+				setTimeLeft(activity.time === 0 ? Infinity : (activity.time || 0));
 			}
 		}
 	}, [activity, dispatch, activityStartTime]);
@@ -119,6 +137,14 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 		
 		const updateTimer = () => {
 			const elapsed = Math.floor((Date.now() - activityStartTime) / 1000);
+			
+			// Si activity.time es 0, el tiempo es infinito (no hay limite de tiempo)
+			if (activity?.time === 0) {
+				setTimeLeft(Infinity);
+				dispatch(updateActivityTime(Infinity));
+				return true; // Continuar sin expirar nunca
+			}
+			
 			const remaining = Math.max(0, (activity?.time || 0) - elapsed);
 			
 			setTimeLeft(prevTime => {
@@ -194,10 +220,18 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 	const endTimer = () => {
 		if (activityStartTime) {
 			const elapsed = Math.floor((Date.now() - activityStartTime) / 1000);
-			const timeLeft = Math.max(0, (activity?.time || 0) - elapsed);
-			setTimeLeft(timeLeft);
-			setTimeExpired(true);
-			dispatch(updateActivityTime(timeLeft));
+			
+			// Si activity.time es 0, el tiempo es infinito
+			if (activity?.time === 0) {
+				setTimeLeft(Infinity);
+				setTimeExpired(true);
+				dispatch(updateActivityTime(Infinity));
+			} else {
+				const timeLeft = Math.max(0, (activity?.time || 0) - elapsed);
+				setTimeLeft(timeLeft);
+				setTimeExpired(true);
+				dispatch(updateActivityTime(timeLeft));
+			}
 		}
 	};
 
@@ -325,6 +359,36 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 						timeExpired={timeExpired}
 					/>
 				);
+			case 4:
+				return (
+					<PuzzleActivity
+						activity={activity}
+						onComplete={handleActivityComplete}
+						onExit={onExit}
+						timeLeft={timeLeft}
+						timeExpired={timeExpired}
+					/>
+				);
+			case 5:
+				return (
+					<PairsActivity
+						activity={activity}
+						onComplete={handleActivityComplete}
+						onExit={onExit}
+						timeLeft={timeLeft}
+						timeExpired={timeExpired}
+					/>
+				);
+			case 6:
+				return (
+					<WordRelationsActivity
+						activity={activity}
+						onComplete={handleActivityComplete}
+						onExit={onExit}
+						timeLeft={timeLeft}
+						timeExpired={timeExpired}
+					/>
+				);
 			default:
 				return (
 					<div className="activity-content">
@@ -346,7 +410,9 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 						<h2 className="activity-name">{activity.name}</h2>
 						<div className="activity-meta">
 							<span className="activity-points">{activity.points} pts</span>
-							<span className="activity-time">{Math.floor(activity.time / 60)}:{(activity.time % 60).toString().padStart(2, '0')}</span>
+							<span className="activity-time">
+								{activity.time === 0 ? "∞" : `${Math.floor(activity.time / 60)}:${(activity.time % 60).toString().padStart(2, '0')}`}
+							</span>
 							<span className="activity-distance">{activity.distance}m</span>
 						</div>
 					</div>

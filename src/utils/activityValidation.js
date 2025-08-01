@@ -29,8 +29,19 @@ export const requiresManualReview = (activity, result) => {
 			// Las fotos/videos siempre requieren valoración manual
 			return true;
 
+		case 4: // Puzzles
+			// Los puzzles no requieren valoración manual (éxito/fallo automático)
+			return false;
+
+		case 5: // Parejas
+			// El juego de parejas no requiere valoración manual (éxito/fallo automático)
+			return false;
+		case 6: // Palabras relacionadas
+			// Las palabras relacionadas no requieren valoración manual (éxito/fallo automático)
+			return false;
+
 		// Casos futuros se pueden añadir aquí
-		case 2: // Ejemplo: Otro tipo de actividad
+		case 2: // Pista/Tracking
 			return false; // No requiere valoración
 
 		default:

@@ -97,6 +97,32 @@
   "submit_answer": "Enviar Respuesta",
   "submitted": "Enviado",
   "exit": "Salir",
+  "puzzle": {
+    "pieces": "Piezas",
+    "completed": "¡Puzzle Completado!",
+    "success_message": "¡Felicidades! Has completado el puzzle exitosamente.",
+    "completed_image": "Imagen completada",
+    "processing": "Procesando resultado..."
+  },
+  "pairs": {
+    "total": "Pares",
+    "found": "Encontrados",
+    "completed": "¡Juego Completado!",
+    "success_message": "¡Felicidades! Has encontrado todas las parejas.",
+    "final_score": "Pares encontrados",
+    "card_back": "Reverso de carta",
+    "card_image": "Imagen de carta",
+    "no_images": "No se encontraron imágenes para el juego de parejas"
+  },
+  "word_relations": {
+    "progress": "Progreso",
+    "instructions": "Toca una palabra de cada columna para conectar las palabras relacionadas",
+    "left_column": "Columna A",
+    "right_column": "Columna B", 
+    "completed": "¡Todas las palabras relacionadas!",
+    "success_message": "¡Felicidades! Has conectado todas las palabras correctamente.",
+    "no_words": "No hay palabras para relacionar"
+  },
   "question_not_found": "No se encontró la pregunta",
   "time_expired": "Se agotó el tiempo",
   "pending_review": "Pendiente de Valoración",
@@ -188,6 +214,9 @@
     "type_question": "Pregunta",
     "type_clue": "Pista",
     "type_media": "Foto/Video",
+    "type_puzzle": "Puzzle",
+    "type_pairs": "Parejas",
+    "type_word_relations": "Palabras relacionadas",
     "type_unknown": "Desconocido",
     "not_found": "Actividad no encontrada",
     "questions_answers": "Preguntas y Respuestas",

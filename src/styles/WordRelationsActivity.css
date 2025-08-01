@@ -1,0 +1,299 @@
+/* src/styles/WordRelationsActivity.css */
+
+.word-relations-activity {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	padding: 20px;
+	max-width: 100%;
+	overflow: hidden;
+	position: relative;
+}
+
+.word-relations-activity.loading,
+.word-relations-activity.error {
+	justify-content: center;
+	align-items: center;
+	text-align: center;
+	min-height: 200px;
+}
+
+.word-relations-header {
+	margin-bottom: 20px;
+	text-align: center;
+}
+
+.activity-title {
+	font-size: 1.5rem;
+	font-weight: bold;
+	margin-bottom: 10px;
+	color: #333;
+}
+
+.word-relations-description {
+	margin-bottom: 15px;
+	color: #666;
+	font-size: 1rem;
+	line-height: 1.4;
+}
+
+.word-relations-info {
+	display: flex;
+	justify-content: center;
+	gap: 20px;
+	flex-wrap: wrap;
+	font-size: 0.9rem;
+	color: #555;
+	margin-bottom: 10px;
+}
+
+.word-relations-info span {
+	background: #f0f0f0;
+	padding: 5px 10px;
+	border-radius: 15px;
+	font-weight: 500;
+}
+
+.word-relations-instructions {
+	font-size: 0.9rem;
+	color: #666;
+	font-style: italic;
+	margin-bottom: 0;
+}
+
+.word-relations-content {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	position: relative;
+	min-height: 400px;
+}
+
+.words-container {
+	display: flex;
+	justify-content: space-between;
+	gap: 40px;
+	flex: 1;
+	position: relative;
+	z-index: 2;
+	padding: 20px 0;
+}
+
+.words-column {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 15px;
+	max-width: 45%;
+}
+
+.words-column h3 {
+	text-align: center;
+	font-size: 1.2rem;
+	font-weight: bold;
+	color: #333;
+	margin-bottom: 20px;
+	padding-bottom: 10px;
+	border-bottom: 2px solid #e0e0e0;
+}
+
+.word-item {
+	background: #fff;
+	border: 2px solid #ddd;
+	border-radius: 12px;
+	padding: 15px 20px;
+	font-size: 1.1rem;
+	font-weight: 500;
+	text-align: center;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	min-height: 50px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.word-item:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+	border-color: #2196F3;
+}
+
+.word-item.selected {
+	border-color: #2196F3;
+	background: #e3f2fd;
+	transform: scale(1.05);
+	box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.word-item.connected {
+	border-color: #4CAF50;
+	background: #e8f5e8;
+	cursor: default;
+	transform: none !important;
+}
+
+.word-item.connected:hover {
+	transform: none;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.connections-svg {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	z-index: 1;
+}
+
+.pulse-circle {
+	animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+	0% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.7;
+		transform: scale(1.2);
+	}
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+.success-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(255, 255, 255, 0.95);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 10;
+	animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+.success-message {
+	text-align: center;
+	padding: 30px;
+	background: white;
+	border-radius: 15px;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+	max-width: 400px;
+}
+
+.success-icon {
+	font-size: 3rem;
+	margin-bottom: 15px;
+	animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+	0%, 20%, 50%, 80%, 100% {
+		transform: translateY(0);
+	}
+	40% {
+		transform: translateY(-10px);
+	}
+	60% {
+		transform: translateY(-5px);
+	}
+}
+
+.success-message h3 {
+	font-size: 1.5rem;
+	color: #4CAF50;
+	margin-bottom: 10px;
+}
+
+.success-message p {
+	color: #666;
+	font-size: 1rem;
+	line-height: 1.4;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+	.word-relations-activity {
+		padding: 15px;
+	}
+	
+	.words-container {
+		gap: 20px;
+		align-items: center;
+	}
+	
+	.words-column {
+		max-width: 100%;
+		width: 100%;
+	}
+	
+	.words-column h3 {
+		font-size: 1.1rem;
+	}
+	
+	.word-item {
+		font-size: 1rem;
+		padding: 12px 15px;
+		min-height: 45px;
+	}
+	
+	.activity-title {
+		font-size: 1.3rem;
+	}
+	
+	.word-relations-info {
+		flex-direction: column;
+		gap: 10px;
+	}
+}
+
+@media (max-width: 480px) {
+	.word-relations-activity {
+		padding: 10px;
+	}
+	
+	.word-item {
+		font-size: 0.9rem;
+		padding: 10px 12px;
+		min-height: 40px;
+	}
+	
+	.activity-title {
+		font-size: 1.2rem;
+	}
+}
+
+/* Animación para las líneas cuando se crean */
+.connections-svg line {
+	animation: drawLine 0.5s ease-out;
+}
+
+@keyframes drawLine {
+	from {
+		stroke-dasharray: 1000;
+		stroke-dashoffset: 1000;
+	}
+	to {
+		stroke-dasharray: 1000;
+		stroke-dashoffset: 0;
+	}
+}

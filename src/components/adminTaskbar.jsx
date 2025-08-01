@@ -1,5 +1,5 @@
 // src/components/adminTaskbar.jsx
-import React from "react";
+import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -17,7 +17,24 @@ const AdminTaskbar = () => {
 	const navigate = useNavigate();
 	const dispatch = useDispatch();
 	const event = useSelector((state) => state.event.event);
+	const teams = useSelector((state) => state.teams.items);
 	const isSuspended = event?.suspend === true;
+
+	// Calcular el número de actividades pendientes de valoración
+	const pendingActivitiesCount = useMemo(() => {
+		let count = 0;
+		teams.forEach(team => {
+			if (team.activities_data) {
+				team.activities_data.forEach(activity => {
+					// Solo contar actividades completadas pero no valoradas (valorate === 0)
+					if (activity.complete && activity.valorate === 0) {
+						count++;
+					}
+				});
+			}
+		});
+		return count;
+	}, [teams]);
 
 	const handleSessionControl = () => {
 		navigate("/admin/session-control");
@@ -115,6 +132,11 @@ const AdminTaskbar = () => {
 							src={iconPuntuar}
 							alt={t("admin.valorate_activities", "Valorar actividades")}
 						/>
+						{pendingActivitiesCount > 0 && (
+							<span className="admin-tool-badge">
+								{pendingActivitiesCount}
+							</span>
+						)}
 					</button>
 					<button
 						className="admin-tool-button"

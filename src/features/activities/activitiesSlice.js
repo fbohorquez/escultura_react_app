@@ -178,13 +178,13 @@ const activitiesSlice = createSlice({
 			state.currentActivity = activity;
 			state.isActivityActive = true;
 			state.activityStartTime = now;
-			state.activityTimeLeft = activity.time;
+			state.activityTimeLeft = activity.time === 0 ? Infinity : activity.time;
 			
 			// Guardar en localStorage para persistencia
 			localStorage.setItem('currentActivity', JSON.stringify({
 				activity: activity,
 				startTime: now,
-				timeLeft: activity.time
+				timeLeft: activity.time === 0 ? Infinity : activity.time
 			}));
 		},
 		endActivity(state) {
