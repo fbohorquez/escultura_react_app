@@ -10,7 +10,9 @@ import TeamSelector from "../components/TeamSelector";
 import { 
 	setShowGadgetSelector, 
 	getCooldownInfo,
-	clearError 
+	clearError,
+	setSelectedGadgetDirect,
+	setShowTeamSelector
 } from "../features/gadgets/gadgetsSlice";
 import { useNotification } from "../hooks/useNotification";
 
@@ -69,6 +71,27 @@ const GadgetsPage = () => {
 		}
 
 		dispatch(setShowGadgetSelector(true));
+	};
+
+	const handleGadgetDirectSelect = (gadgetId) => {
+		// Verificar cooldown antes de seleccionar gadget
+		const currentCooldown = cooldownInfo[teamId];
+		if (currentCooldown && !currentCooldown.canSendGadget) {
+			const remainingMinutes = Math.ceil(currentCooldown.remainingCooldown / (60 * 1000));
+			showNotification({
+				type: "warning",
+				title: t("gadgets.cooldown_active", "Cooldown Activo"),
+				message: t("gadgets.cooldown_message", "Debes esperar {{minutes}} minutos más", {
+					minutes: remainingMinutes
+				}),
+				duration: 4000
+			});
+			return;
+		}
+
+		// Seleccionar gadget y abrir directamente el selector de equipos
+		dispatch(setSelectedGadgetDirect(gadgetId));
+		dispatch(setShowTeamSelector(true));
 	};
 
 	// Calcular tiempo restante de cooldown
@@ -137,14 +160,23 @@ const GadgetsPage = () => {
 				<div className="gadgets-main-section">
 					<div className="available-gadgets-preview">
 						<h4>{t("gadgets.available_title", "Gadgets Disponibles")}</h4>
+						{!cooldownMinutes && (
+							<p className="gadgets-click-hint">
+								{t("gadgets.click_to_send", "Haz clic en un gadget para enviarlo a otro equipo")}
+							</p>
+						)}
 						<div className="gadgets-preview-grid">
 							{Object.values(availableGadgets).map((gadget) => (
-								<div key={gadget.id} className="gadget-preview-item">
+								<div 
+									key={gadget.id} 
+									className={`gadget-preview-item ${!cooldownMinutes ? 'clickable' : 'disabled'}`}
+									onClick={() => !cooldownMinutes && handleGadgetDirectSelect(gadget.id)}
+								>
 									<span className="gadget-icon">{gadget.icon}</span>
 									<div className="gadget-preview-info">
 										<h5>{gadget.name}</h5>
 										<p>{gadget.description}</p>
-										<small>{t("gadgets.cooldown", "Cooldown")}: {gadget.cooldownMinutes}min</small>
+										{/* <small>{t("gadgets.cooldown", "Cooldown")}: {gadget.cooldownMinutes}min</small> */}
 									</div>
 								</div>
 							))}
@@ -152,17 +184,6 @@ const GadgetsPage = () => {
 					</div>
 
 					<div className="gadgets-actions">
-						<button 
-							className={`btn btn-primary gadget-send-btn ${cooldownMinutes ? 'disabled' : ''}`}
-							onClick={handleSendGadget}
-							disabled={!!cooldownMinutes}
-						>
-							{cooldownMinutes 
-								? t("gadgets.cooldown_wait", "Esperar {{minutes}}min", { minutes: cooldownMinutes })
-								: t("gadgets.send_gadget", "Enviar Gadget")
-							}
-						</button>
-
 						{cooldownMinutes && (
 							<p className="cooldown-info">
 								{t("gadgets.cooldown_explanation", "Debes esperar antes de enviar otro gadget")}

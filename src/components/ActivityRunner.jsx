@@ -410,13 +410,6 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 					<img src={activity.icon.icon} alt={activity.icon.name} className="activity-icon" />
 					<div className="activity-details">
 						<h2 className="activity-name">{activity.name}</h2>
-						<div className="activity-meta">
-							<span className="activity-points">{activity.points} pts</span>
-							<span className="activity-time">
-								{activity.time === 0 ? "∞" : `${Math.floor(activity.time / 60)}:${(activity.time % 60).toString().padStart(2, '0')}`}
-							</span>
-							<span className="activity-distance">{activity.distance}m</span>
-						</div>
 					</div>
 				</div>
 				<div className="header-actions">

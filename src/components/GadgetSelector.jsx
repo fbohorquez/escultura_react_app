@@ -56,9 +56,9 @@ const GadgetSelector = () => {
 								<div className="gadget-info">
 									<h4 className="gadget-name">{gadget.name}</h4>
 									<p className="gadget-description">{gadget.description}</p>
-									<small className="gadget-cooldown">
+									{/* <small className="gadget-cooldown">
 										{t("gadgets.cooldown", "Cooldown")}: {gadget.cooldownMinutes} min
-									</small>
+									</small> */}
 								</div>
 							</div>
 						))}

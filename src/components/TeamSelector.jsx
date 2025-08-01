@@ -8,7 +8,7 @@ import {
 	sendGadgetAction,
 	resetGadgetFlow,
 	setSelectedGadget,
-	canSendGadgetToTeam,
+	setShowGadgetSelector,
 } from "../features/gadgets/gadgetsSlice";
 import { useNotification } from "../hooks/useNotification";
 
@@ -18,7 +18,7 @@ const TeamSelector = () => {
 	const { eventId } = useParams();
 	const { showNotification } = useNotification();
 	
-	const { selectedGadget, showTeamSelector, availableGadgets, status, cooldownInfo } = useSelector((state) => state.gadgets);
+	const { selectedGadget, showTeamSelector, availableGadgets, status, cooldownInfo, isDirectFlow } = useSelector((state) => state.gadgets);
 	const teams = useSelector((state) => state.teams.items || []);
 	const { selectedTeam, isAdmin } = useSelector((state) => state.session);
 
@@ -121,8 +121,15 @@ const TeamSelector = () => {
 	};
 
 	const handleBack = () => {
-		dispatch(setShowTeamSelector(false));
-		dispatch(setSelectedGadget(null));
+		if (isDirectFlow) {
+			// Si venimos del flujo directo, cerrar completamente y resetear
+			dispatch(resetGadgetFlow());
+		} else {
+			// Si venimos del selector de gadgets, volver al selector
+			dispatch(setShowTeamSelector(false));
+			dispatch(setSelectedGadget(null));
+			dispatch(setShowGadgetSelector(true));
+		}
 	};
 
 	if (!showTeamSelector || !selectedGadget) return null;
