@@ -381,6 +381,27 @@ export const GADGETS = {
 		description: "Provoca un efecto de susto en el equipo objetivo",
 		icon: "😱",
 		cooldownMinutes: 10
+	},
+	broken_glass: {
+		id: "broken_glass",
+		name: "Cristal Roto",
+		description: "Bloquea la interfaz con un efecto de cristal roto",
+		icon: "🔨",
+		cooldownMinutes: 8
+	},
+	hearts: {
+		id: "hearts",
+		name: "Lluvia de Corazones",
+		description: "Muestra corazones flotando por la pantalla",
+		icon: "💕",
+		cooldownMinutes: 6
+	},
+	kiss: {
+		id: "kiss",
+		name: "Beso",
+		description: "Muestra un beso gigante en la pantalla",
+		icon: "💋",
+		cooldownMinutes: 5
 	}
 };
 

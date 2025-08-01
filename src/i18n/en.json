@@ -11,6 +11,9 @@
     "title": "Teams",
     "subtitle": "Select a team"
   },
+  "team": {
+    "tap_to_photo": "Tap to take photo (optional)"
+  },
   "play": "Play",
   "admin": "Organizer",
   "admin.mode": "Organizer Mode",

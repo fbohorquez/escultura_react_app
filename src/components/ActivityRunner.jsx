@@ -329,9 +329,11 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 				return (
 					<div className="activity-content">
 						<p>{t("activity_not_implemented")}</p>
-						<button onClick={onExit} className="btn btn-secondary">
-							{t("back")}
-						</button>
+						{import.meta.env.VITE_ACTIVITY_CLOSE_BUTTON !== 'false' && (
+							<button onClick={onExit} className="btn btn-secondary">
+								{t("back")}
+							</button>
+						)}
 					</div>
 				);
 		}
@@ -357,9 +359,11 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 							<span>{isVideo ? "🎥" : "🖼️"}</span>
 						</button>
 					)}
-					<button onClick={onExit} className="btn-close">
-						<span>&times;</span>
-					</button>
+					{import.meta.env.VITE_ACTIVITY_CLOSE_BUTTON !== 'false' && (
+						<button onClick={onExit} className="btn-close">
+							<span>&times;</span>
+						</button>
+					)}
 				</div>
 			</div>
 

@@ -1,8 +1,11 @@
 // src/components/eventHeader.jsx
 import React, { useRef } from "react";
 import PropTypes from "prop-types";
+import { useSelector } from "react-redux";
 
 import brandIcon from "../assets/escultura_brand.png";
+import defaultLogoTeam from "../assets/icono_equpo@2x.png";
+import adminIcon from "../assets/Icono_Organizacion@2x.png";
 
 const SWIPE_THRESHOLD = 30; // px
 
@@ -16,6 +19,8 @@ const EventHeader = ({
 }) => {
 	const touchStartY = useRef(0);
 	const touchEndY = useRef(0);
+
+	const isAdmin = useSelector((state) => state.session.isAdmin);
 
 	const handleTouchStart = (e) => {
 		touchStartY.current = e.touches[0].clientY;
@@ -52,13 +57,28 @@ const EventHeader = ({
 					<h1 className="event-title">{eventName}</h1>
 					<h2 className="team-name">{teamName}</h2>
 				</div>
-				{teamPhoto && (
+				{(teamPhoto && (
 					<div className="logo-container">
 						<img src={teamPhoto} alt={teamName} className="team-photo" />
 					</div>
-				) || (
-					<div className="logo-container"></div>
-				)}
+				)) ||
+					(isAdmin && (
+						<div className="logo-container">
+							<img
+								src={adminIcon}
+								alt="default team logo"
+								className="team-photo"
+							/>
+						</div>
+					)) || (
+						<div className="logo-container">
+							<img
+								src={defaultLogoTeam}
+								alt="default team logo"
+								className="team-photo"
+							/>
+						</div>
+					)}
 			</div>
 		</header>
 	);
@@ -81,4 +101,7 @@ EventHeader.defaultProps = {
 };
 
 export default EventHeader;
+
+
+
 

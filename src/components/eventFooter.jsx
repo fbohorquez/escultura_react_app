@@ -1,5 +1,5 @@
 // src/components/eventFooter.jsx
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -18,6 +18,40 @@ const EventFooter = ({ eventId }) => {
 	const selectedTeam = useSelector((state) => state.session.selectedTeam);
 	const isAdmin = useSelector((state) => state.session.isAdmin);
 
+	// Estado y lógica del cronómetro para admin
+	const [seconds, setSeconds] = useState(0);
+	const [isRunning, setIsRunning] = useState(false);
+
+	// Formatear tiempo para mostrar (mm:ss)
+	const formatTime = (totalSeconds) => {
+		const minutes = Math.floor(totalSeconds / 60);
+		const secs = totalSeconds % 60;
+		return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+	};
+
+	// Iniciar cronómetro automáticamente cuando es admin
+	useEffect(() => {
+		if (isAdmin) {
+			setIsRunning(true);
+			setSeconds(0);
+		} else {
+			setIsRunning(false);
+		}
+	}, [isAdmin]);
+
+	// Efecto para el cronómetro
+	useEffect(() => {
+		let interval = null;
+		if (isRunning) {
+			interval = setInterval(() => {
+				setSeconds(prev => prev + 1);
+			}, 1000);
+		} else if (!isRunning && seconds !== 0) {
+			clearInterval(interval);
+		}
+		return () => clearInterval(interval);
+	}, [isRunning, seconds]);
+
 	// Calcular la posición del equipo en el ranking
 	const teamPosition = useMemo(() => {
 		if (isAdmin || !selectedTeam) return null;
@@ -35,7 +69,13 @@ const EventFooter = ({ eventId }) => {
 	};
 
 	const handlePositionClick = () => {
-		navigate(`/ranking/${eventId}`);
+		if (isAdmin) {
+			// Reiniciar cronómetro para admin
+			setSeconds(0);
+			setIsRunning(true);
+		} else {
+			navigate(`/ranking/${eventId}`);
+		}
 	};
 
 	const handleGadgetsClick = () => {
@@ -90,7 +130,9 @@ const EventFooter = ({ eventId }) => {
 						{!isAdmin && teamPosition && (
 							<span className="position-number">{teamPosition}</span>
 						)}
-						{isAdmin && <span className="admin-icon">👑</span>}
+						{isAdmin && (
+							<span className="timer-display">{formatTime(seconds)}</span>
+						)}
 					</div>
 					{/* <span className="control-label">
 						{isAdmin ? t("footer.manage", "Gestión") : t("footer.position", "Posición")}

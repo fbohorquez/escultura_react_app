@@ -30,6 +30,7 @@ Se ha implementado un sistema de cola para la ejecución secuencial de gadgets. 
 Cada tipo de gadget ahora devuelve una promesa que se resuelve cuando la ejecución ha terminado completamente:
 - **Rotate Screen**: Se resuelve después de 16 segundos (15s de rotación + 1s de transición)
 - **Susto**: Se resuelve después de 3 segundos cuando se elimina el overlay
+- **Broken Glass**: Se resuelve después de 10 segundos cuando se elimina el overlay de cristal roto
 - **Gadgets sin implementación**: Se resuelve después de 1 segundo
 
 ## Ejemplo de Uso

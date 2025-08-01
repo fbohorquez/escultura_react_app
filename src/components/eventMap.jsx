@@ -90,6 +90,18 @@ const EventMap = () => {
 	// Obtener el nivel de detalle del mapa desde las variables de entorno
 	const mapDetailLevel = import.meta.env.VITE_GOOGLE_MAPS_DETAIL_LEVEL || 'basic';
 
+	// Obtener configuración de zoom desde las variables de entorno
+	const getZoomLimits = () => {
+		const minZoom = parseInt(import.meta.env.VITE_GOOGLE_MAPS_MIN_ZOOM) || 1;
+		const maxZoom = parseInt(import.meta.env.VITE_GOOGLE_MAPS_MAX_ZOOM) || 21;
+		
+		// Validar que los valores estén en el rango permitido por Google Maps (1-21)
+		return {
+			minZoom: Math.max(1, Math.min(21, minZoom)),
+			maxZoom: Math.max(1, Math.min(21, maxZoom))
+		};
+	};
+
 	// Configurar estilos del mapa según el nivel de detalle
 	const getMapStyles = () => {
 		switch (mapDetailLevel) {
@@ -409,7 +421,13 @@ const EventMap = () => {
 	const handleLoad = (map) => {
 		mapRef.current = map;
 		map.panTo(initialCenter);
-		map.setZoom(15);
+		
+		// Calcular zoom inicial respetando los límites configurados
+		const { minZoom, maxZoom } = getZoomLimits();
+		const defaultZoom = 15;
+		const initialZoom = Math.max(minZoom, Math.min(maxZoom, defaultZoom));
+		
+		map.setZoom(initialZoom);
 	};
 
 	return (
@@ -422,6 +440,7 @@ const EventMap = () => {
 				styles: getMapStyles(),
 				disableDefaultUI: true,
 				gestureHandling: "greedy",
+				...getZoomLimits(), // Añadir límites de zoom
 			}}
 		>
 			{renderMarkers()}

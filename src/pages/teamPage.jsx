@@ -9,6 +9,7 @@ import BackButton from "../components/backButton";
 import iconPhoto from "../assets/icono_equipo_foto.png";
 import iconPlay from "../assets/Icon_cohete.png";
 import eventDefaultLogo from "../assets/img_log_event.png";
+import iconTeamDefault from "../assets/icono_equpo@2x.png";
 
 import {
 	setSelectedTeam,
@@ -57,21 +58,28 @@ const TeamPage = () => {
 	};
 
 	const handlePlay = async () => {
-		if (!photo) return;
 		try {
+			let img_path = null;
 			
-			let event_path = "event_" + String(event.id);
-			let team_path = "team_" + String(team.id);
-			let file_name = "photo.jpeg"
-			let img_path = event_path + "@" + team_path + "@" + file_name
+			// Solo procesar la foto si el usuario seleccionó una
+			if (photo) {
+				let event_path = "event_" + String(event.id);
+				let team_path = "team_" + String(team.id);
+				let file_name = "photo.jpeg"
+				img_path = event_path + "@" + team_path + "@" + file_name
 
-			const uploadUrl = `/${img_path}/upload`;
+				const uploadUrl = `/${img_path}/upload`;
 
-			await enqueueUpload({
-				file: photo,
-				url: uploadUrl,
-				metadata: {},
-			});
+				await enqueueUpload({
+					file: photo,
+					url: uploadUrl,
+					metadata: {},
+				});
+			} else {
+				// Usar imagen por defecto cuando no se selecciona foto
+				img_path = "default_team_photo";
+			}
+
 			dispatch(setSelectedTeam(team));
 			dispatch(setIsAdmin(false));
 			let generatedToken = token;

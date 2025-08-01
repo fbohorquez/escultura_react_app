@@ -47,12 +47,14 @@ const ClueActivity = ({ activity, onComplete, onExit, timeExpired }) => {
 						</button>
 					)}
 					
-					<button 
-						onClick={onExit}
-						className="btn btn-secondary"
-					>
-						{t("back")}
-					</button>
+					{import.meta.env.VITE_ACTIVITY_CLOSE_BUTTON !== 'false' && (
+						<button 
+							onClick={onExit}
+							className="btn btn-secondary"
+						>
+							{t("back")}
+						</button>
+					)}
 				</div>
 			</div>
 		</div>

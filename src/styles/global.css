@@ -221,6 +221,56 @@ img.team-detail-icon {
     display: block;
 }
 
+img.team-default-icon {
+    width: 14rem;
+    height: 14rem;
+    object-fit: cover;
+    margin: auto;
+    display: block;
+    opacity: 0.7;
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.3s ease;
+}
+
+.team-photo-selector {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+}
+
+.camera-overlay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.camera-overlay:hover {
+    background: rgba(255, 255, 255, 1);
+}
+
+.camera-icon {
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+.camera-text {
+    font-size: 0.9rem;
+    color: #666;
+    text-align: center;
+}
+
 h2.team-title {
     text-align: center;
     margin: 5rem 0;
@@ -505,7 +555,7 @@ header.event-header {
 /* Estilos del sistema de notificaciones */
 .notification-container {
   position: fixed;
-  z-index: 2000;
+  z-index: 99999;
   pointer-events: none;
   display: flex;
   flex-direction: column;
@@ -854,6 +904,15 @@ header.event-header {
 
 .admin-icon {
   font-size: 1.2rem;
+}
+
+.timer-display {
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: var(--primary-color);
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+  font-family: 'Courier New', monospace;
+  letter-spacing: 1px;
 }
 
 /* Chat Page Styles */
