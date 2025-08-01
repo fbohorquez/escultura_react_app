@@ -408,6 +408,7 @@ const GadgetDetector = () => {
 		}
 		
 		// Mostrar notificación del gadget recibido
+    // VITE_GADGET_NOTIFICATION;
 		showNotification({
 			type: "warning",
 			title: "¡Gadget Recibido!",
@@ -567,4 +568,5 @@ const GadgetDetector = () => {
 };
 
 export default GadgetDetector;
+
 

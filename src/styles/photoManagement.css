@@ -3,14 +3,14 @@
   padding: 1rem;
   max-width: 1200px;
   margin: 0 auto;
-  font-family: 'Optima', sans-serif;
+  font-family: 'Optima', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 .no-photo-activities {
   text-align: center;
   padding: 3rem 1rem;
   color: #666;
-  font-family: 'Optima', sans-serif;
+  font-family: 'Optima', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 .no-photo-activities .empty-icon {
