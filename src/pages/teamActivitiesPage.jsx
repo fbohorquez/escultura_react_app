@@ -79,6 +79,8 @@ const TeamActivitiesPage = () => {
 			case 1: return t("valorate.type_question", "Pregunta");
 			case 2: return t("valorate.type_clue", "Pista");
 			case 3: return t("valorate.type_media", "Foto/Video");
+			case 4: return t("valorate.type_puzzle", "Puzzle");
+			case 5: return t("valorate.type_pairs", "Parejas");
 			default: return t("valorate.type_unknown", "Desconocido");
 		}
 	};

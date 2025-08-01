@@ -7,7 +7,7 @@ import { startActivityWithSuspensionCheck } from "../features/activities/activit
 
 const ActivityMarker = ({ activity }) => {
 	const dispatch = useDispatch();
-	const iconConfig = useActivityIcon(activity.icon?.icon || "");
+	const iconConfig = useActivityIcon(activity.icon?.icon || "", activity.type?.id || 3);
 
 	// Si el icono aún no está procesado, no renderizar el marker
 	if (!iconConfig) {

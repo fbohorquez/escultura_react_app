@@ -106,6 +106,25 @@
   "pending_review_message": "Your answer has been submitted successfully. The organizer will review your answer and assign the corresponding points.",
   "pending_review_note": "You will receive points once the organizer has reviewed your answer.",
   "back_to_activities": "Back to Activities",
+  "pairs": {
+    "total": "Pairs",
+    "found": "Found",
+    "completed": "Game Completed!",
+    "success_message": "Congratulations! You have found all the pairs.",
+    "final_score": "Pairs found",
+    "card_back": "Card back",
+    "card_image": "Card image",
+    "no_images": "No images found for the pairs game"
+  },
+  "word_relations": {
+    "progress": "Progress",
+    "instructions": "Tap one word from each column to connect related words",
+    "left_column": "Column A",
+    "right_column": "Column B",
+    "completed": "All words connected!",
+    "success_message": "Congratulations! You have connected all words correctly.",
+    "no_words": "No words to relate"
+  },
   "footer": {
     "chat": "Chat",
     "position": "Position",
@@ -190,6 +209,9 @@
     "type_question": "Question",
     "type_clue": "Clue",
     "type_media": "Photo/Video",
+    "type_puzzle": "Puzzle",
+    "type_pairs": "Pairs",
+    "type_word_relations": "Word Relations",
     "type_unknown": "Unknown",
     "not_found": "Activity not found",
     "questions_answers": "Questions and Answers",
