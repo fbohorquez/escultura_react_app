@@ -5,6 +5,7 @@ import RouteListener from "./components/routeListener";
 import SubscriptionManager from "./components/subscriptionManager";
 import CacheEventAssets from "./components/cacheEventAssets";
 import ChatConnectionManager from "./components/ChatConnectionManager";
+import ChatReadStatusManager from "./components/chatReadStatusManager";
 import ChatConnectionStatus from "./components/ChatConnectionStatus";
 import GadgetDetector from "./components/GadgetDetector";
 import ActivitySendDetector from "./components/ActivitySendDetector";
@@ -56,6 +57,7 @@ function App() {
 			<SubscriptionManager />
 			<CacheEventAssets />
 			<ChatConnectionManager />
+			<ChatReadStatusManager />
 			<GadgetDetector />
 			<ActivitySendDetector />
 			<Popup />

@@ -362,6 +362,94 @@ export const getChatRooms = async (eventId, teamId, isAdmin, teams = []) => {
 	return rooms;
 };
 
+/**
+ * Marca todos los mensajes de un chat como leídos por un usuario
+ * @param {string|number} eventId
+ * @param {string} chatId
+ * @param {string|number} userId
+ * @param {string} userType - "admin" o "team"
+ */
+export const markChatAsRead = async (eventId, chatId, userId, userType) => {
+	const readStatusRef = doc(db, "events", `event_${eventId}`, "chat_read_status", `${chatId}_${userId}`);
+	
+	try {
+		// Obtener la cantidad actual de mensajes en el chat
+		const chatRef = doc(db, "events", `event_${eventId}`, "chats", chatId);
+		const chatDoc = await getDoc(chatRef);
+		
+		if (chatDoc.exists()) {
+			const chatData = chatDoc.data();
+			const messageCount = chatData.messages ? chatData.messages.length : 0;
+			
+			// Marcar todos los mensajes como leídos
+			await setDoc(readStatusRef, {
+				userId,
+				userType,
+				lastReadMessageIndex: messageCount - 1,
+				lastReadAt: Date.now(),
+				chatId
+			});
+			
+			console.log(`Chat ${chatId} marked as read for user ${userId} (${messageCount} messages)`);
+		}
+	} catch (error) {
+		console.error("Error marking chat as read:", error);
+		throw error;
+	}
+};
+
+/**
+ * Obtiene el estado de lectura de un chat para un usuario
+ * @param {string|number} eventId
+ * @param {string} chatId
+ * @param {string|number} userId
+ * @returns {Promise<Object>} Estado de lectura
+ */
+export const getChatReadStatus = async (eventId, chatId, userId) => {
+	const readStatusRef = doc(db, "events", `event_${eventId}`, "chat_read_status", `${chatId}_${userId}`);
+	
+	try {
+		const readDoc = await getDoc(readStatusRef);
+		
+		if (readDoc.exists()) {
+			return readDoc.data();
+		}
+		
+		return {
+			lastReadMessageIndex: -1,
+			lastReadAt: 0
+		};
+	} catch (error) {
+		console.error("Error getting chat read status:", error);
+		return {
+			lastReadMessageIndex: -1,
+			lastReadAt: 0
+		};
+	}
+};
+
+/**
+ * Suscribirse a los cambios de estado de lectura de todos los chats de un usuario
+ * @param {string|number} eventId
+ * @param {string|number} userId
+ * @param {Function} callback
+ * @returns {Function} Función para cancelar la suscripción
+ */
+export const subscribeToUserReadStatus = (eventId, userId, callback) => {
+	const readStatusCollection = collection(db, "events", `event_${eventId}`, "chat_read_status");
+	
+	return onSnapshot(readStatusCollection, (snapshot) => {
+		const readStatuses = {};
+		snapshot.forEach((doc) => {
+			const data = doc.data();
+			if (data.userId === userId.toString()) {
+				readStatuses[data.chatId] = data;
+			}
+		});
+		callback(readStatuses);
+	});
+};
+
 // === FUNCIONES DE GADGETS ===
 
 /**

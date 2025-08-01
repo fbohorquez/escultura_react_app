@@ -43,7 +43,7 @@
     "team_mode": "Modo Equipo",
     "selected_team": "Equipo Seleccionado",
     "device_token": "Token del Dispositivo",
-    "clear_local_session": "Cerrar Sesión Local",
+    "clear_local_session": "Cerrar Sesión Organizador",
     "confirm_clear_local": "¿Estás seguro de que quieres cerrar la sesión local? Se eliminarán todos los datos guardados en este dispositivo.",
     "associated_teams": "Equipos Asociados",
     "no_associated_teams": "No hay equipos asociados a dispositivos",

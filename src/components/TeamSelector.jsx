@@ -167,7 +167,6 @@ const TeamSelector = () => {
 				<div className="team-selector-content">
 					<div className="selected-gadget-info">
 						<div className="gadget-preview">
-							<span className="gadget-icon">{gadgetInfo.icon}</span>
 							<span className="gadget-name">{gadgetInfo.name}</span>
 						</div>
 					</div>

@@ -2,13 +2,15 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { 
   sendMessage as sendMessageToFirebase,
-  getChatRooms 
+  getChatRooms,
+  markChatAsRead as markChatAsReadInFirebase,
+  getChatReadStatus
 } from "../../services/firebase";
 
 // Thunk para enviar mensaje
 export const sendMessage = createAsyncThunk(
   "chats/sendMessage",
-  async ({ eventId, chatId, message, senderName, senderId, senderType }, { rejectWithValue }) => {
+  async ({ eventId, chatId, message, senderName, senderId, senderType }, { rejectWithValue, getState }) => {
     try {
       const messageData = {
         date: Date.now(),
@@ -19,7 +21,18 @@ export const sendMessage = createAsyncThunk(
       };
       
       await sendMessageToFirebase(eventId, chatId, messageData);
-      return { chatId, message: messageData };
+      
+      // Marcar inmediatamente como leído para el remitente
+      const state = getState();
+      const currentMessages = state.chats.messages[chatId] || [];
+      const newMessageIndex = currentMessages.length; // El índice del nuevo mensaje
+      
+      return { 
+        chatId, 
+        message: messageData, 
+        markAsReadForSender: true,
+        senderMessageIndex: newMessageIndex
+      };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -42,15 +55,44 @@ export const fetchChatRooms = createAsyncThunk(
 // Thunk para inicializar conexiones automáticas a todas las salas
 export const initializeChatConnections = createAsyncThunk(
   "chats/initializeChatConnections",
-  async ({ eventId, teamId, isAdmin }, { rejectWithValue }) => {
+  async ({ eventId, teamId, isAdmin }, { rejectWithValue, getState }) => {
     try {
+      // Obtener los equipos del estado actual
+      const teams = getState().teams.items || [];
+      
       // Primero obtenemos las salas de chat
-      const rooms = await getChatRooms(eventId, teamId, isAdmin);
+      const rooms = await getChatRooms(eventId, teamId, isAdmin, teams);
       
       // Luego inicializamos las conexiones automáticas
       console.log(`[ChatSlice] Inicializando conexiones automáticas para ${rooms.length} salas`);
       
       return { rooms, eventId, teamId, isAdmin };
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Thunk para marcar un chat como leído
+export const markChatAsReadThunk = createAsyncThunk(
+  "chats/markChatAsRead",
+  async ({ eventId, chatId, userId, userType }, { rejectWithValue }) => {
+    try {
+      await markChatAsReadInFirebase(eventId, chatId, userId, userType);
+      return { chatId, userId };
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Thunk para obtener el estado de lectura de un chat
+export const fetchChatReadStatus = createAsyncThunk(
+  "chats/fetchChatReadStatus",
+  async ({ eventId, chatId, userId }, { rejectWithValue }) => {
+    try {
+      const readStatus = await getChatReadStatus(eventId, chatId, userId);
+      return { chatId, readStatus };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -66,6 +108,8 @@ const chatsSlice = createSlice({
     status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
     error: null,
     sendingMessage: false,
+    readStatus: {}, // Estado de lectura por chatId: { chatId: { messageIndex: true/false } }
+    unreadCounts: {}, // Contadores de mensajes no leídos por chatId: { chatId: number }
     connections: {
       status: "disconnected", // 'disconnected' | 'connecting' | 'connected' | 'error'
       connectedRooms: [], // Lista de IDs de salas conectadas
@@ -79,6 +123,15 @@ const chatsSlice = createSlice({
     setChatMessages(state, action) {
       const { chatId, messages } = action.payload;
       state.messages[chatId] = messages;
+      
+      // Recalcular mensajes no leídos basándose en el estado de lectura existente
+      if (!state.readStatus[chatId]) {
+        state.readStatus[chatId] = {};
+      }
+      
+      // Contar mensajes no leídos: todos los mensajes que no están marcados como leídos
+      const unreadCount = messages.filter((_, index) => !state.readStatus[chatId][index]).length;
+      state.unreadCounts[chatId] = unreadCount;
     },
     addMessageToChat(state, action) {
       const { chatId, message } = action.payload;
@@ -86,6 +139,15 @@ const chatsSlice = createSlice({
         state.messages[chatId] = [];
       }
       state.messages[chatId].push(message);
+      
+      // Incrementar contador de no leídos
+      const messageIndex = state.messages[chatId].length - 1;
+      if (!state.readStatus[chatId]) {
+        state.readStatus[chatId] = {};
+      }
+      if (!state.readStatus[chatId][messageIndex]) {
+        state.unreadCounts[chatId] = (state.unreadCounts[chatId] || 0) + 1;
+      }
     },
     setChatRooms(state, action) {
       state.rooms = action.payload;
@@ -114,12 +176,41 @@ const chatsSlice = createSlice({
         id => id !== roomId
       );
     },
+    markChatAsRead(state, action) {
+      const { chatId } = action.payload;
+      if (state.messages[chatId]) {
+        if (!state.readStatus[chatId]) {
+          state.readStatus[chatId] = {};
+        }
+        // Marcar todos los mensajes como leídos
+        state.messages[chatId].forEach((_, index) => {
+          state.readStatus[chatId][index] = true;
+        });
+        // Resetear contador de no leídos
+        state.unreadCounts[chatId] = 0;
+      }
+    },
+    updateMessageReadStatus(state, action) {
+      const { chatId, messageIndex, isRead } = action.payload;
+      if (!state.readStatus[chatId]) {
+        state.readStatus[chatId] = {};
+      }
+      state.readStatus[chatId][messageIndex] = isRead;
+      
+      // Recalcular contador de no leídos
+      if (state.messages[chatId]) {
+        const unreadCount = state.messages[chatId].filter((_, index) => !state.readStatus[chatId][index]).length;
+        state.unreadCounts[chatId] = unreadCount;
+      }
+    },
     clearChats(state) {
       state.rooms = [];
       state.messages = {};
       state.activeChat = null;
       state.status = "idle";
       state.error = null;
+      state.readStatus = {};
+      state.unreadCounts = {};
       state.connections = {
         status: "disconnected",
         connectedRooms: [],
@@ -133,8 +224,23 @@ const chatsSlice = createSlice({
         state.sendingMessage = true;
         state.error = null;
       })
-      .addCase(sendMessage.fulfilled, (state) => {
+      .addCase(sendMessage.fulfilled, (state, action) => {
         state.sendingMessage = false;
+        const { markAsReadForSender, senderMessageIndex, chatId } = action.payload;
+        
+        // Si es un mensaje enviado por el usuario actual, marcarlo como leído
+        if (markAsReadForSender && senderMessageIndex !== undefined) {
+          if (!state.readStatus[chatId]) {
+            state.readStatus[chatId] = {};
+          }
+          state.readStatus[chatId][senderMessageIndex] = true;
+          
+          // Recalcular contador de no leídos
+          if (state.messages[chatId]) {
+            const unreadCount = state.messages[chatId].filter((_, index) => !state.readStatus[chatId][index]).length;
+            state.unreadCounts[chatId] = unreadCount;
+          }
+        }
       })
       .addCase(sendMessage.rejected, (state, action) => {
         state.sendingMessage = false;
@@ -166,6 +272,40 @@ const chatsSlice = createSlice({
       .addCase(initializeChatConnections.rejected, (state, action) => {
         state.connections.status = "error";
         state.error = action.payload;
+      })
+      // Casos para marcar chat como leído
+      .addCase(markChatAsReadThunk.fulfilled, (state, action) => {
+        const { chatId } = action.payload;
+        // Marcar todos los mensajes como leídos localmente
+        if (state.messages[chatId]) {
+          if (!state.readStatus[chatId]) {
+            state.readStatus[chatId] = {};
+          }
+          state.messages[chatId].forEach((_, index) => {
+            state.readStatus[chatId][index] = true;
+          });
+          state.unreadCounts[chatId] = 0;
+        }
+      })
+      // Casos para obtener estado de lectura
+      .addCase(fetchChatReadStatus.fulfilled, (state, action) => {
+        const { chatId, readStatus } = action.payload;
+        const lastReadIndex = readStatus.lastReadMessageIndex || -1;
+        
+        if (state.messages[chatId]) {
+          if (!state.readStatus[chatId]) {
+            state.readStatus[chatId] = {};
+          }
+          
+          // Marcar mensajes como leídos hasta el último índice leído
+          state.messages[chatId].forEach((_, index) => {
+            state.readStatus[chatId][index] = index <= lastReadIndex;
+          });
+          
+          // Recalcular contador de no leídos
+          const unreadCount = state.messages[chatId].filter((_, index) => index > lastReadIndex).length;
+          state.unreadCounts[chatId] = unreadCount;
+        }
       });
   },
 });
@@ -178,6 +318,8 @@ export const {
   setConnectionStatus,
   addConnectedRoom,
   removeConnectedRoom,
+  markChatAsRead,
+  updateMessageReadStatus,
   clearChats 
 } = chatsSlice.actions;
 

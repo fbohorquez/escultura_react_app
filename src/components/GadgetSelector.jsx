@@ -52,7 +52,6 @@ const GadgetSelector = () => {
 								className="gadget-option"
 								onClick={() => handleGadgetSelect(gadget.id)}
 							>
-								<div className="gadget-icon">{gadget.icon}</div>
 								<div className="gadget-info">
 									<h4 className="gadget-name">{gadget.name}</h4>
 									<p className="gadget-description">{gadget.description}</p>

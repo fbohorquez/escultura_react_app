@@ -6,9 +6,9 @@ import { useTranslation } from "react-i18next";
 import PropTypes from "prop-types";
 
 import iconChat from "../assets/icon_chat.png";
-import formPoint from "../assets/form_point.png";
 import iconGadgets from "../assets/icon_gadgets.png";
 import BackgroundDecagon from "../assets/decagon.svg";
+import NotificationBubble from "./notificationBubble";
 
 const EventFooter = ({ eventId }) => {
 	const { t } = useTranslation();
@@ -17,6 +17,12 @@ const EventFooter = ({ eventId }) => {
 	const teams = useSelector((state) => state.teams.items);
 	const selectedTeam = useSelector((state) => state.session.selectedTeam);
 	const isAdmin = useSelector((state) => state.session.isAdmin);
+	const unreadCounts = useSelector((state) => state.chats.unreadCounts);
+
+	// Calcular el total de mensajes no leídos
+	const totalUnreadMessages = useMemo(() => {
+		return Object.values(unreadCounts || {}).reduce((total, count) => total + count, 0);
+	}, [unreadCounts]);
 
 	// Estado y lógica del cronómetro para admin
 	const [seconds, setSeconds] = useState(0);
@@ -92,6 +98,7 @@ const EventFooter = ({ eventId }) => {
 					title={t("footer.chat", "Chat")}
 				>
 					<img src={iconChat} alt="Chat" className="control-icon" />
+					<NotificationBubble count={totalUnreadMessages} size="small" />
 				</button>
 
 				{/* Control de Posición */}

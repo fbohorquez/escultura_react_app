@@ -6,6 +6,8 @@ import { useTranslation } from "react-i18next";
 import { fetchChatRooms, setActiveChat } from "../features/chats/chatsSlice";
 import BackgroundLayout from "../components/backgroundLayout";
 import BackButton from "../components/backButton";
+import NotificationBubble from "../components/notificationBubble";
+import useChatReadStatus from "../hooks/useChatReadStatus";
 
 const ChatsListPage = () => {
   const { t } = useTranslation();
@@ -13,11 +15,18 @@ const ChatsListPage = () => {
   const dispatch = useDispatch();
   
   const { rooms, status, error } = useSelector((state) => state.chats);
+  const unreadCounts = useSelector((state) => state.chats.unreadCounts);
   const { id: eventId } = useSelector((state) => state.event);
   const session = useSelector((state) => state.session);
   const teams = useSelector((state) => state.teams.items);
   const { selectedTeam, isAdmin } = session;
   const { id: teamId } = selectedTeam || { id: null };
+
+  const currentUserId = isAdmin ? "admin" : teamId;
+  const currentUserType = isAdmin ? "admin" : "team";
+
+  // Inicializar estado de lectura
+  useChatReadStatus(eventId, currentUserId, currentUserType);
 
   useEffect(() => {
     console.log('Session data:', session);
@@ -171,6 +180,7 @@ const ChatsListPage = () => {
             >
               <div className="chat-icon-container">
                 <span className="chat-icon">{getChatIcon(room.type)}</span>
+                <NotificationBubble count={unreadCounts[room.id]} size="small" />
               </div>
               <div className="listing-item-details">
                 <h3 className="listing-item-name">{room.name}</h3>

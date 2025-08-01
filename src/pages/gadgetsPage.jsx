@@ -8,7 +8,6 @@ import BackButton from "../components/backButton";
 import GadgetSelector from "../components/GadgetSelector";
 import TeamSelector from "../components/TeamSelector";
 import { 
-	setShowGadgetSelector, 
 	getCooldownInfo,
 	clearError,
 	setSelectedGadgetDirect,
@@ -52,25 +51,6 @@ const GadgetsPage = () => {
 
 	const handleBack = () => {
 		navigate(`/event/${eventId}`);
-	};
-
-	const handleSendGadget = () => {
-		// Verificar cooldown antes de abrir selector
-		const currentCooldown = cooldownInfo[teamId];
-		if (currentCooldown && !currentCooldown.canSendGadget) {
-			const remainingMinutes = Math.ceil(currentCooldown.remainingCooldown / (60 * 1000));
-			showNotification({
-				type: "warning",
-				title: t("gadgets.cooldown_active", "Cooldown Activo"),
-				message: t("gadgets.cooldown_message", "Debes esperar {{minutes}} minutos más", {
-					minutes: remainingMinutes
-				}),
-				duration: 4000
-			});
-			return;
-		}
-
-		dispatch(setShowGadgetSelector(true));
 	};
 
 	const handleGadgetDirectSelect = (gadgetId) => {
@@ -172,7 +152,6 @@ const GadgetsPage = () => {
 									className={`gadget-preview-item ${!cooldownMinutes ? 'clickable' : 'disabled'}`}
 									onClick={() => !cooldownMinutes && handleGadgetDirectSelect(gadget.id)}
 								>
-									<span className="gadget-icon">{gadget.icon}</span>
 									<div className="gadget-preview-info">
 										<h5>{gadget.name}</h5>
 										<p>{gadget.description}</p>

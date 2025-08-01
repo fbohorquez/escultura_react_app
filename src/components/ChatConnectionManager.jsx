@@ -13,8 +13,10 @@ export const ChatConnectionManager = () => {
   const { getConnectionStatus } = useChatConnections();
   
   const { id: eventId } = useSelector((state) => state.event);
-  const { id: teamId, isAdmin } = useSelector((state) => state.session);
+  const { selectedTeam, isAdmin } = useSelector((state) => state.session);
   const { rooms, connections } = useSelector((state) => state.chats);
+  
+  const teamId = selectedTeam?.id;
 
   // Inicializar conexiones cuando se carga el evento y hay sesión
   useEffect(() => {
