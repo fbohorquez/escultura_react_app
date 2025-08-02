@@ -269,6 +269,16 @@
     "current_points": "Current points",
     "update": "Update Points"
   },
+  "activity_info": {
+    "admin_completed": "Teams that have completed this activity ({{count}}): {{teams}}",
+    "admin_no_completed": "No team has completed this activity yet.",
+    "team_distance": "Distance: {{distance}}",
+    "position_unknown": "Cannot calculate distance. Team position unknown.",
+    "no_team_selected": "Select a team to see the distance",
+    "none": "None",
+    "meters": "m",
+    "kilometers": "km"
+  },
   "photo_management": {
     "title": "Photo/Video Management",
     "no_activities": "No photo/video activities",

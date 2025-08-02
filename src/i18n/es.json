@@ -308,6 +308,16 @@
     "accept": "Hacer Prueba",
     "decline": "Ahora No"
   },
+  "activity_info": {
+    "admin_completed": "Equipos que han completado esta actividad ({{count}}): {{teams}}",
+    "admin_no_completed": "Ningún equipo ha completado esta actividad aún.",
+    "team_distance": "Distancia: {{distance}}",
+    "position_unknown": "No se puede calcular la distancia. Posición del equipo desconocida.",
+    "no_team_selected": "Selecciona un equipo para ver la distancia",
+    "none": "Ninguno",
+    "meters": "m",
+    "kilometers": "km"
+  },
   "photo_management": {
     "title": "Gestión de Fotos/Videos",
     "no_activities": "No hay actividades de foto/video",
