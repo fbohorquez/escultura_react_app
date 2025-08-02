@@ -39,6 +39,10 @@ const EventHeader = ({
 		}
 	};
 
+	const handleCollapseClick = () => {
+		onCollapse();
+	};
+
 	return (
 		<header
 			className={`event-header ${collapsed ? "collapsed" : ""}`}
@@ -80,6 +84,34 @@ const EventHeader = ({
 						</div>
 					)}
 			</div>
+			{/* Botón de colapso con icono sutil */}
+			<button 
+				className="collapse-button"
+				onClick={handleCollapseClick}
+				title={collapsed ? "Expandir cabecera" : "Colapsar cabecera"}
+			>
+				<svg
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="none"
+					className="collapse-icon"
+				>
+					{collapsed ? (
+						// Icono de expandir (flecha hacia abajo)
+						<path
+							d="M7 10l5 5 5-5z"
+							fill="currentColor"
+						/>
+					) : (
+						// Icono de colapsar (flecha hacia arriba)
+						<path
+							d="M7 14l5-5 5 5z"
+							fill="currentColor"
+						/>
+					)}
+				</svg>
+			</button>
 		</header>
 	);
 };

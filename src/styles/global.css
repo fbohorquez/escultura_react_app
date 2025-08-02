@@ -347,9 +347,36 @@ header.event-header {
 
 button.collapse-button {
     position: absolute;
-    z-index: 99;
-    top: 0;
-    right: 0;
+    z-index: 99999;
+    bottom: -16px;
+    right: calc(50% - 16px);
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--primary-color);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+button.collapse-button:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+button.collapse-button:active {
+    transform: scale(0.95);
+}
+
+button.collapse-button .collapse-icon {
+    color: var(--primary-color);
+    transition: transform 0.2s ease;
 }
 
 h1.event-title {
@@ -426,7 +453,6 @@ header.event-header.collapsed h2.team-name {
 }
 
 header.event-header {
-    box-shadow: 1px 1px 8px rgba(0, 0, 0, 0.2);
     z-index: 1;
 }
 
@@ -746,7 +772,7 @@ header.event-header {
   background: white;
   border-bottom: 2px solid var(--primary-color);
   padding: 15px 20px;
-  z-index: 9;
+  z-index: 0;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
@@ -872,6 +898,44 @@ header.event-header {
   padding: 10px 20px;
   z-index: 1001;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  transition: padding 0.3s ease;
+}
+
+/* Footer colapsado */
+.event-footer.collapsed {
+  padding: 5px 15px;
+}
+
+.event-footer.collapsed .footer-controls {
+  max-width: 300px;
+}
+
+.event-footer.collapsed .footer-control {
+  padding: 4px;
+  min-width: 50px;
+}
+
+.event-footer.collapsed .control-icon {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 2px;
+}
+
+.event-footer.collapsed .control-label {
+  font-size: 0.7rem;
+}
+
+/* Ajustes específicos para el control de posición cuando está colapsado */
+.event-footer.collapsed .position-control svg {
+  width: 50px;
+  height: 50px;
+}
+
+.event-footer.collapsed .position-control .position-background {
+  width: 25px;
+  height: 25px;
+  top: calc(50% - 12.5px);
+  left: calc(50% - 12.5px);
 }
 
 .footer-controls {
@@ -880,6 +944,7 @@ header.event-header {
   align-items: center;
   max-width: 400px;
   margin: 0 auto;
+  transition: max-width 0.3s ease;
 }
 
 /* Share Team Button Styles */
@@ -1155,7 +1220,7 @@ header.event-header {
   border: none;
   cursor: pointer;
   padding: 8px;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, padding 0.3s ease, min-width 0.3s ease;
   min-width: 60px;
 }
 
@@ -1171,6 +1236,7 @@ header.event-header {
   width: 64px;
   height: 64px;
   margin-bottom: 4px;
+  transition: width 0.3s ease, height 0.3s ease, margin-bottom 0.3s ease;
 }
 
 .control-label {
@@ -1193,6 +1259,11 @@ header.event-header {
   position: absolute;
   top: calc(50% - 20px);
   left: calc(50% - 20px);
+  transition: width 0.3s ease, height 0.3s ease, top 0.3s ease, left 0.3s ease;
+}
+
+.position-control svg {
+  transition: width 0.3s ease, height 0.3s ease;
 }
 
 .position-number {
