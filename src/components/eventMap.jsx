@@ -421,13 +421,14 @@ const EventMap = () => {
 				const newPosition = { lat: newData.lat, lng: newData.lon };
 				marker.setPosition(newPosition);
 				
-				// Actualizar rotación si hay dirección
-				if (newData.direction != null && marker.setIcon) {
+				// Solo actualizar rotación si es el equipo seleccionado en este dispositivo
+				const isSelectedTeam = selectedTeam && teamId === selectedTeam.id;
+				if (isSelectedTeam && newData.direction != null && marker.setIcon) {
 					const currentIcon = marker.getIcon();
 					if (currentIcon) {
 						// Usar SVG rotado para una rotación precisa
 						const baseUrl = currentIcon.url || currentIcon;
-						const size = currentIcon.scaledSize?.width || 20; // Tamaño por defecto para otros equipos
+						const size = currentIcon.scaledSize?.width || ICON_SIZE; // Tamaño del equipo seleccionado
 						const rotatedIconUrl = createRotatedIconSync(baseUrl, newData.direction, size);
 						
 						const rotatedIcon = {
@@ -442,7 +443,7 @@ const EventMap = () => {
 				
 			}
 		}
-	}, []); // Sin dependencias que cambien
+	}, [selectedTeam]); // Depender de selectedTeam para controlar la rotación
 
 	// Función para verificar proximidad a actividades
 	const checkActivityProximity = useCallback((teamPosition) => {
@@ -757,66 +758,75 @@ const EventMap = () => {
 			console.log('👑 Admin view - Team positions:');
 			teams.forEach(team => {
 				if (team.lat != null && team.lon != null) {
-					console.log(`📍 Team ${team.id} (${team.name || 'Sin nombre'}): lat: ${team.lat.toFixed(6)}, lng: ${team.lon.toFixed(6)}, direction: ${team.direction || 0}°`);
+					console.log(`📍 Team ${team.id} (${team.name || 'Sin nombre'}): lat: ${team.lat.toFixed(6)}, lng: ${team.lon.toFixed(6)}, direction: ${team.direction || 0}°, device: ${team.device || 'No device'}`);
 				} else {
-					console.log(`❌ Team ${team.id} (${team.name || 'Sin nombre'}): No position data`);
+					console.log(`❌ Team ${team.id} (${team.name || 'Sin nombre'}): No position data, device: ${team.device || 'No device'}`);
 				}
 			});
 		}
 		
-		return teams.map((team, index) => {
-			console.log('🎯 Team marker:', team.id, 'lat:', team.lat, 'lon:', team.lon, 'isSelected:', team.id === selectedTeam?.id);
-			
-			if (team.lat == null || team.lon == null) return null;
-			
-			// Determinar qué icono usar
-			let iconUrl;
-			let scale = 1;
-			let anchor = new window.google.maps.Point(ICON_SIZE / 2, ICON_SIZE / 2);
-			
-			// Verificar si es el equipo seleccionado usando solo el ID para evitar dependencias
-			const isSelectedTeam = selectedTeam && team.id === selectedTeam.id;
-			
-			if (isSelectedTeam) {
-				// Equipo seleccionado - usar mark-me.png
-				const baseIconUrl = markMe;
-				const teamDirection = team.direction || 0;
-				iconUrl = createRotatedIconSync(baseIconUrl, teamDirection, ICON_SIZE);
-				scale = new window.google.maps.Size(ICON_SIZE, ICON_SIZE);
-			} else {
-				// Verificar si se debe mostrar otros equipos según el tipo de usuario
-				const adminCanViewTeams = isAdmin && import.meta.env.VITE_ADMIN_VIEW_TEAMS_POSITION === 'true';
-				const teamsCanViewOthers = !isAdmin && import.meta.env.VITE_TEAMS_VIEW_OTHER_TEAMS === 'true';
+		return teams
+			.filter(team => {
+				// Filtrar equipos que no tienen device asociado
+				if (!team.device || team.device === "") {
+					console.log(`🚫 Team ${team.id} (${team.name || 'Sin nombre'}): No device assigned, not showing on map`);
+					return false;
+				}
+				return true;
+			})
+			.map((team, index) => {
+				console.log('🎯 Team marker:', team.id, 'lat:', team.lat, 'lon:', team.lon, 'isSelected:', team.id === selectedTeam?.id, 'device:', team.device);
 				
-				if (!adminCanViewTeams && !teamsCanViewOthers) {
-					return null; // No mostrar otros equipos
+				if (team.lat == null || team.lon == null) return null;
+				
+				// Determinar qué icono usar
+				let iconUrl;
+				let scale = 1;
+				let anchor = new window.google.maps.Point(ICON_SIZE / 2, ICON_SIZE / 2);
+				
+				// Verificar si es el equipo seleccionado usando solo el ID para evitar dependencias
+				const isSelectedTeam = selectedTeam && team.id === selectedTeam.id;
+				
+				if (isSelectedTeam) {
+					// Equipo seleccionado - usar mark-me.png y aplicar rotación solo al equipo seleccionado
+					const baseIconUrl = markMe;
+					const teamDirection = team.direction || 0;
+					iconUrl = createRotatedIconSync(baseIconUrl, teamDirection, ICON_SIZE);
+					scale = new window.google.maps.Size(ICON_SIZE, ICON_SIZE);
+				} else {
+					// Verificar si se debe mostrar otros equipos según el tipo de usuario
+					const adminCanViewTeams = isAdmin && import.meta.env.VITE_ADMIN_VIEW_TEAMS_POSITION === 'true';
+					const teamsCanViewOthers = !isAdmin && import.meta.env.VITE_TEAMS_VIEW_OTHER_TEAMS === 'true';
+					
+					if (!adminCanViewTeams && !teamsCanViewOthers) {
+						return null; // No mostrar otros equipos
+					}
+					
+					// Otros equipos - usar asset de equipo correspondiente sin rotación
+					const teamAssetIndex = index % 30; // Ciclar entre 0-29
+					const baseIconUrl = teamAssets[teamAssetIndex] || "/icons/marker-team.png";
+					// No aplicar rotación a otros equipos, solo al equipo seleccionado
+					iconUrl = baseIconUrl;
+					scale = new window.google.maps.Size(20, 20);
+					anchor = new window.google.maps.Point(10, 10); // Ajustar ancla para iconos más pequeños
 				}
 				
-				// Otros equipos - usar asset de equipo correspondiente o fallback
-				const teamAssetIndex = index % 30; // Ciclar entre 0-29
-				const baseIconUrl = teamAssets[teamAssetIndex] || "/icons/marker-team.png";
-				const teamDirection = team.direction || 0;
-				iconUrl = createRotatedIconSync(baseIconUrl, teamDirection, 20);
-				scale = new window.google.maps.Size(20, 20);
-				anchor = new window.google.maps.Point(10, 10); // Ajustar ancla para iconos más pequeños
-			}
-			
-			return (
-				<Marker
-					key={team.id}
-					position={{ lat: team.lat, lng: team.lon }}
-					icon={{
-						url: iconUrl,
-						scaledSize: scale,
-						anchor: anchor,
-					}}
-					onLoad={(marker) => {
-						// Guardar referencia del marcador para actualizaciones directas
-						teamMarkersRef.current.set(team.id, marker);
-					}}
-				/>
-			);
-		});
+				return (
+					<Marker
+						key={team.id}
+						position={{ lat: team.lat, lng: team.lon }}
+						icon={{
+							url: iconUrl,
+							scaledSize: scale,
+							anchor: anchor,
+						}}
+						onLoad={(marker) => {
+							// Guardar referencia del marcador para actualizaciones directas
+							teamMarkersRef.current.set(team.id, marker);
+						}}
+					/>
+				);
+			});
 	}, [isLoaded, isAdmin, selectedTeam, teams, markersCreated]); // Usar selectedTeam en lugar de selectedTeamData
 
 	// Renderizar actividades
