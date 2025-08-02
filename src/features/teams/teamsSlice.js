@@ -9,9 +9,16 @@ export const updateTeamData = createAsyncThunk(
 	"teams/updateTeam",
 	async ({ eventId, teamId, changes }, { rejectWithValue }) => {
 		try {
+			console.log("updateTeamData thunk called with:", {
+				eventId,
+				teamId,
+				changes
+			});
 			await updateTeam(eventId, teamId, changes);
+			console.log("updateTeam completed, returning payload:", { teamId, changes });
 			return { teamId, changes };
 		} catch (err) {
+			console.error("updateTeamData thunk error:", err);
 			return rejectWithValue(err.message);
 		}
 	}

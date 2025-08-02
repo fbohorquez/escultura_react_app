@@ -1,18 +1,15 @@
 // src/pages/teamActivitiesPage.jsx
 import React, { useMemo, useCallback } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import BackgroundLayout from "../components/backgroundLayout";
 import BackButton from "../components/backButton";
-import { addToQueue } from "../features/popup/popupSlice";
-import { updateTeamData } from "../features/teams/teamsSlice";
 import "../styles/teamActivities.css";
 
 const TeamActivitiesPage = () => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
-	const dispatch = useDispatch();
 	const { eventId } = useParams();
 
 	const event = useSelector((state) => state.event.event);
@@ -36,7 +33,9 @@ const TeamActivitiesPage = () => {
 	// Obtener equipos con sus actividades organizadas
 	const teamsWithActivities = useMemo(() => {
 		return teams.map(team => {
-			const activities = (team.activities_data || []).map(activity => ({
+			// Filtrar actividades eliminadas para el conteo
+			const activeActivities = (team.activities_data || []).filter(activity => activity.del !== true);
+			const activities = activeActivities.map(activity => ({
 				...activity,
 				statusKey: getActivityStatus(activity)
 			}));
@@ -53,105 +52,6 @@ const TeamActivitiesPage = () => {
 			};
 		}).filter(team => team.device && team.device !== ""); // Solo equipos con dispositivo asignado
 	}, [teams, getActivityStatus]);
-
-	const getActivityStatusText = (statusKey) => {
-		const statusMap = {
-			not_started: t("team_activities.activity_status.not_started", "Sin comenzar"),
-			completed: t("team_activities.activity_status.completed", "Completada"),
-			pending_review: t("team_activities.activity_status.pending_review", "Pendiente de valorar"),
-			reviewed: t("team_activities.activity_status.reviewed", "Valorada")
-		};
-		return statusMap[statusKey] || statusKey;
-	};
-
-	const getActivityStatusClass = (statusKey) => {
-		const classMap = {
-			not_started: "status-not-started",
-			completed: "status-completed",
-			pending_review: "status-pending",
-			reviewed: "status-reviewed"
-		};
-		return classMap[statusKey] || "";
-	};
-
-	const getActivityTypeText = (typeId) => {
-		switch (typeId) {
-			case 1: return t("valorate.type_question", "Pregunta");
-			case 2: return t("valorate.type_clue", "Pista");
-			case 3: return t("valorate.type_media", "Foto/Video");
-			case 4: return t("valorate.type_puzzle", "Puzzle");
-			case 5: return t("valorate.type_pairs", "Parejas");
-			default: return t("valorate.type_unknown", "Desconocido");
-		}
-	};
-
-	const handleSendActivity = (team, activity) => {
-		dispatch(addToQueue({
-			titulo: t("team_activities.send_activity", "Enviar Actividad"),
-			texto: t("team_activities.send_confirm", "¿Estás seguro de que quieres enviar la actividad \"{{activityName}}\" al equipo \"{{teamName}}\"?", {
-				activityName: activity.name,
-				teamName: team.name
-			}),
-			texto_adicional: t("team_activities.send_confirm_desc", "El equipo recibirá una notificación para realizar esta actividad."),
-			array_botones: [
-				{
-					titulo: t("team_activities.cancel_button", "Cancelar"),
-					callback: null
-				},
-				{
-					titulo: t("team_activities.send_button", "Sí, enviar"),
-					callback: async () => {
-						try {
-							// Actualizar la clave send en Firebase
-							await dispatch(updateTeamData({
-								eventId: event.id,
-								teamId: team.id,
-								changes: {
-									send: activity.id
-								}
-							})).unwrap();
-
-							// Mostrar mensaje de éxito
-							dispatch(addToQueue({
-								titulo: t("team_activities.activity_sent", "Actividad Enviada"),
-								texto: t("team_activities.activity_sent_message", "La actividad \"{{activityName}}\" ha sido enviada al equipo \"{{teamName}}\".", {
-									activityName: activity.name,
-									teamName: team.name
-								}),
-								array_botones: [
-									{
-										titulo: t("close", "Cerrar"),
-										callback: null
-									}
-								],
-								overlay: true,
-								close_button: true,
-								layout: "center"
-							}));
-						} catch (error) {
-							console.error("Error sending activity:", error);
-							dispatch(addToQueue({
-								titulo: t("error", "Error"),
-								texto: t("valorate.update_error", "Error al actualizar la valoración de la actividad"),
-								array_botones: [
-									{
-										titulo: t("close", "Cerrar"),
-										callback: null
-									}
-								],
-								overlay: true,
-								close_button: true,
-								layout: "center"
-							}));
-						}
-					}
-				}
-			],
-			overlay: true,
-			close_button: true,
-			layout: "center"
-		}));
-	};
 
 	const handleTeamClick = (team) => {
 		navigate(`/admin/team-activities/${eventId}/team/${team.id}`);

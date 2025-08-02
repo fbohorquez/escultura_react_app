@@ -7,6 +7,4 @@ TODO:
 - EN el mapa solo debería imprimir los equipos que tengan deviceID
 - En el mapa no debería establecerse la dirección si el equipo no es el seleccionado 
 - En el mapa un botón para seguir al marcador del equipo seleccionado o no
-- ✅ Al colapsar el header del evento se debería poder descolapsar solo con click
-- ✅ Al colapsar el header del evento se debería colapsar el footer
 - Objetos requeridos

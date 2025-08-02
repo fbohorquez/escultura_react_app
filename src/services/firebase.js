@@ -157,7 +157,14 @@ export const updateAdmin = async (eventId, partial) => {
 
 export const updateTeam = async (eventId, teamId, partial) => {
 	const ref = doc(db, "events", `event_${eventId}`, "teams", `team_${teamId}`);
+	console.log("Firebase updateTeam called with:", {
+		eventId,
+		teamId,
+		partial,
+		docPath: `events/event_${eventId}/teams/team_${teamId}`
+	});
 	await updateDoc(ref, partial);
+	console.log("Firebase updateTeam completed successfully");
 };
 
 /**
