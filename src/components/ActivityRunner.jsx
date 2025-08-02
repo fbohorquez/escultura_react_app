@@ -61,7 +61,7 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 		
 		dispatch(completeActivityWithSync({
 			eventId: event.id,
-			teamId: selectedTeam.id,
+			teamId: selectedTeam?.id,
 			activityId: activity.id,
 			success,
 			media,
@@ -69,7 +69,7 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 		}));
 		
 		setActivityResult(result);
-	}, [activity.time, activity.id, timeLeft, dispatch, event.id, selectedTeam.id, activityStartTime]);
+	}, [activity.time, activity.id, timeLeft, dispatch, event.id, selectedTeam?.id, activityStartTime]);
 
 	const formattedTime = useMemo(() => {
 		if (timeLeft === Infinity) {

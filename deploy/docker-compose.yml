@@ -1,0 +1,37 @@
+version: '2'
+
+services:
+  escultura-app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.app
+    ports:
+      - "5173:5173"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ../src:/app/src
+      - ../public:/app/public
+      - ../.env:/app/.env:ro
+    depends_on:
+      - signaling-server
+    networks:
+      - escultura-network
+
+  signaling-server:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.signaling
+    ports:
+      - "3088:3088"
+    environment:
+      - NODE_ENV=production
+      - PORT=3088
+    networks:
+      - escultura-network
+
+networks:
+  escultura-network:
+    driver: bridge

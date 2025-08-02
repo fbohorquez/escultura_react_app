@@ -1,0 +1,23 @@
+version: '2'
+
+services:
+  escultura-app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.app.ssl
+    ports:
+      - "5173:5173"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /srv/proxy-web/certs:/etc/nginx/certs:ro
+    networks:
+      - escultura-network
+    restart: unless-stopped
+
+networks:
+  escultura-network:
+    driver: bridge

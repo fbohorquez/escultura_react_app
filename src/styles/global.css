@@ -326,6 +326,7 @@ body:has(.event-header.collapsed):has(.admin-taskbar) .map-container {
     height: 10rem;
     justify-content: space-between;
     border-bottom: 2px solid var(--primary-color);
+    align-items: center;
 }
 
 .event-page .event-header .header-content img.team-photo, .event-page .event-header .header-content .event-logo {
@@ -368,11 +369,13 @@ h2.team-name {
     color: #666;
     margin-top: 1rem;
     margin-bottom: 1rem;
+    line-height: 24px;
 }
 
 img.brand-icon {
     width: 2rem;
     opacity: 0.5;
+    margin-bottom: 11px;
 }
 
 .logo-container {
@@ -394,6 +397,7 @@ header.event-header.collapsed .logo-container {
     width: auto;
     padding: .2rem;
     max-width: 5rem;
+    max-height: 3rem;
 }
 
 header.event-header.collapsed .logo-container img {
@@ -410,6 +414,7 @@ header.event-header.collapsed .titles {
 header.event-header.collapsed img.brand-icon {
     width: 1.5rem;
     margin-right: .5rem;
+    margin-bottom: 0;
 }
 
 header.event-header.collapsed h1.event-title {
@@ -1126,6 +1131,7 @@ header.event-header {
 
 /* Responsive para móviles */
 @media (max-width: 768px) {
+
   .camera-video {
     width: 120px;
     height: 90px;
@@ -2049,6 +2055,11 @@ button.share-control {
   border-radius: 50%;
   transition: background-color 0.2s, transform 0.2s;
   position: absolute;
-  top: calc(50% - 20px);
-  right: 20px;
+  bottom: 8px;
+  right: 8px;
+}
+
+.content.content-no-title {
+    max-height: calc(100vh - 0px);
+    overflow-y: auto;
 }
