@@ -10,7 +10,7 @@ import iconGadgets from "../assets/icon_gadgets.png";
 import BackgroundDecagon from "../assets/decagon.svg";
 import NotificationBubble from "./notificationBubble";
 
-const EventFooter = ({ eventId }) => {
+const EventFooter = ({ eventId, collapsed }) => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 
@@ -89,7 +89,7 @@ const EventFooter = ({ eventId }) => {
 	};
 
 	return (
-		<div className="event-footer">
+		<div className={`event-footer ${collapsed ? "collapsed" : ""}`}>
 			<div className="footer-controls">
 				{/* Control de Chat */}
 				<button
@@ -161,6 +161,11 @@ const EventFooter = ({ eventId }) => {
 
 EventFooter.propTypes = {
 	eventId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+	collapsed: PropTypes.bool,
+};
+
+EventFooter.defaultProps = {
+	collapsed: false,
 };
 
 export default EventFooter;

@@ -60,7 +60,7 @@ const EventPage = () => {
 			</div>
 			<DebugPanel />
 			{/* Footer flotante con controles */}
-			<EventFooter eventId={event.id} />
+			<EventFooter eventId={event.id} collapsed={collapsed} />
 		</div>
 	);
 };
