@@ -1,7 +1,7 @@
 // src/components/EventMap.jsx
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
+import { GoogleMap, useJsApiLoader, Marker, OverlayView } from "@react-google-maps/api";
 import { updateTeamData } from "../features/teams/teamsSlice";
 import ActivityMarker from "./ActivityMarker";
 import markMe from "../assets/mark-me.png";
@@ -24,7 +24,8 @@ for (let i = 0; i <= 29; i++) {
 
 const containerStyle = { width: "100%", height: "100%" };
 const ACCURACY_THRESHOLD = 300; // Filtro de precisión GPS
-const MAX_JUMP_DISTANCE = 200; // Filtro de saltos grandes
+const MAX_JUMP_DISTANCE = 200; // Filtro de saltos grandes (mantenido como fallback)
+const CENTROID_MOVEMENT_FACTOR = 0.8; // Factor k para filtro de centroide (k≈0.7–1.0)
 const ICON_SIZE = 80;
 const UPDATE_THROTTLE_MS = 500; // Throttle para actualizaciones de Firebase (500ms)
 
@@ -158,56 +159,70 @@ const getBearing = (p1, p2) => {
 	return (bearing + 360) % 360; // Normalizar a 0-360 grados
 };
 
-// Función para normalizar la orientación del dispositivo según la plataforma
-const normalizeCompassHeading = (alpha) => {
-	if (alpha === null || alpha === undefined) return null;
-	
-	// En dispositivos móviles, alpha representa la rotación del dispositivo alrededor del eje Z
-	// 0° = Norte, 90° = Este, 180° = Sur, 270° = Oeste
-	let heading = alpha;
-	
-	// Detectar si estamos en iOS
-	const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-	
-	if (isIOS) {
-		// En iOS, alpha va de 0 a 360, donde:
-		// 0° = Norte magnético en la parte superior del dispositivo
-		// El valor ya está correctamente orientado para iOS
-		heading = alpha;
-	} else {
-		// En Android, alpha también va de 0 a 360 en la misma dirección
-		// Pero puede necesitar ajuste dependiendo del fabricante
-		heading = alpha;
+// Utilidades de orientación/ángulos
+const getScreenAngle = () => {
+	// Soporta iOS (window.orientation) y el API moderno
+	if (typeof screen?.orientation?.angle === 'number') return screen.orientation.angle;
+	if (typeof window.orientation === 'number') {
+		// iOS: 0, 90, -90, 180
+		const o = window.orientation;
+		return (o === -90 ? 270 : (o ?? 0)) % 360;
 	}
-	
-	// Normalizar a 0-360 grados
-	return (heading + 360) % 360;
+	return 0;
 };
 
-// Función para calcular la diferencia angular mínima entre dos ángulos
-const getAngleDifference = (angle1, angle2) => {
-	let diff = Math.abs(angle1 - angle2);
-	if (diff > 180) {
-		diff = 360 - diff;
-	}
-	return diff;
+// Normaliza un ángulo a [0,360)
+const norm360 = (deg) => ((deg % 360) + 360) % 360;
+
+// Diferencia mínima entre ángulos (0..180)
+const angleDelta = (a, b) => {
+	let d = Math.abs(a - b) % 360;
+	return d > 180 ? 360 - d : d;
 };
 
-// Función para promediar ángulos (considera la naturaleza circular de los ángulos)
-const averageAngles = (angles) => {
-	if (angles.length === 0) return 0;
-	
-	let x = 0, y = 0;
-	angles.forEach(angle => {
-		const rad = (angle * Math.PI) / 180;
-		x += Math.cos(rad);
-		y += Math.sin(rad);
-	});
-	
-	const avgRad = Math.atan2(y / angles.length, x / angles.length);
-	let avgDeg = (avgRad * 180) / Math.PI;
-	
-	return (avgDeg + 360) % 360;
+// Promedio exponencial sobre el círculo
+function makeAngleEMA(alpha = 0.25, start = null) {
+	let vx = null, vy = null; // componentes en el círculo unitario
+	if (start != null) {
+		const r = start * Math.PI / 180;
+		vx = Math.cos(r); vy = Math.sin(r);
+	}
+	return (deg) => {
+		const r = deg * Math.PI / 180;
+		const x = Math.cos(r), y = Math.sin(r);
+		if (vx == null || vy == null) { vx = x; vy = y; }
+		else {
+			vx = (1 - alpha) * vx + alpha * x;
+			vy = (1 - alpha) * vy + alpha * y;
+			const m = Math.hypot(vx, vy);
+			if (m > 1e-6) { vx /= m; vy /= m; }
+		}
+		const out = Math.atan2(vy, vx) * 180 / Math.PI;
+		return norm360(out);
+	};
+}
+
+// Normaliza heading a coordenadas de mapa (N=0, E=90...)
+// Aplica la CORRECCIÓN con signo correcto (restar angle)
+const normalizeCompassHeadingFromEvent = (evt) => {
+	// iOS Safari prioriza webkitCompassHeading
+	if (typeof evt.webkitCompassHeading === 'number' && !Number.isNaN(evt.webkitCompassHeading)) {
+		// Verificar si la precisión es buena (iOS da webkitCompassAccuracy, -1 = no fiable)
+		if (typeof evt.webkitCompassAccuracy === 'number' && evt.webkitCompassAccuracy < 0) {
+			return null; // No fiable
+		}
+		return norm360(evt.webkitCompassHeading);
+	}
+	if (typeof evt.alpha !== 'number' || Number.isNaN(evt.alpha)) return null;
+
+	// Si es absoluto, nos fiamos; si no, es relativo y más ruidoso
+	const raw = evt.alpha; // 0=N, 90=E, etc. en la mayoría de devices
+	const screenAngle = getScreenAngle();
+
+	// *** OJO: restar, no sumar ***
+	const corrected = norm360(raw - screenAngle);
+
+	return corrected;
 };
 
 // Función para solicitar permisos de orientación en iOS 13+
@@ -346,6 +361,7 @@ const EventMap = () => {
 	const kalmanLat = useRef(null); // Filtro de Kalman para latitud
 	const kalmanLng = useRef(null); // Filtro de Kalman para longitud
 	const lastFiltered = useRef(null); // Última posición filtrada
+	const lastAccuracy = useRef(null); // Última precisión GPS
 	const previousPosition = useRef(null); // Para calcular la dirección
 	const notifiedActivities = useRef(new Set());
 	const [initialCenter, setInitialCenter] = useState(null);
@@ -357,7 +373,6 @@ const EventMap = () => {
 	const deviceOrientationRef = useRef(null); // Última orientación del dispositivo
 	const compassHeadingRef = useRef(null); // Dirección del dispositivo
 	const lastCompassUpdate = useRef(0); // Timestamp de la última actualización de brújula
-	const compassKalmanFilter = useRef(null); // Filtro de Kalman para la brújula
 
 	const event = useSelector((state) => state.event.event);
 	const teams = useSelector((state) => state.teams.items);
@@ -466,30 +481,74 @@ const EventMap = () => {
 				
 				// Si hay dirección, actualizar el icono con rotación
 				if (direction !== null && marker.setIcon) {
-					const currentIcon = marker.getIcon();
-					if (currentIcon) {
-						// Usar SVG rotado para una rotación precisa
-						const baseUrl = currentIcon.url || currentIcon;
-						const size = currentIcon.scaledSize?.width || ICON_SIZE;
-						const rotatedIconUrl = createRotatedIconSync(baseUrl, direction, size);
-						
-						console.log('🔄 Updating marker rotation:', { 
-							teamId: selectedTeam.id, 
-							direction, 
-							baseUrl: baseUrl.substring(0, 50) + '...', 
-							rotatedUrl: rotatedIconUrl.substring(0, 50) + '...' 
-						});
-						
-						const rotatedIcon = {
-							url: rotatedIconUrl,
-							scaledSize: currentIcon.scaledSize,
-							anchor: currentIcon.anchor
-						};
-						
-						marker.setIcon(rotatedIcon);
-					}
+					// SIEMPRE usar el icono base (markMe) para evitar acumulación de rotaciones
+					const size = ICON_SIZE;
+					const rotatedIconUrl = createRotatedIconSync(markMe, direction, size);
+					
+					console.log('🔄 Updating marker rotation:', { 
+						teamId: selectedTeam.id, 
+						direction, 
+						baseUrl: 'markMe (base icon)', 
+						rotatedUrl: rotatedIconUrl.substring(0, 50) + '...' 
+					});
+					
+					marker.setIcon({
+						url: rotatedIconUrl,
+						scaledSize: new window.google.maps.Size(size, size),
+						anchor: new window.google.maps.Point(size/2, size/2),
+					});
 				}
 			}
+		}
+	}, [selectedTeam]); // Solo depender del objeto selectedTeam
+
+	// Función para actualizar solo la rotación del marcador (sin cambiar posición)
+	const updateSelectedTeamMarkerRotation = useCallback((direction) => {
+		console.log('🔄 updateSelectedTeamMarkerRotation called with direction:', direction);
+		
+		// NOTA: Con el nuevo sistema de EMA circular y throttling temporal (66ms),
+		// ya no necesitamos filtrar por diferencia mínima de grados aquí.
+		// El filtrado ahora se hace en el origen (sensor events) con angleDelta()
+		
+		// Verificar que Google Maps esté disponible
+		if (!window.google?.maps) {
+			console.log('⏳ Google Maps not available, skipping marker rotation update');
+			return;
+		}
+
+		// Buscar el marcador del equipo seleccionado en el mapa y actualizar solo su rotación
+		const markers = teamMarkersRef.current;
+		if (selectedTeam && markers.has(selectedTeam.id)) {
+			const marker = markers.get(selectedTeam.id);
+			console.log('🎯 Found marker for team:', selectedTeam.id, 'marker available:', !!marker);
+			if (marker && marker.setIcon) {
+				// SIEMPRE usar el icono base (markMe) para evitar acumulación de rotaciones
+				const size = ICON_SIZE;
+				const rotatedIconUrl = createRotatedIconSync(markMe, direction, size);
+				
+				console.log('🔄 Updating marker rotation only:', { 
+					teamId: selectedTeam.id, 
+					direction, 
+					baseUrl: 'markMe (base icon)',
+					size
+				});
+				
+				marker.setIcon({
+					url: rotatedIconUrl,
+					scaledSize: new window.google.maps.Size(size, size),
+					anchor: new window.google.maps.Point(size/2, size/2),
+				});
+				console.log('✅ Marker rotation updated successfully');
+			} else {
+				console.log('❌ Marker or setIcon not available');
+			}
+		} else {
+			console.log('❌ Team not found in markers:', {
+				selectedTeamId: selectedTeam?.id,
+				hasSelectedTeam: !!selectedTeam,
+				markersSize: markers.size,
+				availableMarkers: Array.from(markers.keys())
+			});
 		}
 	}, [selectedTeam]); // Solo depender del objeto selectedTeam
 
@@ -589,106 +648,77 @@ const EventMap = () => {
 
 	// Inicializar orientación del dispositivo para obtener la dirección del teléfono
 	useEffect(() => {
-		let orientationHandler = null;
-		let hasOrientationSupport = false;
-		const compassReadings = []; // Buffer para promediar lecturas
-		const COMPASS_BUFFER_SIZE = 5; // Número de lecturas para promediar
-		const COMPASS_UPDATE_INTERVAL = 250; // Actualizar cada 250ms
-		const COMPASS_CHANGE_THRESHOLD = 5; // Solo actualizar si cambia más de 5 grados
+		if (!selectedTeam || isDebugMode || !useCompass) return;
 
-		const initializeDeviceOrientation = async () => {
-			console.log('🧭 Initializing device orientation...');
-			
-			// Verificar soporte del navegador
-			if (typeof DeviceOrientationEvent === 'undefined') {
-				console.log('❌ DeviceOrientationEvent not supported');
-				return;
+		let remove = () => {};
+		let ema = makeAngleEMA(0.2); // suavizado, ajusta a gusto (0.1 más lento, 0.3 más ágil)
+		let last = null;
+		const THRESH = 2.5;     // grados mínimos para actualizar (2.5° balanceo entre suavidad y responsividad)
+		const MIN_INTERVAL = 66; // ~15 Hz
+		let lastTs = 0;
+
+		const onOrientation = (evt, sourceLabel) => {
+			const now = Date.now();
+			if (now - lastTs < MIN_INTERVAL) return;
+
+			// Descarta posturas muy inclinadas (cuando la brújula se vuelve inútil)
+			// Si el evento trae beta/gamma, filtra; si no, deja pasar.
+			const beta = typeof evt.beta === 'number' ? Math.abs(evt.beta) : null;
+			const gamma = typeof evt.gamma === 'number' ? Math.abs(evt.gamma) : null;
+			if (beta != null && gamma != null) {
+				// Evita cuando está totalmente "de canto" o boca abajo
+				if (beta > 75 || gamma > 75) return;
 			}
 
-			// Solicitar permisos en iOS 13+
-			const hasPermission = await requestOrientationPermission();
-			if (!hasPermission) {
-				console.log('❌ Device orientation permission denied');
-				setOrientationPermissionRequested(false); // Permitir re-intentar manualmente
-				return;
+			const hdg = normalizeCompassHeadingFromEvent(evt);
+			if (hdg == null) return;
+
+			const smooth = ema(hdg);
+			if (last == null || angleDelta(smooth, last) > THRESH) {
+				last = smooth;
+				compassHeadingRef.current = smooth;
+				lastCompassUpdate.current = now;
+
+				// Actualiza rotación del marcador inmediatamente
+				updateSelectedTeamMarkerRotation(smooth);
+
+				// Opcional: guarda en Firebase si lo deseas
+				// throttledFirebaseUpdate(null, getSelectedTeamData(), smooth);
+
+				console.log(`🧭 Heading=${smooth.toFixed(1)}° (${sourceLabel})`);
 			}
-			
-			setOrientationPermissionRequested(true);
+		};
 
-			// Inicializar filtro de Kalman para la brújula
-			compassKalmanFilter.current = new KalmanFilter({ R: 0.1, Q: 0.01 });
+		const add = (type, handler, opts) => window.addEventListener(type, handler, opts);
+		const rm  = (type, handler, opts) => window.removeEventListener(type, handler, opts);
 
-			// Configurar el manejador de eventos con throttling
-			orientationHandler = (event) => {
-				const { alpha } = event;
-				
-				// Verificar que tenemos datos válidos
-				if (alpha === null || alpha === undefined) return;
-				
-				if (!hasOrientationSupport) {
-					console.log('✅ Device orientation is working');
-					hasOrientationSupport = true;
+		const hasDOE = typeof window.DeviceOrientationEvent !== 'undefined';
+		let handlerRelative;
+
+		const start = async () => {
+			// iOS 13+: permiso
+			try {
+				if (hasDOE && typeof DeviceOrientationEvent.requestPermission === 'function') {
+					const p = await DeviceOrientationEvent.requestPermission();
+					if (p !== 'granted') return;
 				}
-				
-				// Throttling: solo procesar cada cierto intervalo
-				const now = Date.now();
-				if (now - lastCompassUpdate.current < COMPASS_UPDATE_INTERVAL) {
-					return;
-				}
-				
-				// Normalizar la orientación según la plataforma
-				const rawHeading = normalizeCompassHeading(alpha);
-				if (rawHeading === null) return;
-				
-				// Aplicar filtro de Kalman
-				const filteredHeading = compassKalmanFilter.current.filter(rawHeading);
-				
-				// Agregar al buffer de lecturas
-				compassReadings.push(filteredHeading);
-				if (compassReadings.length > COMPASS_BUFFER_SIZE) {
-					compassReadings.shift(); // Mantener solo las últimas N lecturas
-				}
-				
-				// Calcular promedio de las últimas lecturas
-				const averagedHeading = averageAngles(compassReadings);
-				
-				// Solo actualizar si hay un cambio significativo
-				const currentHeading = compassHeadingRef.current;
-				if (currentHeading === null || getAngleDifference(currentHeading, averagedHeading) > COMPASS_CHANGE_THRESHOLD) {
-					compassHeadingRef.current = averagedHeading;
-					deviceOrientationRef.current = { alpha, heading: averagedHeading };
-					lastCompassUpdate.current = now;
-					
-					console.log('🧭 Device heading updated:', {
-						rawAlpha: alpha?.toFixed(1),
-						normalized: rawHeading.toFixed(1),
-						filtered: filteredHeading.toFixed(1),
-						averaged: averagedHeading.toFixed(1),
-						change: currentHeading ? getAngleDifference(currentHeading, averagedHeading).toFixed(1) : 'first'
-					});
-				}
+			} catch (error) {
+				console.warn('Failed to request device orientation permission:', error);
+			}
+
+			// Usar solo deviceorientation (suficiente en iOS/Chrome WKWebView)
+			// Evita doble feed que puede ocurrir en iOS cuando llegan ambos eventos
+			handlerRelative = (e) => onOrientation(e, 'device');
+			add('deviceorientation', handlerRelative, true);
+
+			remove = () => {
+				rm('deviceorientation', handlerRelative, true);
 			};
-
-			// Agregar el listener
-			window.addEventListener('deviceorientation', orientationHandler, true);
-			console.log('🧭 Device orientation listener added with throttling');
 		};
 
-		// Inicializar solo si hay un equipo seleccionado, no estamos en modo debug, y está habilitada la brújula
-		if (selectedTeam && !isDebugMode && useCompass) {
-			initializeDeviceOrientation();
-		}
-
-		// Cleanup
-		return () => {
-			if (orientationHandler) {
-				window.removeEventListener('deviceorientation', orientationHandler, true);
-				console.log('🧭 Device orientation listener removed');
-			}
-			// Limpiar el filtro de Kalman
-			compassKalmanFilter.current = null;
-		};
-	}, [selectedTeam, isDebugMode, useCompass]); // Re-inicializar si cambia el equipo, modo debug o uso de brújula
+		start();
+		return () => remove();
+	}, [selectedTeam, isDebugMode, useCompass, updateSelectedTeamMarkerRotation]);
 
 	// Precargar imágenes de marcadores
 	useEffect(() => {
@@ -751,10 +781,11 @@ const EventMap = () => {
 			kalmanLat.current = null;
 			kalmanLng.current = null;
 			lastFiltered.current = null;
+			lastAccuracy.current = null; // Limpiar precisión anterior
 		}
 	}, [selectedTeam]); // Solo el objeto selectedTeam
 
-	// Suscripción a geolocalización con filtrado y suavizado ponderado
+	// Suscripción a geolocalización con ventana de muestreo para mejor precisión
 	useEffect(() => {
 		const currentTeamData = getSelectedTeamData();
 		
@@ -802,6 +833,182 @@ const EventMap = () => {
 			});
 		}
 
+		// Variables para la ventana de muestreo
+		let positionSamples = [];
+		let samplingWindow = null;
+		const SAMPLING_WINDOW_MS = 4000; // Ventana de 4 segundos
+		const MIN_SAMPLES = 2; // Mínimo de muestras para procesar
+		
+		const processBestSample = () => {
+			if (positionSamples.length === 0) {
+				console.log('📊 No samples to process');
+				return;
+			}
+			
+			console.log('📊 Processing', positionSamples.length, 'GPS samples');
+			
+			// Ordenar por precisión (menor accuracy = mejor)
+			positionSamples.sort((a, b) => a.accuracy - b.accuracy);
+			
+			// Intentar encontrar una muestra dentro del umbral de precisión
+			let bestSample = positionSamples.find(sample => sample.accuracy <= ACCURACY_THRESHOLD);
+			
+			// Si no hay ninguna dentro del umbral, usar la mejor disponible
+			if (!bestSample) {
+				bestSample = positionSamples[0]; // La primera es la mejor después del sort
+				console.log('⚠️ No sample within accuracy threshold, using best available:', bestSample.accuracy, 'm');
+			} else {
+				console.log('✅ Using sample within accuracy threshold:', bestSample.accuracy, 'm');
+			}
+			
+			// Filtro de centroide basado en precisión relativa para evitar "bailes"
+			if (lastFiltered.current && lastAccuracy.current !== null) {
+				const centroidDistance = getDistance(
+					{ lat: bestSample.lat, lng: bestSample.lng }, 
+					lastFiltered.current
+				);
+				
+				// Calcular el umbral dinámico basado en las precisiones
+				const maxAccuracy = Math.max(lastAccuracy.current, bestSample.accuracy);
+				const centroidThreshold = CENTROID_MOVEMENT_FACTOR * maxAccuracy;
+				
+				console.log('📏 Centroid movement analysis:', {
+					distance: centroidDistance.toFixed(1) + 'm',
+					oldAccuracy: lastAccuracy.current.toFixed(1) + 'm',
+					newAccuracy: bestSample.accuracy.toFixed(1) + 'm',
+					maxAccuracy: maxAccuracy.toFixed(1) + 'm',
+					threshold: centroidThreshold.toFixed(1) + 'm',
+					factor: CENTROID_MOVEMENT_FACTOR
+				});
+				
+				if (centroidDistance <= centroidThreshold) {
+					console.log('🎯 Movement within centroid threshold - rejecting to avoid GPS "dance":', 
+						centroidDistance.toFixed(1), '≤', centroidThreshold.toFixed(1));
+					// Limpiar muestras y esperar nuevas
+					positionSamples = [];
+					return;
+				} else {
+					console.log('✅ Significant movement detected:', 
+						centroidDistance.toFixed(1), '>', centroidThreshold.toFixed(1));
+				}
+			}
+			
+			// Filtro de saltos grandes como fallback para casos extremos
+			if (lastFiltered.current) {
+				const jump = getDistance(
+					{ lat: bestSample.lat, lng: bestSample.lng }, 
+					lastFiltered.current
+				);
+				if (jump > MAX_JUMP_DISTANCE) {
+					console.log('❌ Best sample rejected by extreme jump filter:', jump, '>', MAX_JUMP_DISTANCE);
+					// Limpiar muestras y esperar nuevas
+					positionSamples = [];
+					return;
+				}
+			}
+			
+			console.log('✅ Sample accepted, applying Kalman filter');
+			
+			// Aplicar el procesamiento como antes
+			const { lat, lng, heading } = bestSample;
+			
+			// Inicializar filtros de Kalman si es la primera vez
+			if (!kalmanLat.current || !kalmanLng.current) {
+				console.log('🔧 Initializing Kalman filters with best GPS sample');
+				kalmanLat.current = new KalmanFilter({ R: KALMAN_R, Q: KALMAN_Q });
+				kalmanLng.current = new KalmanFilter({ R: KALMAN_R, Q: KALMAN_Q });
+				
+				// Primer filtrado con la posición inicial
+				const filteredLat = kalmanLat.current.filter(lat);
+				const filteredLng = kalmanLng.current.filter(lng);
+				
+				lastFiltered.current = { lat: filteredLat, lng: filteredLng };
+				lastAccuracy.current = bestSample.accuracy; // Almacenar precisión inicial
+				console.log('📍 First Kalman filtered position:', { lat: filteredLat, lng: filteredLng, accuracy: bestSample.accuracy });
+			} else {
+				// Aplicar filtros de Kalman a las nuevas coordenadas
+				const filteredLat = kalmanLat.current.filter(lat);
+				const filteredLng = kalmanLng.current.filter(lng);
+				
+				lastFiltered.current = { lat: filteredLat, lng: filteredLng };
+				lastAccuracy.current = bestSample.accuracy; // Actualizar precisión
+				console.log('📍 Kalman filtered position:', { 
+					original: { lat, lng }, 
+					filtered: { lat: filteredLat, lng: filteredLng },
+					accuracy: bestSample.accuracy 
+				});
+			}
+			
+			console.log('📍 Updating team position to:', lastFiltered.current);
+			
+			const newPosition = { lat: lastFiltered.current.lat, lng: lastFiltered.current.lng };
+			
+			// Obtener dirección - priorizar orientación del dispositivo sobre GPS heading
+			let direction = null;
+			let directionSource = 'none';
+			
+			// 1. Prioridad: Orientación del dispositivo (acelerómetro/brújula) - solo si está habilitada y estable
+			const currentCompassHeading = compassHeadingRef.current;
+			if (useCompass && currentCompassHeading !== null) {
+				// Verificar que la lectura de la brújula sea reciente (menos de 1 segundo)
+				const compassAge = Date.now() - lastCompassUpdate.current;
+				if (compassAge < 1000) {
+					direction = currentCompassHeading;
+					directionSource = 'compass';
+					console.log('🧭 Using device compass heading:', direction.toFixed(1), 'degrees (age:', compassAge, 'ms)');
+				} else {
+					console.log('🧭 Compass data too old (', compassAge, 'ms), falling back');
+				}
+			} else if (!useCompass) {
+				console.log('🧭 Compass disabled by user, skipping');
+			}
+			
+			// 2. Fallback: Heading del GPS si está disponible
+			if (direction === null && heading !== null && heading !== undefined) {
+				direction = heading;
+				directionSource = 'gps';
+				console.log('🧭 Using GPS heading:', direction.toFixed(1), 'degrees');
+			}
+			
+			// 3. Último recurso: Calcular dirección usando movimiento
+			if (direction === null && previousPosition.current) {
+				const distance = getDistance(previousPosition.current, newPosition);
+				// Solo calcular dirección si ha habido un movimiento significativo
+				if (distance > 2) {
+					direction = getBearing(previousPosition.current, newPosition);
+					directionSource = 'movement';
+					console.log('🧭 Calculated heading from movement:', direction.toFixed(1), 'degrees, distance:', distance.toFixed(1), 'm');
+				}
+			}
+			
+			console.log('🧭 Direction selected:', {
+				source: directionSource,
+				value: direction ? direction.toFixed(1) + '°' : 'null',
+				compassAvailable: currentCompassHeading !== null,
+				gpsHeadingAvailable: heading !== null && heading !== undefined,
+				movementDistance: previousPosition.current ? getDistance(previousPosition.current, newPosition).toFixed(1) + 'm' : 'no previous position'
+			});
+			
+			// Actualizar la posición anterior para la próxima iteración (para fallback)
+			previousPosition.current = newPosition;
+			
+			// PRIMERO: Actualizar directamente la posición del marcador SIN re-renderizar
+			updateSelectedTeamMarkerPosition(newPosition, direction);
+			
+			// Si está activo el modo seguimiento, centrar el mapa en la nueva posición
+			if (isFollowMode && mapRef.current) {
+				mapRef.current.panTo(newPosition);
+			}
+			
+			// Verificar proximidad a actividades
+			checkActivityProximity(newPosition);
+			// SEGUNDO: Actualizar Firebase con throttling (esto puede causar re-render pero ya hemos actualizado el marcador)
+			throttledFirebaseUpdate(newPosition, currentTeamData, direction);
+			
+			// Limpiar muestras para el siguiente ciclo
+			positionSamples = [];
+		};
+
 		const watchId = navigator.geolocation.watchPosition(
 			({ coords }) => {
 				console.log('🌍 ✅ Geolocation callback executed!');
@@ -815,114 +1022,38 @@ const EventMap = () => {
 					speed: speed !== null ? `${speed.toFixed(1)} m/s` : 'null'
 				});
 				
-				// Filtrar por precisión
-				if (accuracy > ACCURACY_THRESHOLD) {
-					console.log('❌ Rejected by accuracy filter:', accuracy, '>', ACCURACY_THRESHOLD);
-					return;
-				}
-				
-				// Filtrar saltos grandes
-				if (lastFiltered.current) {
-					const jump = getDistance({ lat, lng }, lastFiltered.current);
-					console.log('📏 Jump distance:', jump, 'meters');
-					if (jump > MAX_JUMP_DISTANCE) {
-						console.log('❌ Rejected by jump filter:', jump, '>', MAX_JUMP_DISTANCE);
-						return;
-					}
-				}
-				
-				console.log('✅ Position accepted, applying Kalman filter');
-				
-				// Inicializar filtros de Kalman si es la primera vez
-				if (!kalmanLat.current || !kalmanLng.current) {
-					console.log('🔧 Initializing Kalman filters with first GPS reading');
-					kalmanLat.current = new KalmanFilter({ R: KALMAN_R, Q: KALMAN_Q });
-					kalmanLng.current = new KalmanFilter({ R: KALMAN_R, Q: KALMAN_Q });
-					
-					// Primer filtrado con la posición inicial
-					const filteredLat = kalmanLat.current.filter(lat);
-					const filteredLng = kalmanLng.current.filter(lng);
-					
-					lastFiltered.current = { lat: filteredLat, lng: filteredLng };
-					console.log('📍 First Kalman filtered position:', { lat: filteredLat, lng: filteredLng });
-				} else {
-					// Aplicar filtros de Kalman a las nuevas coordenadas
-					const filteredLat = kalmanLat.current.filter(lat);
-					const filteredLng = kalmanLng.current.filter(lng);
-					
-					lastFiltered.current = { lat: filteredLat, lng: filteredLng };
-					console.log('📍 Kalman filtered position:', { 
-						original: { lat, lng }, 
-						filtered: { lat: filteredLat, lng: filteredLng },
-						accuracy 
-					});
-				}
-				
-				console.log('📍 Updating team position to:', lastFiltered.current);
-				
-				const newPosition = { lat: lastFiltered.current.lat, lng: lastFiltered.current.lng };
-				
-				// Obtener dirección - priorizar orientación del dispositivo sobre GPS heading
-				let direction = null;
-				let directionSource = 'none';
-				
-				// 1. Prioridad: Orientación del dispositivo (acelerómetro/brújula) - solo si está habilitada y estable
-				const currentCompassHeading = compassHeadingRef.current;
-				if (useCompass && currentCompassHeading !== null) {
-					// Verificar que la lectura de la brújula sea reciente (menos de 1 segundo)
-					const compassAge = Date.now() - lastCompassUpdate.current;
-					if (compassAge < 1000) {
-						direction = currentCompassHeading;
-						directionSource = 'compass';
-						console.log('🧭 Using device compass heading:', direction.toFixed(1), 'degrees (age:', compassAge, 'ms)');
-					} else {
-						console.log('🧭 Compass data too old (', compassAge, 'ms), falling back');
-					}
-				} else if (!useCompass) {
-					console.log('🧭 Compass disabled by user, skipping');
-				}
-				
-				// 2. Fallback: Heading del GPS si está disponible
-				if (direction === null && heading !== null && heading !== undefined) {
-					direction = heading;
-					directionSource = 'gps';
-					console.log('🧭 Using GPS heading:', direction.toFixed(1), 'degrees');
-				}
-				
-				// 3. Último recurso: Calcular dirección usando movimiento
-				if (direction === null && previousPosition.current) {
-					const distance = getDistance(previousPosition.current, newPosition);
-					// Solo calcular dirección si ha habido un movimiento significativo
-					if (distance > 2) {
-						direction = getBearing(previousPosition.current, newPosition);
-						directionSource = 'movement';
-						console.log('🧭 Calculated heading from movement:', direction.toFixed(1), 'degrees, distance:', distance.toFixed(1), 'm');
-					}
-				}
-				
-				console.log('🧭 Direction selected:', {
-					source: directionSource,
-					value: direction ? direction.toFixed(1) + '°' : 'null',
-					compassAvailable: currentCompassHeading !== null,
-					gpsHeadingAvailable: heading !== null && heading !== undefined,
-					movementDistance: previousPosition.current ? getDistance(previousPosition.current, newPosition).toFixed(1) + 'm' : 'no previous position'
+				// Agregar muestra al buffer independientemente de la precisión
+				positionSamples.push({
+					lat,
+					lng,
+					accuracy,
+					heading,
+					speed,
+					timestamp: Date.now()
 				});
 				
-				// Actualizar la posición anterior para la próxima iteración (para fallback)
-				previousPosition.current = newPosition;
+				console.log('📊 Added sample to buffer. Total samples:', positionSamples.length, 'Accuracy:', accuracy, 'm');
 				
-				// PRIMERO: Actualizar directamente la posición del marcador SIN re-renderizar
-				updateSelectedTeamMarkerPosition(newPosition, direction);
-				
-				// Si está activo el modo seguimiento, centrar el mapa en la nueva posición
-				if (isFollowMode && mapRef.current) {
-					mapRef.current.panTo(newPosition);
+				// Si es la primera muestra, iniciar la ventana de muestreo
+				if (positionSamples.length === 1) {
+					console.log('📊 Starting sampling window of', SAMPLING_WINDOW_MS, 'ms');
+					samplingWindow = setTimeout(() => {
+						console.log('📊 Sampling window closed, processing samples');
+						processBestSample();
+						samplingWindow = null;
+					}, SAMPLING_WINDOW_MS);
 				}
 				
-				// Verificar proximidad a actividades
-				checkActivityProximity(newPosition);
-				// SEGUNDO: Actualizar Firebase con throttling (esto puede causar re-render pero ya hemos actualizado el marcador)
-				throttledFirebaseUpdate(newPosition, currentTeamData, direction);
+				// Si hemos alcanzado el umbral de precisión deseado y tenemos suficientes muestras,
+				// procesar inmediatamente en lugar de esperar
+				if (accuracy <= ACCURACY_THRESHOLD && positionSamples.length >= MIN_SAMPLES) {
+					console.log('📊 Excellent accuracy achieved early, processing immediately');
+					if (samplingWindow) {
+						clearTimeout(samplingWindow);
+						samplingWindow = null;
+					}
+					processBestSample();
+				}
 			},
 			(err) => {
 				console.error("❌ Geolocation error:", err);
@@ -947,8 +1078,8 @@ const EventMap = () => {
 			},
 			{ 
 				enableHighAccuracy: true, 
-				maximumAge: 0, // Cambiar de 0 a 1000ms para permitir caché reciente
-				timeout: 10000 // Cambiar de Infinity a 15 segundos para mejor respuesta
+				maximumAge: 0, // No usar caché
+				timeout: 15000 // Timeout de 15 segundos
 			}
 		);
 
@@ -977,6 +1108,12 @@ const EventMap = () => {
 		return () => {
 			console.log('🛑 Clearing geolocation watch ID:', watchId);
 			navigator.geolocation.clearWatch(watchId);
+			
+			// Limpiar timeout de ventana de muestreo si existe
+			if (samplingWindow) {
+				clearTimeout(samplingWindow);
+				console.log('🛑 Clearing sampling window timeout');
+			}
 		};
 	}, [selectedTeam?.id, initialCenter, checkActivityProximity, throttledFirebaseUpdate, updateSelectedTeamMarkerPosition, getSelectedTeamData, isDebugMode, isFollowMode, useCompass]); // Dependencias estables
 
