@@ -1,0 +1,157 @@
+/* Estilos para el botón de seguimiento del mapa */
+.follow-button {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(4px);
+}
+
+.follow-button:hover {
+  background-color: rgba(255, 255, 255, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
+}
+
+.follow-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.follow-button.active {
+  background-color: var(--primary-color-alpha-1);
+  border: 2px solid var(--primary-color);
+}
+
+.follow-button.active:hover {
+  background-color: var(--primary-color-alpha-2);
+}
+
+.follow-button svg {
+  transition: fill 0.3s ease;
+}
+
+.follow-button.active svg {
+  fill: var(--primary-color);
+}
+
+.follow-button:not(.active) svg {
+  fill: #CCC;
+}
+
+/* Estilos para el botón de brújula */
+.compass-button {
+  position: absolute;
+  top: 80px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 2px solid #ddd;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(4px);
+  font-size: 20px;
+}
+
+.compass-button:hover {
+  background-color: rgba(255, 255, 255, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px) scale(1.05);
+  border-color: var(--primary-color);
+}
+
+.compass-button:active {
+  transform: translateY(0) scale(1.02);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Estilos para el botón de alternar brújula */
+.compass-toggle-button {
+  position: absolute;
+  top: 140px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(4px);
+  font-size: 16px;
+  color: #666;
+}
+
+.compass-toggle-button:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
+}
+
+.compass-toggle-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.compass-toggle-button.active {
+  background-color: rgba(76, 175, 80, 0.9);
+  border-color: #4CAF50;
+  color: #fff;
+}
+
+.compass-toggle-button.active:hover {
+  background-color: rgba(76, 175, 80, 1);
+}
+
+/* Responsive: ajustar tamaño en pantallas pequeñas */
+@media (max-width: 768px) {
+  .follow-button {
+    width: 45px;
+    height: 45px;
+    top: 15px;
+    right: 15px;
+  }
+  
+  .follow-button svg {
+    width: 25px;
+    height: 25px;
+  }
+  
+  .compass-button {
+    width: 45px;
+    height: 45px;
+    top: 70px;
+    right: 15px;
+    font-size: 18px;
+  }
+  
+  .compass-toggle-button {
+    width: 45px;
+    height: 45px;
+    top: 125px;
+    right: 15px;
+    font-size: 14px;
+  }
+}

@@ -17,6 +17,9 @@ import { useEventSuspensionCheck } from "./hooks/useEventSuspensionCheck";
 import { useTheme } from "./hooks/useTheme";
 import EventLoadBehaviorManager from "./components/EventLoadBehaviorManager";
 
+// Importar utilidades de token de evento para disponibilidad global
+import "./utils/eventTokenGenerator";
+
 import WelcomePage from "./pages/welcomePage";
 import EventsPage from "./pages/eventsPage";
 import TeamsPage from "./pages/teamsPage";
