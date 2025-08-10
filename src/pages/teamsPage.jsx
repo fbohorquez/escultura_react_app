@@ -1,5 +1,5 @@
 // src/pages/teamsPage.jsx
-import React from "react";
+import React, {useEffect} from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useTranslation } from "react-i18next";
 
@@ -7,6 +7,7 @@ import BackgroundLayout from "../components/backgroundLayout";
 import BackButton from "../components/backButton";
 import iconTeam from "../assets/icono_equipo.png";
 import iconAdmin from "../assets/icon_admin.png";
+import { initEventRoot } from "../features/event/eventSlice";
 
 import { setIsAdmin } from "../features/session/sessionSlice";
 
@@ -35,6 +36,14 @@ const TeamsPage = () => {
   const handleBack = () => {
     navigate(`/events`);
   }
+
+	useEffect(() => {
+		//sessionStorage.setItem('autoSelectEventId', tokenValidation.eventId);
+		let autoSelectEventId = sessionStorage.getItem('autoSelectEventId');
+		if (autoSelectEventId) {
+			dispatch(initEventRoot({ eventId: autoSelectEventId }));
+		}
+	}, [dispatch]);
 
 	return (
 		<BackgroundLayout
@@ -70,6 +79,7 @@ const TeamsPage = () => {
 };
 
 export default TeamsPage;
+
 
 
 

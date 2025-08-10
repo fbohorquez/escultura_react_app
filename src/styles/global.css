@@ -456,6 +456,10 @@ header.event-header {
     z-index: 1;
 }
 
+.collapsed button.collapse-button {
+    transform: scale(0.75);
+}
+
 /* Estilos para iconos de actividades personalizados */
 .custom-activity-icon {
     border: 1px solid #000;
@@ -809,6 +813,7 @@ header.event-header {
 .admin-tools {
   width: 100%;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 15px;
   justify-content: space-around;
@@ -2133,4 +2138,8 @@ button.share-control {
 .content.content-no-title {
     max-height: calc(100vh - 0px);
     overflow-y: auto;
+}
+
+:focus-visible {
+    outline: none;
 }

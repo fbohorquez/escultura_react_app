@@ -229,6 +229,30 @@ src/styles/
 - Inicialización completa del contexto del evento seleccionado
 - Navegación hacia selección de equipos
 
+#### 🆕 3.2.1 Acceso Directo por Evento
+**Archivos**: `src/utils/eventToken.js`, `src/utils/eventTokenGenerator.js`, `src/components/URLHandler.jsx`  
+**Funcionalidad**: Acceso directo a eventos mediante URL con token de seguridad
+- **URL de acceso**: `/?event=TOKEN` donde TOKEN = EventID + MD5(EventID)
+- **Validación automática**: Verificación de integridad del token antes del acceso
+- **Navegación directa**: Redirección automática a la selección de equipos del evento
+- **Limpieza de URL**: Remoción del parámetro tras procesamiento
+- **Configuración de sesión**: Opción para limpiar o mantener datos locales
+- **Herramientas de desarrollo**: Utilidades de consola para generar y validar tokens
+- **Documentación completa**: Ver `README.event-access.md` para detalles de uso
+
+**Configuración (.env)**:
+```bash
+VITE_EVENT_ACCESS_CLEAR_SESSION=true  # Limpia sesión al acceder con token
+```
+
+**Uso administrativo**:
+```javascript
+// En consola del navegador
+window.generateEventToken('mi_evento_2024')  // Genera token y URL
+window.validateEventToken('token_completo')  // Valida token
+window.eventTokenHelp()                      // Muestra ayuda completa
+```
+
 #### 3.3 Selección de Equipos
 **Archivo**: `src/pages/teamsPage.jsx`  
 **Funcionalidad**: Elección de equipo o modo administrador

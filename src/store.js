@@ -24,6 +24,7 @@ import chatsReducer from "./features/chats/chatsSlice";
 import gadgetsReducer from "./features/gadgets/gadgetsSlice";
 
 import { firebaseSyncMiddleware } from "./services/firebase";
+import { sessionClearMiddleware } from "./utils/sessionClearMiddleware";
 
 const rootReducer = combineReducers({
   events: eventsReducer,
@@ -110,7 +111,9 @@ const store = configureStore({
 			serializableCheck: {
 				ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
 			},
-		}).prepend(firebaseSyncMiddleware).concat(activityRestoreMiddleware),
+		}).prepend(firebaseSyncMiddleware)
+		  .concat(sessionClearMiddleware)
+		  .concat(activityRestoreMiddleware),
 });
 
 export const persistor = persistStore(store);
