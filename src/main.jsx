@@ -10,6 +10,10 @@ import { PersistGate } from "redux-persist/integration/react";
 import { initUploadQueue } from "./services/uploadQueue";
 import { initAssetCaching } from "./services/assetCache";
 import { validateEventToken, getEventParamFromURL, clearEventParamFromURL } from "./utils/eventToken";
+import { overrideNative } from "./utils/overrideNative";
+
+// Inicializar los overrides nativos
+overrideNative();
 
 
 // Función para determinar la ruta inicial

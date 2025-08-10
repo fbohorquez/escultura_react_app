@@ -32,8 +32,8 @@ const SessionControlPage = () => {
 		navigate(-1);
 	};
 
-	const handleClearLocalSession = () => {
-		if (window.confirm(t("session_control.confirm_clear_local"))) {
+	const handleClearLocalSession = async () => {
+		if (await window.confirm(t("session_control.confirm_clear_local"))) {
 			// Limpiar datos locales
 			dispatch(clearSession());
 			localStorage.removeItem("lastRoute");
@@ -45,9 +45,9 @@ const SessionControlPage = () => {
 		}
 	};
 
-	const handleDisassociateTeam = (teamId) => {
+	const handleDisassociateTeam = async (teamId) => {
 		const team = teams.find(t => t.id === teamId);
-		if (team && window.confirm(t("session_control.confirm_disassociate", { teamName: team.name }))) {
+		if (team && await window.confirm(t("session_control.confirm_disassociate", { teamName: team.name }))) {
 			dispatch(
 				updateTeamData({
 					eventId: event.id,

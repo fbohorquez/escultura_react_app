@@ -89,7 +89,7 @@ const TeamActivityDetailPage = () => {
 
 	const handleDeleteActivity = async (activity) => {
 		// Mostrar confirmación
-		const confirmed = window.confirm(
+		const confirmed = await window.confirm(
 			t("team_activities.delete_confirm", "¿Estás seguro de que quieres eliminar la actividad \"{{activityName}}\" del equipo \"{{teamName}}\"?", {
 				activityName: activity.name,
 				teamName: team.name
@@ -172,7 +172,7 @@ const TeamActivityDetailPage = () => {
 
 	const handleRestoreActivity = async (activity) => {
 		// Mostrar confirmación
-		const confirmed = window.confirm(
+		const confirmed = await window.confirm(
 			t("team_activities.restore_confirm", "¿Estás seguro de que quieres restaurar la actividad \"{{activityName}}\" del equipo \"{{teamName}}\"?", {
 				activityName: activity.name,
 				teamName: team.name
@@ -253,7 +253,7 @@ const TeamActivityDetailPage = () => {
 
 	const handleSendActivity = async (activity) => {
 		// Mostrar confirmación
-		const confirmed = window.confirm(
+		const confirmed = await window.confirm(
 			t("team_activities.send_confirm", "¿Estás seguro de que quieres enviar la actividad \"{{activityName}}\" al equipo \"{{teamName}}\"?", {
 				activityName: activity.name,
 				teamName: team.name
