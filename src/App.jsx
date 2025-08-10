@@ -15,6 +15,7 @@ import DebugWelcome from "./components/DebugWelcome";
 import URLHandler from "./components/URLHandler";
 import { useEventSuspensionCheck } from "./hooks/useEventSuspensionCheck";
 import { useTheme } from "./hooks/useTheme";
+import useForceOrientation from "./hooks/useForceOrientation";
 import EventLoadBehaviorManager from "./components/EventLoadBehaviorManager";
 
 // Importar utilidades de token de evento para disponibilidad global
@@ -51,6 +52,9 @@ function App() {
 	
 	// Hook para aplicar el tema de colores basado en el evento
 	useTheme();
+
+	// Hook para controlar la orientación forzada según configuración
+	useForceOrientation();
 
 	return (
 		<>

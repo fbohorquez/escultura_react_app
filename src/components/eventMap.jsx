@@ -7,6 +7,7 @@ import ActivityMarker from "./ActivityMarker";
 import markMe from "../assets/mark-me.png";
 import { usePopup } from "../hooks/usePopup";
 import { useDebugMode } from "../hooks/useDebugMode";
+import { useActivityProximity } from "../hooks/useActivityProximity";
 import { useTranslation } from "react-i18next";
 import { startActivityWithSuspensionCheck } from "../features/activities/activitiesSlice";
 import KalmanFilter from "kalmanjs";
@@ -202,43 +203,48 @@ function makeAngleEMA(alpha = 0.25, start = null) {
 	};
 }
 
-// Normaliza heading a coordenadas de mapa (N=0, E=90...)
-// Aplica la CORRECCIÓN con signo correcto (restar angle)
-const normalizeCompassHeadingFromEvent = (evt) => {
-	// iOS Safari prioriza webkitCompassHeading
-	if (typeof evt.webkitCompassHeading === 'number' && !Number.isNaN(evt.webkitCompassHeading)) {
-		// Verificar si la precisión es buena (iOS da webkitCompassAccuracy, -1 = no fiable)
-		if (typeof evt.webkitCompassAccuracy === 'number' && evt.webkitCompassAccuracy < 0) {
-			return null; // No fiable
-		}
-		return norm360(evt.webkitCompassHeading);
-	}
-	if (typeof evt.alpha !== 'number' || Number.isNaN(evt.alpha)) return null;
+// Convierte (alpha,beta,gamma) → heading (0..360, CW desde Norte) en "portrait-primary"
+const compassHeadingFromEuler = (alpha, beta, gamma) => {
+	const rad = Math.PI / 180;
+	const _x = beta  * rad;  // inclinación adelante/atrás
+	const _y = gamma * rad;  // inclinación izquierda/derecha
+	const _z = alpha * rad;  // giro alrededor del Z (perpendicular a pantalla)
 
-	// Si es absoluto, nos fiamos; si no, es relativo y más ruidoso
-	const raw = evt.alpha; // 0=N, 90=E, etc. en la mayoría de devices
-	const screenAngle = getScreenAngle();
+	const cX = Math.cos(_x), cY = Math.cos(_y), cZ = Math.cos(_z);
+	const sX = Math.sin(_x), sY = Math.sin(_y), sZ = Math.sin(_z);
 
-	// *** OJO: restar, no sumar ***
-	const corrected = norm360(raw - screenAngle);
+	// Vector proyectado hacia el norte en el plano horizontal (según spec)
+	const Vx = -cZ * sY - sZ * sX * cY;
+	const Vy = -sZ * sY + cZ * sX * cY;
 
-	return corrected;
+	let heading = Math.atan2(Vx, Vy); // azimut
+	if (heading < 0) heading += 2 * Math.PI;
+	return heading * 180 / Math.PI; // grados CW desde norte
 };
 
-// Función para solicitar permisos de orientación en iOS 13+
-const requestOrientationPermission = async () => {
-	if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-		try {
-			const permission = await DeviceOrientationEvent.requestPermission();
-			console.log('🧭 Device orientation permission:', permission);
-			return permission === 'granted';
-		} catch (error) {
-			console.error('❌ Error requesting device orientation permission:', error);
-			return false;
-		}
+// Normaliza heading a coordenadas de mapa (N=0, E=90...)
+// Android: calcular con alpha+beta+gamma y ajustar sumando el ángulo de pantalla
+const normalizeCompassHeadingFromEvent = (evt) => {
+	// iOS primero
+	if (typeof evt.webkitCompassHeading === 'number' && !Number.isNaN(evt.webkitCompassHeading)) {
+		if (typeof evt.webkitCompassAccuracy === 'number' && evt.webkitCompassAccuracy < 0) return null;
+		// webkitCompassHeading ya es norte-cw en coordenadas del mundo
+		return norm360(evt.webkitCompassHeading);
 	}
-	// En dispositivos que no requieren permisos, asumir que está disponible
-	return true;
+
+	const { alpha, beta, gamma, absolute } = evt || {};
+	const screenAngle = getScreenAngle();
+
+	// Android moderno: si es absoluto, alpha suele ser yaw respecto al norte
+	if (absolute === true && typeof alpha === 'number' && !Number.isNaN(alpha)) {
+		// Invertir para obtener giro horario desde norte
+		return norm360(360 - alpha + screenAngle);
+	}
+
+	// Fallback: usar la conversión desde Euler
+	if (typeof alpha !== 'number' || typeof beta !== 'number' || typeof gamma !== 'number') return null;
+	const h = compassHeadingFromEuler(alpha, beta, gamma);
+	return norm360(h + screenAngle);
 };
 
 // Función para determinar si una actividad es visible
@@ -296,10 +302,17 @@ const EventMap = () => {
 	const { openPopup, closePopup } = usePopup();
 	const { isDebugMode } = useDebugMode();
 	const { t } = useTranslation();
+	const {
+		checkActivityProximity,
+		markAsAutoActivated,
+		isAutoActivated,
+		clearProximityState,
+		PRECISION_REQUIRED,
+		TIME_REQUIRED
+	} = useActivityProximity();
 
 	const [markersCreated, setMarkersCreated] = useState(false); // Control para crear marcadores solo una vez
 	const [isFollowMode, setIsFollowMode] = useState(false); // Estado para el modo seguimiento
-	const [orientationPermissionRequested, setOrientationPermissionRequested] = useState(false); // Control de permisos
 	const [useCompass, setUseCompass] = useState(true); // Control para usar o no la brújula
 
 	// Obtener el nivel de detalle del mapa desde las variables de entorno
@@ -363,7 +376,6 @@ const EventMap = () => {
 	const lastFiltered = useRef(null); // Última posición filtrada
 	const lastAccuracy = useRef(null); // Última precisión GPS
 	const previousPosition = useRef(null); // Para calcular la dirección
-	const notifiedActivities = useRef(new Set());
 	const [initialCenter, setInitialCenter] = useState(null);
 	const mapRef = useRef(null);
 	const lastUpdateTime = useRef(0);
@@ -387,23 +399,23 @@ const EventMap = () => {
 		return teams.find(team => team.id === selectedTeam.id) || selectedTeam;
 	}, [selectedTeam, teams]);
 
-	// Función para mostrar popup de proximidad a actividad
-	const showActivityProximityPopup = useCallback((activity) => {
+	// Función para mostrar popup de proximidad automática a actividad
+	const showActivityAutoProximityPopup = useCallback((activity) => {
 		openPopup({
-			titulo: activity.name,
-			texto: t('activity_proximity_text', { activityName: activity.name }),
+			titulo: t('activity_auto_proximity_title', 'Actividad Disponible'),
+			texto: t('activity_auto_proximity_text', 'Has estado cerca de la actividad "{{activityName}}" el tiempo suficiente. ¿Deseas realizarla?', { activityName: activity.name }) + '\n\n' + t('activity_auto_proximity_reminder', 'Podrás activarla de nuevo acercándote y pulsando sobre ella en el mapa'),
 			array_botones: [
 				{
-					titulo: t('close'),
+					titulo: t('close', 'Cerrar'),
 					callback: () => {
-						console.log('🚫 Popup de actividad cerrado:', activity.name);
+						console.log('🚫 Popup de actividad automática cerrado:', activity.name);
 						closePopup();
 					}
 				},
 				{
-					titulo: t('start_activity'),
+					titulo: t('start_activity', 'Iniciar Actividad'),
 					callback: () => {
-						console.log('🚀 Iniciando actividad:', activity.name, 'ID:', activity.id);
+						console.log('🚀 Iniciando actividad automática:', activity.name, 'ID:', activity.id);
 						dispatch(startActivityWithSuspensionCheck(activity));
 						closePopup();
 					}
@@ -585,59 +597,67 @@ const EventMap = () => {
 		}
 	}, [selectedTeam]); // Depender de selectedTeam para controlar la rotación
 
-	// Función para solicitar permisos de orientación manualmente
-	const handleOrientationPermission = useCallback(async () => {
-		if (orientationPermissionRequested) return;
+	// Nueva función para verificar proximidad con el sistema mejorado
+	const checkActivityProximityNew = useCallback((teamPosition, accuracy) => {
+		console.log('🔍 checkActivityProximityNew called with:', { teamPosition, accuracy });
 		
-		console.log('🧭 Manually requesting device orientation permission...');
-		const hasPermission = await requestOrientationPermission();
-		setOrientationPermissionRequested(true);
-		
-		if (hasPermission) {
-			console.log('✅ Device orientation permission granted manually');
-			// La inicialización se realizará automáticamente en el próximo efecto
-		} else {
-			console.log('❌ Device orientation permission denied manually');
-		}
-	}, [orientationPermissionRequested]);
-	const checkActivityProximity = useCallback((teamPosition) => {
 		const currentTeamData = getSelectedTeamData();
-		if (!currentTeamData || isAdmin) return;
+		if (!currentTeamData || isAdmin) {
+			console.log('🔍 Skipping proximity check - no team or is admin:', { hasTeam: !!currentTeamData, isAdmin });
+			return;
+		}
 
 		const visibleActivities = (currentTeamData.activities_data || [])
 			.filter((activity) => isActivityVisible(activity, currentTeamData, false));
 
-		visibleActivities.forEach((activity) => {
-			if (!activity.lat || !activity.lon || !activity.distance) return;
+		console.log('🔍 Visible activities found:', visibleActivities.length);
+		console.log('🔍 Activities details:', visibleActivities.map(a => ({
+			name: a.name,
+			id: a.id,
+			lat: a.lat,
+			lng: a.lon,
+			distance: a.distance,
+			complete: a.complete
+		})));
 
-			const distance = getDistance(
+		visibleActivities.forEach((activity) => {
+			if (!activity.lat || !activity.lon || !activity.distance || activity.complete) {
+				console.log('🔍 Skipping activity (incomplete data or completed):', activity.name);
+				return;
+			}
+
+			const proximityStatus = checkActivityProximity(
+				activity,
 				teamPosition,
-				{ lat: activity.lat, lng: activity.lon }
+				accuracy
 			);
 
-			const isWithinRange = distance <= activity.distance;
-			const activityKey = `${activity.id}-${currentTeamData.id}`;
-			const hasBeenNotified = notifiedActivities.current.has(activityKey);
-
-			console.log('🎯 Checking activity proximity:', {
+			console.log('🎯 New proximity check:', {
 				activityName: activity.name,
 				activityId: activity.id,
-				distance: Math.round(distance),
+				distance: Math.round(proximityStatus.distance),
 				requiredDistance: activity.distance,
-				isWithinRange,
-				hasBeenNotified
+				isWithinRange: proximityStatus.isWithinRange,
+				hasPrecision: proximityStatus.hasPrecision,
+				timeInProximity: proximityStatus.timeInProximity.toFixed(1),
+				canAutoActivate: proximityStatus.canAutoActivate,
+				canClickActivate: proximityStatus.canClickActivate,
+				isAutoActivated: isAutoActivated(activity.id)
 			});
 
-			if (isWithinRange && !hasBeenNotified) {
-				console.log('✅ Showing proximity popup for activity:', activity.name);
-				notifiedActivities.current.add(activityKey);
-				showActivityProximityPopup(activity);
-			} else if (!isWithinRange && hasBeenNotified) {
-				// Si ya no está en rango, permitir nueva notificación cuando vuelva a acercarse
-				notifiedActivities.current.delete(activityKey);
+			// Si puede activarse automáticamente y no ha sido activada ya
+			if (proximityStatus.canAutoActivate && !isAutoActivated(activity.id)) {
+				console.log('✅ Auto-activating activity:', activity.name);
+				markAsAutoActivated(activity.id);
+				showActivityAutoProximityPopup(activity);
 			}
 		});
-	}, [getSelectedTeamData, isAdmin, showActivityProximityPopup]);
+	}, [getSelectedTeamData, isAdmin, checkActivityProximity, isAutoActivated, markAsAutoActivated, showActivityAutoProximityPopup]);
+
+	// Limpiar estado de proximidad cuando cambie el equipo seleccionado
+	useEffect(() => {
+		clearProximityState();
+	}, [selectedTeam?.id, clearProximityState]);
 
 	// Establecer center inicial solo una vez
 	useEffect(() => {
@@ -651,23 +671,37 @@ const EventMap = () => {
 		if (!selectedTeam || isDebugMode || !useCompass) return;
 
 		let remove = () => {};
-		let ema = makeAngleEMA(0.2); // suavizado, ajusta a gusto (0.1 más lento, 0.3 más ágil)
+		let ema = makeAngleEMA(0.2);
 		let last = null;
-		const THRESH = 2.5;     // grados mínimos para actualizar (2.5° balanceo entre suavidad y responsividad)
-		const MIN_INTERVAL = 66; // ~15 Hz
+		const THRESH = 2.5;
+		const MIN_INTERVAL = 66;
 		let lastTs = 0;
+		let preferAbs = false;
+		let lastAbsTs = 0;
+		const uaIsAndroid = /Android/i.test(navigator.userAgent || '');
 
-		const onOrientation = (evt, sourceLabel) => {
+		const onOrientation = (evt) => {
 			const now = Date.now();
 			if (now - lastTs < MIN_INTERVAL) return;
 
-			// Descarta posturas muy inclinadas (cuando la brújula se vuelve inútil)
-			// Si el evento trae beta/gamma, filtra; si no, deja pasar.
+			// En Android, si no es absoluto, ignorar para evitar drift con el tilt
+			if (uaIsAndroid && evt && evt.absolute !== true) {
+				return;
+			}
+
+			// Si tenemos una lectura absoluta reciente, ignorar las relativas para no mezclar marcos
+			if (evt && evt.absolute === true) {
+				preferAbs = true;
+				lastAbsTs = now;
+			} else if (preferAbs && (now - lastAbsTs) < 2000) {
+				return;
+			}
+
 			const beta = typeof evt.beta === 'number' ? Math.abs(evt.beta) : null;
 			const gamma = typeof evt.gamma === 'number' ? Math.abs(evt.gamma) : null;
 			if (beta != null && gamma != null) {
-				// Evita cuando está totalmente "de canto" o boca abajo
-				if (beta > 75 || gamma > 75) return;
+				// Filtro más estricto para que al inclinar en vertical no cambie la dirección
+				if (beta > 30 || gamma > 30) return;
 			}
 
 			const hdg = normalizeCompassHeadingFromEvent(evt);
@@ -678,42 +712,35 @@ const EventMap = () => {
 				last = smooth;
 				compassHeadingRef.current = smooth;
 				lastCompassUpdate.current = now;
-
-				// Actualiza rotación del marcador inmediatamente
 				updateSelectedTeamMarkerRotation(smooth);
-
-				// Opcional: guarda en Firebase si lo deseas
-				// throttledFirebaseUpdate(null, getSelectedTeamData(), smooth);
-
-				console.log(`🧭 Heading=${smooth.toFixed(1)}° (${sourceLabel})`);
 			}
 		};
 
 		const add = (type, handler, opts) => window.addEventListener(type, handler, opts);
 		const rm  = (type, handler, opts) => window.removeEventListener(type, handler, opts);
 
-		const hasDOE = typeof window.DeviceOrientationEvent !== 'undefined';
-		let handlerRelative;
-
 		const start = async () => {
-			// iOS 13+: permiso
 			try {
-				if (hasDOE && typeof DeviceOrientationEvent.requestPermission === 'function') {
+				// iOS 13+: permiso
+				if (typeof window.DeviceOrientationEvent !== 'undefined' &&
+					typeof DeviceOrientationEvent.requestPermission === 'function') {
 					const p = await DeviceOrientationEvent.requestPermission();
 					if (p !== 'granted') return;
 				}
-			} catch (error) {
-				console.warn('Failed to request device orientation permission:', error);
+			} catch { void 0; }
+
+			let handlerAbs, handlerRel;
+			if ('ondeviceorientationabsolute' in window) {
+				handlerAbs = (e) => onOrientation(e);
+				add('deviceorientationabsolute', handlerAbs, true);
+				remove = () => {
+					rm('deviceorientationabsolute', handlerAbs, true);
+				};
+			} else {
+				handlerRel = (e) => onOrientation(e);
+				add('deviceorientation', handlerRel, true);
+				remove = () => rm('deviceorientation', handlerRel, true);
 			}
-
-			// Usar solo deviceorientation (suficiente en iOS/Chrome WKWebView)
-			// Evita doble feed que puede ocurrir en iOS cuando llegan ambos eventos
-			handlerRelative = (e) => onOrientation(e, 'device');
-			add('deviceorientation', handlerRelative, true);
-
-			remove = () => {
-				rm('deviceorientation', handlerRelative, true);
-			};
 		};
 
 		start();
@@ -774,7 +801,6 @@ const EventMap = () => {
 	useEffect(() => {
 		if (selectedTeam) {
 			console.log('🔄 Team changed, clearing activity notifications and resetting Kalman filters for team:', selectedTeam.id);
-			notifiedActivities.current.clear();
 			// También limpiar la posición anterior para el cálculo de dirección
 			previousPosition.current = null;
 			// Reiniciar filtros de Kalman para el nuevo equipo
@@ -798,10 +824,10 @@ const EventMap = () => {
 		});
 		
 		// Si está en modo debug, no escuchar GPS
-		// if (isDebugMode) {
-		// 	console.log('🔧 Debug mode active - GPS tracking disabled');
-		// 	return;
-		// }
+		if (isDebugMode) {
+			console.log('🔧 Debug mode active - GPS tracking disabled');
+			return;
+		}
 		
 		if (!navigator.geolocation) {
 			console.error('❌ Geolocation is not supported by this browser');
@@ -1001,7 +1027,7 @@ const EventMap = () => {
 			}
 			
 			// Verificar proximidad a actividades
-			checkActivityProximity(newPosition);
+			checkActivityProximityNew(newPosition, bestSample.accuracy);
 			// SEGUNDO: Actualizar Firebase con throttling (esto puede causar re-render pero ya hemos actualizado el marcador)
 			throttledFirebaseUpdate(newPosition, currentTeamData, direction);
 			
@@ -1115,7 +1141,7 @@ const EventMap = () => {
 				console.log('🛑 Clearing sampling window timeout');
 			}
 		};
-	}, [selectedTeam?.id, initialCenter, checkActivityProximity, throttledFirebaseUpdate, updateSelectedTeamMarkerPosition, getSelectedTeamData, isDebugMode, isFollowMode, useCompass]); // Dependencias estables
+	}, [selectedTeam?.id, initialCenter, checkActivityProximityNew, throttledFirebaseUpdate, updateSelectedTeamMarkerPosition, getSelectedTeamData, isDebugMode, isFollowMode, useCompass]); // Dependencias estables
 
 	// Marcadores renderizados solo cuando sea necesario (evitar re-renders por cambios de posición)
 	const teamMarkers = React.useMemo(() => {
@@ -1285,8 +1311,25 @@ const EventMap = () => {
 		);
 
 		// Verificar proximidad a actividades en la nueva posición
-		checkActivityProximity(newPosition);
-	}, [isDebugMode, event, dispatch, checkActivityProximity, getSelectedTeamData]);
+		console.log('🔧 Debug mode: Calling checkActivityProximityNew with position:', newPosition, 'accuracy: 10');
+		
+		// En modo debug, hacer múltiples verificaciones para asegurar que se detecta la proximidad
+		// Primera verificación inmediata
+		checkActivityProximityNew(newPosition, 10); // Usar excelente precisión para debug mode
+		
+		// Segunda verificación después de 100ms para dar tiempo a que se actualice el estado
+		setTimeout(() => {
+			console.log('🔧 Debug mode: Second proximity check after 100ms');
+			checkActivityProximityNew(newPosition, 10);
+		}, 100);
+		
+		// Tercera verificación después de 1.2 segundos para activación automática
+		setTimeout(() => {
+			console.log('🔧 Debug mode: Third proximity check after 1.2 seconds for auto-activation');
+			checkActivityProximityNew(newPosition, 10);
+		}, 1200);
+		
+	}, [isDebugMode, event, dispatch, checkActivityProximityNew, getSelectedTeamData]);
 
 	// Función para manejar cuando el usuario desplaza el mapa manualmente
 	const handleMapDragEnd = useCallback(() => {
@@ -1297,6 +1340,7 @@ const EventMap = () => {
 	}, [isFollowMode]);
 
 	// Función para alternar el uso de la brújula
+	// eslint-disable-next-line no-unused-vars
 	const toggleCompass = useCallback(() => {
 		const newUseCompass = !useCompass;
 		setUseCompass(newUseCompass);
@@ -1398,67 +1442,10 @@ const EventMap = () => {
 					<path d="M301.793,297.745c-12.594-6.73-27.314-11.873-43.309-15.277v-34.559c2.06,1.344,4.516,2.132,7.156,2.132 c7.236,0,13.098-5.868,13.098-13.1v-10.622c0.89-1.908,1.383-4.036,1.383-6.279v-96.897c0-7.137-5.038-13.285-12.031-14.684 l-26.83-5.368c-1.357-1.551-3.025-2.799-4.883-3.676c2.111-2.36,3.9-4.744,5.264-6.717c3.279-4.761,6.012-9.887,7.904-14.833 c0.935-2.086,1.723-4.182,2.371-6.238c2.541-2.133,4.039-5.321,4.039-8.664v-8.19c0-2.354-0.734-4.649-2.094-6.557V36.684 C253.86,16.455,237.403,0,217.175,0h-11.892C185.058,0,168.6,16.455,168.6,36.684v11.533c-1.355,1.907-2.097,4.204-2.097,6.556v8.19 c0,3.343,1.496,6.525,4.042,8.663c0.647,2.052,1.438,4.152,2.372,6.242c1.891,4.943,4.623,10.07,7.908,14.827 c1.363,1.98,3.153,4.366,5.273,6.733c-1.852,0.878-3.508,2.125-4.862,3.668l-26.428,5.354c-6.979,1.414-11.997,7.548-11.997,14.675 v96.915c0,2.243,0.495,4.372,1.378,6.279v10.622c0,7.231,5.863,13.1,13.1,13.1c2.638,0,5.097-0.788,7.149-2.132v34.561 c-15.991,3.404-30.709,8.547-43.299,15.275c-25.584,13.672-39.674,32.335-39.674,52.547c0,20.212,14.09,38.875,39.674,52.549 c24.24,12.955,56.317,20.091,90.326,20.091c34.01,0,66.086-7.136,90.327-20.091c25.584-13.674,39.673-32.337,39.673-52.549 C341.466,330.08,327.377,311.417,301.793,297.745z M216.981,120.51c-0.068-0.66,0.145-1.318,0.59-1.815 c0.244-0.273,0.549-0.478,0.889-0.614v-5.86c0-1.138,0.818-2.115,1.939-2.316c1.859-0.329,3.779-1.011,5.704-2.029 c0.733-0.382,1.608-0.36,2.312,0.063c0.71,0.428,1.139,1.19,1.139,2.018v14.049c0,0.51-0.164,1.007-0.473,1.413l-6.596,8.758 c-0.453,0.598-1.152,0.94-1.877,0.94c-0.211,0-0.426-0.031-0.637-0.087c-0.93-0.259-1.607-1.063-1.705-2.025L216.981,120.51z M182.552,65.912l-0.131-0.974l-2.28-1.482c-0.669-0.435-1.071-1.173-1.071-1.973v-3.867c0-1.3,1.054-2.353,2.352-2.353h0.957 v-4.194c0-0.893,0.506-1.705,1.303-2.104c3.238-1.612,9.662-4.328,16.314-4.328c5.304,0,9.704,1.768,13.077,5.249 c4.197,4.344,9.044,6.544,14.387,6.544c3.035,0,6.159-0.715,9.305-2.125c0.727-0.326,1.568-0.263,2.24,0.171 c0.314,0.203,0.564,0.472,0.752,0.787h1.281c1.299,0,2.355,1.053,2.355,2.353v3.868c0,0.799-0.406,1.537-1.072,1.972l-2.279,1.482 l-0.131,0.974c-0.744,5.618-3.9,12.9-8.439,19.482c-5.749,8.34-11.133,12.073-13.928,12.073h-12.631 c-2.791,0-8.181-3.734-13.931-12.073C186.447,78.813,183.291,71.532,182.552,65.912z M204.888,118.695 c0.446,0.496,0.662,1.154,0.593,1.815l-1.289,12.502c-0.1,0.958-0.775,1.762-1.708,2.02c-0.209,0.061-0.419,0.087-0.63,0.087 c-0.728,0-1.429-0.336-1.875-0.934l-6.61-8.767c-0.307-0.407-0.474-0.905-0.474-1.417l0.007-14.047 c0.002-0.825,0.434-1.588,1.141-2.018c0.704-0.425,1.582-0.446,2.313-0.063c1.921,1.02,3.844,1.702,5.708,2.031 c1.119,0.201,1.937,1.179,1.937,2.316v5.86C204.338,118.218,204.642,118.422,204.888,118.695z M211.466,392.714 c-55.367,0-102.143-23.412-102.143-51.124c0-19.29,22.667-36.494,55.115-45.171v51.816c0,12.988,10.53,23.515,23.518,23.515 c12.981,0,23.509-10.526,23.509-23.515c0,12.988,10.523,23.515,23.515,23.515c12.982,0,23.504-10.526,23.504-23.515v-51.819 c32.454,8.677,55.125,25.882,55.125,45.174C313.608,369.302,266.833,392.714,211.466,392.714z" />
 				</svg>
 			</button>
-			
-			{/* Botón para activar brújula (solo mostrar si es necesario) */}
-			{selectedTeam && !orientationPermissionRequested && useCompass && (
-				<button
-					onClick={handleOrientationPermission}
-					className="compass-button"
-					title="Activar brújula del dispositivo"
-					style={{
-						position: 'absolute',
-						top: '80px',
-						right: '20px',
-						width: '50px',
-						height: '50px',
-						borderRadius: '50%',
-						backgroundColor: '#fff',
-						border: '2px solid #ddd',
-						boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
-						cursor: 'pointer',
-						display: 'flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-						fontSize: '20px',
-						zIndex: 1000,
-					}}
-				>
-					🧭
-				</button>
-			)}
-			
-			{/* Botón para alternar uso de brújula */}
-			{selectedTeam && (
-				<button
-					onClick={toggleCompass}
-					className={`compass-toggle-button ${useCompass ? 'active' : ''}`}
-					title={useCompass ? 'Desactivar brújula' : 'Activar brújula'}
-					style={{
-						position: 'absolute',
-						top: '140px',
-						right: '20px',
-						width: '50px',
-						height: '50px',
-						borderRadius: '8px',
-						backgroundColor: useCompass ? 'rgba(76, 175, 80, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-						border: `2px solid ${useCompass ? '#4CAF50' : '#ddd'}`,
-						boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
-						cursor: 'pointer',
-						display: 'flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-						fontSize: '16px',
-						zIndex: 1000,
-						color: useCompass ? '#fff' : '#666',
-						transition: 'all 0.3s ease',
-					}}
-				>
-					{useCompass ? '🧭' : '🚫'}
-				</button>
-			)}
 		</div>
 	);
 };
+
 
 export default React.memo(EventMap);
 

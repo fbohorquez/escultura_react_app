@@ -79,6 +79,9 @@
   "view_activity_image": "View activity image",
   "view_activity_media": "View activity media",
   "activity_proximity_text": "You are near the activity \"{{activityName}}\"! Do you want to start it?",
+  "activity_auto_proximity_title": "Activity Available",
+  "activity_auto_proximity_text": "You have been near the activity \"{{activityName}}\" long enough. Do you want to do it?",
+  "activity_auto_proximity_reminder": "You can activate it again by approaching and clicking on it on the map",
   "debug_panel": "DEBUG PANEL",
   "reset_timer": "Reset Timer",
   "timer_reset": "Timer reset",
@@ -277,7 +280,11 @@
     "no_team_selected": "Select a team to see the distance",
     "none": "None",
     "meters": "m",
-    "kilometers": "km"
+    "kilometers": "km",
+    "click_to_start": "Click to perform the activity",
+    "poor_precision": "Insufficient GPS precision",
+    "already_completed": "Activity already completed",
+    "too_far": "You need to get closer to perform this activity"
   },
   "photo_management": {
     "title": "Photo/Video Management",

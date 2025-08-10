@@ -80,6 +80,9 @@
   "view_activity_image": "Ver imagen de la actividad",
   "view_activity_media": "Ver contenido de la actividad",
   "activity_proximity_text": "¡Estás cerca de la actividad \"{{activityName}}\"! ¿Deseas iniciarla?",
+  "activity_auto_proximity_title": "Actividad Disponible",
+  "activity_auto_proximity_text": "Has estado cerca de la actividad \"{{activityName}}\" el tiempo suficiente. ¿Deseas realizarla?",
+  "activity_auto_proximity_reminder": "Podrás activarla de nuevo acercándote y pulsando sobre ella en el mapa",
   "debug_panel": "PANEL DEBUG",
   "reset_timer": "Reiniciar Tiempo",
   "timer_reset": "Tiempo reiniciado",
@@ -316,7 +319,11 @@
     "no_team_selected": "Selecciona un equipo para ver la distancia",
     "none": "Ninguno",
     "meters": "m",
-    "kilometers": "km"
+    "kilometers": "km",
+    "click_to_start": "Pulsa para realizar la actividad",
+    "poor_precision": "Precisión GPS insuficiente",
+    "already_completed": "Actividad ya completada",
+    "too_far": "Debes acercarte más para realizar esta actividad"
   },
   "photo_management": {
     "title": "Gestión de Fotos/Videos",

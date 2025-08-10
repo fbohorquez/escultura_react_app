@@ -1,5 +1,5 @@
 // src/components/activities/PairsActivity.jsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import "../../styles/PairsActivity.css";
 import reversoCardImg from "../../assets/Reverso carta.png";
@@ -12,6 +12,15 @@ const PairsActivity = ({ activity, onComplete, timeLeft, timeExpired }) => {
 	const [matchedCards, setMatchedCards] = useState([]);
 	const [isActivityCompleted, setIsActivityCompleted] = useState(false);
 	const [isChecking, setIsChecking] = useState(false);
+	// Candados y refs para estabilidad
+	const completedRef = useRef(false);
+	const completionScheduledRef = useRef(false);
+	const onCompleteRef = useRef(onComplete);
+	const timeLeftRef = useRef(timeLeft);
+	const activityTimeRef = useRef(activity.time);
+	useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+	useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
+	useEffect(() => { activityTimeRef.current = activity.time; }, [activity.time]);
 
 	// Parsear datos del juego de parejas
 	useEffect(() => {
@@ -41,6 +50,13 @@ const PairsActivity = ({ activity, onComplete, timeLeft, timeExpired }) => {
 			}
 
 			setCards(gameCards);
+			// Reset de estado de finalización
+			setFlippedCards([]);
+			setMatchedCards([]);
+			setIsActivityCompleted(false);
+			completedRef.current = false;
+			completionScheduledRef.current = false;
+
 			console.log('Cartas generadas:', gameCards.length, 'Total de pares:', images.length);
 
 		} catch (error) {
@@ -56,26 +72,27 @@ const PairsActivity = ({ activity, onComplete, timeLeft, timeExpired }) => {
 
 	// Manejar expiración del tiempo
 	useEffect(() => {
-		if (timeExpired && !isActivityCompleted) {
+		if (timeExpired && !isActivityCompleted && !completedRef.current) {
 			console.log('Tiempo expirado para juego de parejas, marcando como fallido');
 			setIsActivityCompleted(true);
+			completedRef.current = true;
 			
-			onComplete(false, {
+			onCompleteRef.current(false, {
 				data: {
 					type: "pairs",
 					completed: false,
 					reason: "time_expired",
-					timeUsed: activity.time === 0 ? 0 : activity.time,
+					timeUsed: activityTimeRef.current === 0 ? 0 : activityTimeRef.current,
 					matchedPairs: matchedCards.length / 2,
 					totalPairs: pairsData?.images.length || 0
 				}
 			});
 		}
-	}, [timeExpired, isActivityCompleted, onComplete, activity.time, matchedCards.length, pairsData?.images.length]);
+	}, [timeExpired, isActivityCompleted, matchedCards.length, pairsData?.images.length]);
 
 	// Manejar clic en carta
 	const handleCardClick = useCallback((cardId) => {
-		if (isChecking || isActivityCompleted) return;
+		if (isChecking || isActivityCompleted || completedRef.current) return;
 
 		const card = cards.find(c => c.id === cardId);
 		if (!card) return;
@@ -112,15 +129,19 @@ const PairsActivity = ({ activity, onComplete, timeLeft, timeExpired }) => {
 
 					// Verificar si se completó el juego
 					const totalCards = cards.length;
-					if (newMatchedCards.length === totalCards) {
+					if (newMatchedCards.length === totalCards && !completionScheduledRef.current && !completedRef.current) {
 						console.log('¡Juego completado!');
+						completionScheduledRef.current = true;
+						// Snapshot del tiempo usado en el momento de completar
+						const timeUsedSnapshot = activityTimeRef.current === 0 ? 0 : activityTimeRef.current - (timeLeftRef.current || 0);
 						setTimeout(() => {
 							setIsActivityCompleted(true);
-							onComplete(true, {
+							completedRef.current = true;
+							onCompleteRef.current(true, {
 								data: {
 									type: "pairs",
 									completed: true,
-									timeUsed: activity.time === 0 ? 0 : activity.time - (timeLeft || 0),
+									timeUsed: timeUsedSnapshot,
 									matchedPairs: newMatchedCards.length / 2,
 									totalPairs: pairsData?.images.length || 0
 								}
@@ -135,7 +156,7 @@ const PairsActivity = ({ activity, onComplete, timeLeft, timeExpired }) => {
 				setIsChecking(false);
 			}, 1000); // Reducido a 1 segundo
 		}
-	}, [cards, flippedCards, matchedCards, isChecking, isActivityCompleted, timeLeft, activity.time, onComplete, pairsData?.images.length]);
+	}, [cards, flippedCards, matchedCards, isChecking, isActivityCompleted, pairsData?.images.length]);
 
 	// Determinar el número de columnas basado en el número de cartas
 	const getGridColumns = (totalCards) => {

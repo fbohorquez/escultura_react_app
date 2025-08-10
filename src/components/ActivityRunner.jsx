@@ -30,6 +30,8 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 	const [imageClosedOnce, setImageClosedOnce] = useState(false);
 	const [activityResult, setActivityResult] = useState(null);
 	const lastDispatchedTime = useRef(null);
+	// Ref para evitar múltiples completes
+	const hasCompletedRef = useRef(false);
 	
 	const selectedTeam = useSelector((state) => state.session.selectedTeam);
 	const event = useSelector((state) => state.event.event);
@@ -48,6 +50,10 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 	const isVideo = useMemo(() => isVideoFile(activity?.file), [activity?.file]);
 
 	const handleActivityComplete = useCallback((success, media = null) => {
+		// Evitar múltiples ejecuciones
+		if (hasCompletedRef.current) return;
+		hasCompletedRef.current = true;
+		
 		// Si el tiempo es infinito, calcular el tiempo transcurrido desde el inicio
 		let timeTaken;
 		if (activity.time === 0) {
@@ -58,17 +64,20 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 		}
 		
 		const result = { success, media, timeTaken };
-		
-		dispatch(completeActivityWithSync({
-			eventId: event.id,
-			teamId: selectedTeam?.id,
-			activityId: activity.id,
-			success,
-			media,
-			timeTaken
-		}));
-		
+		// Mostrar inmediatamente la pantalla de resultado
 		setActivityResult(result);
+		
+		// Diferir la actualización global para evitar "Cannot update a component while rendering another"
+		setTimeout(() => {
+			dispatch(completeActivityWithSync({
+				eventId: event.id,
+				teamId: selectedTeam?.id,
+				activityId: activity.id,
+				success,
+				media,
+				timeTaken
+			}));
+		}, 0);
 	}, [activity.time, activity.id, timeLeft, dispatch, event.id, selectedTeam?.id, activityStartTime]);
 
 	const formattedTime = useMemo(() => {
@@ -116,6 +125,7 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 			
 			setActivityResult(null);
 			setTimeExpired(false);
+			hasCompletedRef.current = false;
 			
 			if (!hasStoredActivity) {
 				setTimeLeft(activity.time === 0 ? Infinity : (activity.time || 0));

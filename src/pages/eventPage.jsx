@@ -32,16 +32,6 @@ const EventPage = () => {
 		dispatch(endActivity());
 	};
 
-	if (isActivityActive && currentActivity) {
-		return (
-			<ActivityRunner
-				activity={currentActivity}
-				onComplete={handleActivityComplete}
-				onExit={handleActivityExit}
-			/>
-		);
-	}
-
 	return (
 		<div className="event-page">
 			<EventHeader
@@ -61,6 +51,15 @@ const EventPage = () => {
 			<DebugPanel />
 			{/* Footer flotante con controles */}
 			<EventFooter eventId={event.id} collapsed={collapsed} />
+
+			{/* Mantener el mapa montado y mostrar ActivityRunner como overlay cuando hay actividad */}
+			{isActivityActive && currentActivity && (
+				<ActivityRunner
+					activity={currentActivity}
+					onComplete={handleActivityComplete}
+					onExit={handleActivityExit}
+				/>
+			)}
 		</div>
 	);
 };

@@ -1,9 +1,11 @@
 // src/components/ActivityMarker.jsx
 import React, { useState } from "react";
 import { Marker, InfoWindow } from "@react-google-maps/api";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { useTranslation } from "react-i18next";
 import { useActivityIcon } from "../hooks/useActivityIcon";
+import { useActivityProximity } from "../hooks/useActivityProximity";
+import { startActivityWithSuspensionCheck } from "../features/activities/activitiesSlice";
 import "../styles/ActivityBubble.css";
 
 // Función para calcular distancia usando fórmula de Haversine
@@ -23,8 +25,10 @@ const getDistance = (p1, p2) => {
 
 const ActivityMarker = ({ activity }) => {
 	const { t } = useTranslation();
+	const dispatch = useDispatch();
 	const iconConfig = useActivityIcon(activity.icon?.icon || "", activity.type?.id || 3);
 	const [showBubble, setShowBubble] = useState(false);
+	const { checkActivityProximity, isAutoActivated } = useActivityProximity();
 
 	// Obtener estado del usuario
 	const isAdmin = useSelector((state) => state.session.isAdmin);
@@ -130,6 +134,23 @@ const ActivityMarker = ({ activity }) => {
 				? `${Math.round(distance)} ${t('activity_info.meters', 'metros')}`
 				: `${(distance / 1000).toFixed(1)} ${t('activity_info.kilometers', 'kilómetros')}`;
 
+			// Verificar proximidad y si se puede iniciar por clic
+			const proximityStatus = checkActivityProximity(
+				activity, 
+				{ lat: currentTeamData.lat, lng: currentTeamData.lon }, 
+				100 // Usar precisión por defecto para el cálculo
+			);
+
+			const canStartByClick = proximityStatus.canClickActivate && !activity.complete;
+			const wasAutoActivated = isAutoActivated(activity.id);
+
+			// Función para manejar el inicio de actividad por clic
+			const handleStartActivity = () => {
+				console.log('🚀 Iniciando actividad por clic:', activity.name, 'ID:', activity.id);
+				dispatch(startActivityWithSuspensionCheck(activity));
+				setShowBubble(false);
+			};
+
 			return (
 				<div className="activity-bubble">
 					<div className="activity-bubble-title">{activity.name}</div>
@@ -144,6 +165,44 @@ const ActivityMarker = ({ activity }) => {
 						{t('activity_info.team_distance', 'Distancia: {{distance}}', {
 							distance: distanceText
 						})}
+						
+						{/* Mostrar información adicional según el estado */}
+						{canStartByClick && (
+							<div className="activity-action-info">
+								{wasAutoActivated ? (
+									<p className="activity-status-text">
+										{t('activity_info.click_to_start', 'Pulsa para realizar la actividad')}
+									</p>
+								) : (
+									<p className="activity-status-text">
+										{t('activity_info.click_to_start', 'Pulsa para realizar la actividad')}
+									</p>
+								)}
+								<button 
+									className="btn btn-primary activity-start-btn"
+									onClick={handleStartActivity}
+								>
+									{t('start_activity', 'Iniciar Actividad')}
+								</button>
+							</div>
+						)}
+						
+						{!canStartByClick && proximityStatus.isWithinRange && (
+							<p className="activity-status-text">
+								{!proximityStatus.hasPrecision && 
+									t('activity_info.poor_precision', 'Precisión GPS insuficiente')
+								}
+								{activity.complete && 
+									t('activity_info.already_completed', 'Actividad ya completada')
+								}
+							</p>
+						)}
+						
+						{!proximityStatus.isWithinRange && (
+							<p className="activity-status-text">
+								{t('activity_info.too_far', 'Debes acercarte más para realizar esta actividad')}
+							</p>
+						)}
 					</div>
 				</div>
 			);

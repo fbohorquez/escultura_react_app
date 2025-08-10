@@ -1,6 +1,6 @@
 // src/services/assetCache.js
 
-const CACHE_NAME = "escultura-assets-v1";
+const CACHE_NAME = "escultura-assets-v2";
 
 /**
  * Extrae recursivamente todas las URLs encontradas en un objeto o array.
@@ -11,10 +11,10 @@ function extractUrlsFromObject(obj, result = new Set()) {
 	if (!obj) return result;
 	if (typeof obj === "string") {
 		try {
-			const url = new URL(obj);
+			const url = new URL(obj, window.location.origin);
 			// sólo http(s)
 			if (url.protocol === "http:" || url.protocol === "https:") {
-				result.add(obj);
+				result.add(url.href);
 			}
 		} catch {
 			// no es URL válida
@@ -35,14 +35,21 @@ export async function prefetchAssetsFromJson(jsonData) {
 	if (!("caches" in window)) return;
 	const urls = Array.from(extractUrlsFromObject(jsonData));
 	const cache = await caches.open(CACHE_NAME);
-	for (const url of urls) {
+	for (const raw of urls) {
 		try {
-			const response = await fetch(url, { mode: "no-cors" });
-			if (response.ok || response.type === "opaque") {
-				cache.put(url, response.clone());
+			const u = new URL(raw, window.location.origin);
+			const sameOrigin = u.origin === window.location.origin;
+			const isDynamicUpload = u.pathname.startsWith("/uploads/");
+
+			// Sólo cachear same-origin y no dinámicos
+			if (!sameOrigin || isDynamicUpload) continue;
+
+			const response = await fetch(u.href, { cache: "no-cache" });
+			if (response.ok) {
+				await cache.put(u.href, response.clone());
 			}
 		} catch (err) {
-			console.warn("Prefetch failed for", url, err);
+			console.warn("Prefetch failed for", raw, err);
 		}
 	}
 }
@@ -57,11 +64,11 @@ export function initAssetCaching(jsonData) {
 			.register("/sw.js")
 			.then(() => console.log("SW registered"))
 			.catch(console.error);
-    if (jsonData) {
-      window.addEventListener("load", () => {
-        prefetchAssetsFromJson(jsonData);
-      });
-    }
+		if (jsonData) {
+			window.addEventListener("load", () => {
+				prefetchAssetsFromJson(jsonData);
+			});
+		}
 	}
 }
 

@@ -15,6 +15,18 @@ const WordRelationsActivity = ({ activity, onComplete, timeLeft, timeExpired }) 
 	const svgRef = useRef(null);
 	const leftColumnRef = useRef(null);
 	const rightColumnRef = useRef(null);
+	// Ref para evitar completar varias veces
+	const completedRef = useRef(false);
+	// Ref para evitar programar múltiples timeouts de finalización
+	const completionScheduledRef = useRef(false);
+	// Refs para evitar dependencias que reinicien efectos
+	const onCompleteRef = useRef(onComplete);
+	const timeLeftRef = useRef(timeLeft);
+	const activityTimeRef = useRef(activity.time);
+
+	useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+	useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
+	useEffect(() => { activityTimeRef.current = activity.time; }, [activity.time]);
 
 	// Parsear datos de las palabras relacionadas
 	useEffect(() => {
@@ -49,6 +61,14 @@ const WordRelationsActivity = ({ activity, onComplete, timeLeft, timeExpired }) 
 			setLeftWords(shuffledLeft);
 			setRightWords(shuffledRight);
 
+			// Resetear estado de finalización al cargar/rehidratar actividad
+			setConnections([]);
+			setSelectedWord(null);
+			setIsActivityCompleted(false);
+			setShowSuccess(false);
+			completedRef.current = false;
+			completionScheduledRef.current = false;
+
 			console.log('Palabras para relacionar:', {
 				original: words,
 				left: shuffledLeft,
@@ -67,44 +87,53 @@ const WordRelationsActivity = ({ activity, onComplete, timeLeft, timeExpired }) 
 
 	// Manejar expiración del tiempo
 	useEffect(() => {
-		if (timeExpired && !isActivityCompleted) {
+		if (timeExpired && !isActivityCompleted && !completedRef.current) {
 			console.log('Tiempo expirado para relaciones de palabras, marcando como fallido');
 			setIsActivityCompleted(true);
+			completedRef.current = true;
 			
-			onComplete(false, {
+			onCompleteRef.current(false, {
 				data: {
 					type: "word_relations",
 					completed: false,
 					reason: "time_expired",
-					timeUsed: activity.time === 0 ? 0 : activity.time,
+					timeUsed: activityTimeRef.current === 0 ? 0 : activityTimeRef.current,
 					correctConnections: connections.length,
 					totalConnections: wordsData?.words?.length || 0
 				}
 			});
 		}
-	}, [timeExpired, isActivityCompleted, onComplete, activity.time, connections.length, wordsData?.words?.length]);
+	}, [timeExpired, isActivityCompleted, connections.length, wordsData?.words?.length]);
 
-	// Verificar si todas las conexiones están hechas
+	// Verificar si todas las conexiones están hechas (ejecutar solo una vez y no depender de timeLeft/onComplete)
 	useEffect(() => {
-		if (wordsData && connections.length === wordsData.words.length && connections.length > 0) {
+		if (!wordsData) return;
+		if (isActivityCompleted || completedRef.current || completionScheduledRef.current) return;
+		if (connections.length === wordsData.words.length && connections.length > 0) {
 			console.log('¡Todas las conexiones realizadas!');
 			setShowSuccess(true);
-			
-			// Esperar 2 segundos antes de completar
-			setTimeout(() => {
+
+			// Snapshot inmutable del tiempo usado en el momento de completar
+			const timeUsedSnapshot = activityTimeRef.current === 0 ? 0 : activityTimeRef.current - (timeLeftRef.current || 0);
+			completionScheduledRef.current = true;
+
+			const timer = setTimeout(() => {
 				setIsActivityCompleted(true);
-				onComplete(true, {
+				completedRef.current = true;
+				onCompleteRef.current(true, {
 					data: {
 						type: "word_relations",
 						completed: true,
-						timeUsed: activity.time === 0 ? 0 : activity.time - (timeLeft || 0),
+						timeUsed: timeUsedSnapshot,
 						correctConnections: connections.length,
 						totalConnections: wordsData.words.length
 					}
 				});
 			}, 2000);
+
+			return () => clearTimeout(timer);
 		}
-	}, [connections.length, wordsData, timeLeft, activity.time, onComplete, isActivityCompleted]);
+	}, [connections.length, wordsData, isActivityCompleted]);
 
 	// Función para obtener la posición de una palabra
 	const getWordPosition = useCallback((wordId) => {

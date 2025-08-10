@@ -100,6 +100,41 @@
   }
 }
 
+/* Estilos para la información de acción de actividad */
+.activity-action-info {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #eee;
+}
+
+.activity-status-text {
+  margin: 4px 0;
+  font-size: 13px;
+  color: #666;
+  font-style: italic;
+}
+
+.activity-start-btn {
+  margin-top: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 4px;
+  border: none;
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  width: 100%;
+}
+
+.activity-start-btn:hover {
+  background: #0056b3;
+}
+
+.activity-start-btn:active {
+  background: #004085;
+}
+
 /* Responsive adjustments */
 @media (max-width: 480px) {
   .activity-bubble {
@@ -110,5 +145,10 @@
   
   .activity-bubble-title {
     font-size: 14px;
+  }
+  
+  .activity-start-btn {
+    font-size: 12px;
+    padding: 5px 10px;
   }
 }

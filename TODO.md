@@ -8,9 +8,12 @@ TODO:
 - ✅ En el mapa no debería establecerse la dirección si el equipo no es el seleccionado (implementado)
 - ✅ En el mapa un botón para seguir al marcador del equipo seleccionado o no (implementado)
 - Objetos requeridos
-- Variables de Configuración para forzar a que la orientacion siempre sea portrait y para determinar el tipo de dispositivo al que se aplicará el forzado (todos|mobile|tablet)
+- ✅ Variables de Configuración para forzar a que la orientacion siempre sea portrait y para determinar el tipo de dispositivo al que se aplicará el forzado (todos|mobile|tablet)
 - ✅ Corrección de orientación por rotación de pantalla (implementado)
 - ✅ Filtro de centroide para evitar "bailes" GPS (implementado)
 - ✅ Ventana de muestreo GPS para mejor precisión (implementado)
 - ✅ Actualización inmediata de rotación de marcador cuando cambia orientación dispositivo (implementado)
-
+- Keeplive para ver el estado de conexión del dispositivo 
+- En el listado de prubas salen los puntos de las pruebas por defecto, debería salir el número de puntos que se han conseguido.
+- En el listado de pruebas debería salir el estado de la prueba (sin realizar, realizando, realizada-ok, realizada-ko, suspendida)
+- Se debería poder ver la foto del equipo tanto en el listado de fotos como al hacer click en el marcador del mapa.
