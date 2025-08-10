@@ -71,7 +71,8 @@ const Modal = ({ type, message, onConfirm, onCancel }) => {
                 border: '1px solid #ccc',
                 backgroundColor: '#f5f5f5',
                 borderRadius: '4px',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                color: 'var(--primary-color, #007bff)',
               }}
             >
               Cancelar
@@ -82,7 +83,7 @@ const Modal = ({ type, message, onConfirm, onCancel }) => {
             style={{
               padding: '8px 16px',
               border: 'none',
-              backgroundColor: '#007bff',
+              backgroundColor: 'var(--primary-color, #007bff)',
               color: 'white',
               borderRadius: '4px',
               cursor: 'pointer'
