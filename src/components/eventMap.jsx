@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { startActivityWithSuspensionCheck } from "../features/activities/activitiesSlice";
 import KalmanFilter from "kalmanjs";
 import "../styles/followButton.css";
+import OtherTeamMarker from "./OtherTeamMarker";
 
 // Importar assets de equipos (Equipo_0.png a Equipo_29.png)
 const teamAssets = {};
@@ -210,9 +211,9 @@ const compassHeadingFromEuler = (alpha, beta, gamma) => {
 	const _y = gamma * rad;  // inclinación izquierda/derecha
 	const _z = alpha * rad;  // giro alrededor del Z (perpendicular a pantalla)
 
-	const cX = Math.cos(_x), cY = Math.cos(_y), cZ = Math.cos(_z);
+	const _cX = Math.cos(_x), cY = Math.cos(_y), cZ = Math.cos(_z);
 	const sX = Math.sin(_x), sY = Math.sin(_y), sZ = Math.sin(_z);
-
+	
 	// Vector proyectado hacia el norte en el plano horizontal (según spec)
 	const Vx = -cZ * sY - sZ * sX * cY;
 	const Vy = -sZ * sY + cZ * sX * cY;
@@ -1185,55 +1186,42 @@ const EventMap = () => {
 				
 				if (team.lat == null || team.lon == null) return null;
 				
-				// Determinar qué icono usar
-				let iconUrl;
-				let scale = 1;
-				let anchor = new window.google.maps.Point(ICON_SIZE / 2, ICON_SIZE / 2);
-				
-				// Verificar si es el equipo seleccionado usando solo el ID para evitar dependencias
+				// Determinar si es el equipo seleccionado
 				const isSelectedTeam = selectedTeam && team.id === selectedTeam.id;
 				
 				if (isSelectedTeam) {
-					// Equipo seleccionado - usar mark-me.png y aplicar rotación solo al equipo seleccionado
+					// Equipo seleccionado - mantener lógica actual pero sin popup
 					const baseIconUrl = markMe;
 					const teamDirection = team.direction || 0;
-					iconUrl = createRotatedIconSync(baseIconUrl, teamDirection, ICON_SIZE);
-					scale = new window.google.maps.Size(ICON_SIZE, ICON_SIZE);
-				} else {
-					// Verificar si se debe mostrar otros equipos según el tipo de usuario
-					const adminCanViewTeams = isAdmin && import.meta.env.VITE_ADMIN_VIEW_TEAMS_POSITION === 'true';
-					const teamsCanViewOthers = !isAdmin && import.meta.env.VITE_TEAMS_VIEW_OTHER_TEAMS === 'true';
+					const iconUrl = createRotatedIconSync(baseIconUrl, teamDirection, ICON_SIZE);
+					const scale = new window.google.maps.Size(ICON_SIZE, ICON_SIZE);
+					const anchor = new window.google.maps.Point(ICON_SIZE / 2, ICON_SIZE / 2);
 					
-					if (!adminCanViewTeams && !teamsCanViewOthers) {
-						return null; // No mostrar otros equipos
-					}
-					
-					// Otros equipos - usar asset de equipo correspondiente sin rotación
-					const teamAssetIndex = index % 30; // Ciclar entre 0-29
-					const baseIconUrl = teamAssets[teamAssetIndex] || "/icons/marker-team.png";
-					// No aplicar rotación a otros equipos, solo al equipo seleccionado
-					iconUrl = baseIconUrl;
-					scale = new window.google.maps.Size(20, 20);
-					anchor = new window.google.maps.Point(10, 10); // Ajustar ancla para iconos más pequeños
+					return (
+						<Marker
+							key={team.id}
+							position={{ lat: team.lat, lng: team.lon }}
+							icon={{ url: iconUrl, scaledSize: scale, anchor }}
+							onLoad={(marker) => { teamMarkersRef.current.set(team.id, marker); }}
+						/>
+					);
 				}
 				
+				// Para otros equipos, respetar flags de visibilidad y usar componente dedicado
+				const adminCanViewTeams = isAdmin && import.meta.env.VITE_ADMIN_VIEW_TEAMS_POSITION === 'true';
+				const teamsCanViewOthers = !isAdmin && import.meta.env.VITE_TEAMS_VIEW_OTHER_TEAMS === 'true';
+				if (!adminCanViewTeams && !teamsCanViewOthers) return null;
+				
 				return (
-					<Marker
+					<OtherTeamMarker
 						key={team.id}
-						position={{ lat: team.lat, lng: team.lon }}
-						icon={{
-							url: iconUrl,
-							scaledSize: scale,
-							anchor: anchor,
-						}}
-						onLoad={(marker) => {
-							// Guardar referencia del marcador para actualizaciones directas
-							teamMarkersRef.current.set(team.id, marker);
-						}}
+						team={team}
+						index={index}
+						onMarkerLoad={(marker) => { teamMarkersRef.current.set(team.id, marker); }}
 					/>
 				);
 			});
-	}, [isLoaded, isAdmin, selectedTeam, teams, markersCreated]); // Usar selectedTeam en lugar de selectedTeamData
+	}, [isLoaded, isAdmin, selectedTeam, teams, markersCreated]);
 
 	// Renderizar actividades
 	const renderActivities = () => {
@@ -1260,8 +1248,21 @@ const EventMap = () => {
 		return [];
 	};
 
-	// Función para manejar clicks en el mapa en modo debug
+	// Función para cerrar popups y bocadillos abiertos
+	const closeOpenPopups = useCallback(() => {
+		// Cerrar cualquier popup del sistema global
+		closePopup();
+		
+		// Cerrar InfoWindows de actividades - necesitamos notificar a los ActivityMarkers
+		// Esto se manejará mediante un evento personalizado que los ActivityMarkers escucharán
+		window.dispatchEvent(new CustomEvent('closeActivityBubbles'));
+	}, [closePopup]);
+
+	// Función para manejar clicks en el mapa
 	const handleMapClick = useCallback((mapEvent) => {
+		// Siempre cerrar popups/bocadillos al hacer clic en el mapa
+		closeOpenPopups();
+
 		const currentTeamData = getSelectedTeamData();
 		if (!isDebugMode || !currentTeamData || !event) return;
 
@@ -1329,7 +1330,7 @@ const EventMap = () => {
 			checkActivityProximityNew(newPosition, 10);
 		}, 1200);
 		
-	}, [isDebugMode, event, dispatch, checkActivityProximityNew, getSelectedTeamData]);
+	}, [isDebugMode, event, dispatch, checkActivityProximityNew, getSelectedTeamData, closeOpenPopups]);
 
 	// Función para manejar cuando el usuario desplaza el mapa manualmente
 	const handleMapDragEnd = useCallback(() => {

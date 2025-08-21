@@ -16,10 +16,12 @@ const popupSlice = createSlice({
         titulo: action.payload.titulo || "",
         claseCss: action.payload.claseCss || "",
         texto: action.payload.texto || "",
+        isHtml: action.payload.isHtml || false,
         array_botones: action.payload.array_botones || [],
         overlay: action.payload.overlay !== undefined ? action.payload.overlay : true,
         close_button: action.payload.close_button !== undefined ? action.payload.close_button : true,
         layout: action.payload.layout || "center",
+        onClose: action.payload.onClose || null,
       };
 
       state.queue.push(popupConfig);

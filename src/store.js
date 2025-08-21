@@ -22,8 +22,9 @@ import popupReducer from "./features/popup/popupSlice";
 import notificationReducer from "./features/notification/notificationSlice";
 import chatsReducer from "./features/chats/chatsSlice";
 import gadgetsReducer from "./features/gadgets/gadgetsSlice";
+import keepaliveReducer from "./features/keepalive/keepaliveSlice";
 
-import { firebaseSyncMiddleware } from "./services/firebase";
+import { firebaseSyncMiddleware, forceKeepaliveHeartbeat } from "./services/firebase";
 import { sessionClearMiddleware } from "./utils/sessionClearMiddleware";
 
 const rootReducer = combineReducers({
@@ -36,7 +37,8 @@ const rootReducer = combineReducers({
   popup: popupReducer,
   notification: notificationReducer,
   chats: chatsReducer,
-  gadgets: gadgetsReducer
+  gadgets: gadgetsReducer,
+  keepalive: keepaliveReducer
 });
 
 const persistConfig = {
@@ -104,6 +106,28 @@ const activityRestoreMiddleware = (store) => (next) => (action) => {
 	return result;
 };
 
+// Middleware para forzar heartbeat cuando cambie el estado de la app
+const appStateHeartbeatMiddleware = () => (next) => (action) => {
+	const result = next(action);
+	
+	// Debug: mostrar todas las acciones que pasan por el middleware
+	if (action.type && action.type.includes('keepalive')) {
+		console.log('🔍 Keepalive action:', action.type, action.payload);
+	}
+	
+	// Interceptar acciones que cambian el estado de la app
+	if (action.type === 'keepalive/setAppState' || action.type === 'keepalive/clearCurrentActivity') {
+		console.log('🔄 App state action intercepted:', action.type, action.payload);
+		// Forzar heartbeat inmediato en el próximo tick
+		setTimeout(() => {
+			console.log('⚡ Forcing heartbeat due to app state change');
+			forceKeepaliveHeartbeat();
+		}, 0);
+	}
+	
+	return result;
+};
+
 const store = configureStore({
   reducer: persistedReducer,
 	middleware: (getDefaultMiddleware) =>
@@ -113,8 +137,14 @@ const store = configureStore({
 			},
 		}).prepend(firebaseSyncMiddleware)
 		  .concat(sessionClearMiddleware)
-		  .concat(activityRestoreMiddleware),
+		  .concat(activityRestoreMiddleware)
+		  .concat(appStateHeartbeatMiddleware),
 });
+
+// Exponer el store globalmente para acceso desde servicios
+if (typeof window !== 'undefined') {
+  window.__store = store;
+}
 
 export const persistor = persistStore(store);
 export default store;

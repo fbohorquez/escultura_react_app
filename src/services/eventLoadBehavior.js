@@ -9,6 +9,7 @@ export const EVENT_LOAD_BEHAVIORS = {
   RESET_EVENT: 'reset_event',
   KEEP_ASSIGNATION: 'keep_assignation',
   KEEP_EVENT: 'keep_event',
+  KEEP_TEAM: 'keep_team',
   KEEP_PAGE: 'keep_page'
 };
 
@@ -130,6 +131,10 @@ export const handleExistingSession = async (dispatch, state, navigate) => {
   console.log('🔄 Handling existing session with behavior:', behavior);
   
   switch (behavior) {
+    case EVENT_LOAD_BEHAVIORS.KEEP_TEAM:
+      // Mantener la asignación del equipo actual
+      navigate(`/team/${state.session.selectedTeam.id}`);
+      break;
     case EVENT_LOAD_BEHAVIORS.RESET_EVENT:
       // Desasociar dispositivo y limpiar todo
       await resetEventAssociation(dispatch, state);

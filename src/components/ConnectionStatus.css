@@ -1,0 +1,176 @@
+/* ConnectionStatus.css */
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.connection-status.compact {
+  padding: 4px 8px;
+  min-width: auto;
+}
+
+/* Estados de conexión */
+.connection-status.connected {
+  background-color: #d4edda;
+  border-color: #c3e6cb;
+  color: #155724;
+}
+
+.connection-status.connecting {
+  background-color: #fff3cd;
+  border-color: #ffeaa7;
+  color: #856404;
+}
+
+.connection-status.disconnected {
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+  color: #721c24;
+}
+
+.connection-status.error {
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+  color: #721c24;
+}
+
+/* Indicador de estado */
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.connection-status.compact .status-indicator {
+  margin-right: 4px;
+}
+
+.connected .status-indicator {
+  background-color: #28a745;
+  box-shadow: 0 0 4px rgba(40, 167, 69, 0.5);
+}
+
+.connecting .status-indicator {
+  background-color: #ffc107;
+  animation: pulse 1.5s infinite;
+}
+
+.disconnected .status-indicator,
+.error .status-indicator {
+  background-color: #dc3545;
+}
+
+/* Animación de pulso para el estado "conectando" */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Información del estado */
+.status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.status-main {
+  display: flex;
+  align-items: center;
+}
+
+.status-text {
+  font-weight: 500;
+}
+
+/* Información de dispositivos */
+.device-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.device-count {
+  font-weight: 500;
+}
+
+.other-devices {
+  color: inherit;
+  opacity: 0.7;
+}
+
+/* Información de heartbeat */
+.heartbeat-info {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* Versión compacta */
+.connection-status.compact .status-info {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+.connection-status.compact .device-count {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .connection-status {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+  
+  .device-info {
+    font-size: 11px;
+  }
+  
+  .heartbeat-info {
+    font-size: 10px;
+  }
+}
+
+/* Tema oscuro (opcional) */
+@media (prefers-color-scheme: dark) {
+  .connection-status.connected {
+    background-color: rgba(40, 167, 69, 0.2);
+    border-color: rgba(40, 167, 69, 0.3);
+    color: #28a745;
+  }
+  
+  .connection-status.connecting {
+    background-color: rgba(255, 193, 7, 0.2);
+    border-color: rgba(255, 193, 7, 0.3);
+    color: #ffc107;
+  }
+  
+  .connection-status.disconnected,
+  .connection-status.error {
+    background-color: rgba(220, 53, 69, 0.2);
+    border-color: rgba(220, 53, 69, 0.3);
+    color: #dc3545;
+  }
+}

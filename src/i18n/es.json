@@ -69,7 +69,13 @@
   "start_recording": "Iniciar Grabación",
   "stop_recording": "Detener Grabación",
   "camera_error": "Error al acceder a la cámara. Verifica los permisos.",
+  "camera_permission_denied": "Permisos de cámara denegados. Por favor, permite el acceso a la cámara.",
+  "camera_not_found": "No se encontró ninguna cámara en este dispositivo.",
   "no_camera_available": "No se puede acceder a la cámara",
+  "front_camera": "Cámara Frontal",
+  "back_camera": "Cámara Trasera",
+  "camera_switch_error": "Error al cambiar de cámara",
+  "switching_camera": "Cambiando cámara",
   "or_upload_file": "O sube un archivo desde tu dispositivo",
   "upload_image": "Subir Imagen",
   "upload_video": "Subir Video",
@@ -104,6 +110,7 @@
   "submit_answer": "Enviar Respuesta",
   "submitted": "Enviado",
   "exit": "Salir",
+  "confirm": "Confirmar",
   "puzzle": {
     "pieces": "Piezas",
     "completed": "¡Puzzle Completado!",
@@ -297,10 +304,18 @@
     "send_activity": "Enviar Actividad",
     "send_confirm": "¿Estás seguro de que quieres enviar la actividad \"{{activityName}}\" al equipo \"{{teamName}}\"?",
     "send_confirm_desc": "El equipo recibirá una notificación para realizar esta actividad.",
-    "send_button": "Sí, enviar",
+    "send_confirm_title": "Enviar Actividad",
+    "send_options_message": "¿Cómo quieres enviar la actividad \"{{activityName}}\" al equipo \"{{teamName}}\"?",
+    "send_options_desc": "• Enviar: El equipo puede aceptar o rechazar la actividad\n• Forzar: El equipo debe realizar la actividad obligatoriamente",
+    "send_button": "Enviar",
+    "force_button": "Forzar",
     "cancel_button": "Cancelar",
     "activity_sent": "Actividad Enviada",
     "activity_sent_message": "La actividad \"{{activityName}}\" ha sido enviada al equipo \"{{teamName}}\".",
+    "activity_forced": "Actividad Forzada",
+    "activity_forced_message": "La actividad \"{{activityName}}\" ha sido enviada de forma obligatoria al equipo \"{{teamName}}\".",
+    "send_error": "Error al enviar la actividad",
+    "force_error": "Error al forzar la actividad",
     "points": "Puntos",
     "type": "Tipo",
     "status": "Estado"
@@ -308,6 +323,8 @@
   "activity_notification": {
     "title": "Nueva Actividad Asignada",
     "message": "El organizador te ha asignado una nueva actividad: \"{{activityName}}\"",
+    "forced_title": "Actividad Asignada",
+    "forced_message": "El organizador te ha asignado una actividad: \"{{activityName}}\". Debes realizarla.",
     "accept": "Hacer Prueba",
     "decline": "Ahora No"
   },
@@ -340,5 +357,13 @@
     "pending_review": "Pendiente de revisar",
     "reviewed": "Revisada",
     "has_media": "Contenido multimedia disponible"
+  },
+  "deviceNotAssigned": {
+    "title": "Dispositivo no asociado",
+    "message": "Tu dispositivo ya no está asociado a ningún equipo.",
+    "details": "Para continuar contacta con el organizador del evento",
+    "step1": "Selecciona un nuevo equipo disponible",
+    "step2": "O contacta con el organizador del evento",
+    "returnHome": "Volver a eventos"
   }
 }

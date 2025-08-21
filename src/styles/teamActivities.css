@@ -363,6 +363,23 @@
   margin-bottom: 2rem;
 }
 
+/* Estilos para el estado de la aplicación */
+.app-state.online {
+  color: #28a745;
+  font-weight: 500;
+  font-style: italic;
+}
+
+.app-state.offline {
+  color: #dc3545;
+  font-weight: 500;
+  font-style: italic;
+}
+
+.detail-item .app-state {
+  font-size: 0.9rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .team-activities-container {

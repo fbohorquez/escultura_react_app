@@ -6,7 +6,7 @@
   width: 100%;
   height: 100%;
   background: #fff;
-  z-index: 1000;
+  z-index: 1002;
   display: flex;
   flex-direction: column;
 }
@@ -139,7 +139,7 @@
 }
 
 .capture-area {
-  flex: 1;
+  /* flex: 1; */
   display: flex;
   align-items: center;
   justify-content: center;

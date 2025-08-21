@@ -6,8 +6,8 @@ import defaultPhotoIcon from "../assets/icon_foto@2x.png";
 import defaultPuzzleIcon from "../assets/icon_puzzle@2x.png";
 import defaultMemoryIcon from "../assets/icon_memory@2x.png";
 
-const ACTIVITY_ICON_WIDTH = 23;
-const ACTIVITY_ICON_HEIGHT = 33;
+const ACTIVITY_ICON_WIDTH = 28;
+const ACTIVITY_ICON_HEIGHT = 28;
 
 // Función para obtener el icono por defecto según el tipo de actividad
 const getDefaultIconByType = (activityType) => {
@@ -89,7 +89,7 @@ export const useActivityIcon = (iconUrl, activityType = 3) => {
 
 	useEffect(() => {
 		if (!iconUrl || iconUrl === "") {
-			// Usar icono por defecto según el tipo de actividad
+			// Usar icono por defecto según el tipo de actividad SIN procesar
 			const defaultIcon = getDefaultIconByType(activityType);
 			setProcessedIcon(buildIconObject(defaultIcon));
 			return;
@@ -103,7 +103,7 @@ export const useActivityIcon = (iconUrl, activityType = 3) => {
 			setProcessedIcon(buildIconObject(candidates[0]));
 		}
 
-		// Crear canvas para icono personalizado con borde
+		// Crear canvas para icono personalizado con borde SOLO para iconos personalizados
 		const canvas = document.createElement('canvas');
 		const ctx = canvas.getContext('2d');
 		canvas.width = ACTIVITY_ICON_WIDTH;
@@ -116,34 +116,48 @@ export const useActivityIcon = (iconUrl, activityType = 3) => {
 				// Limpiar canvas
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-				// Calcular dimensiones manteniendo proporción
-				const aspectRatio = img.width / img.height;
-				let drawWidth = ACTIVITY_ICON_WIDTH - 4; // -4 para el borde y padding
-				let drawHeight = ACTIVITY_ICON_HEIGHT - 4; // -4 para el borde y padding
+				// Dibujar fondo blanco con borde redondeado primero (tamaño fijo)
+				const bgPadding = 2;
+				const bgWidth = ACTIVITY_ICON_WIDTH - (bgPadding * 2);
+				const bgHeight = ACTIVITY_ICON_HEIGHT - (bgPadding * 2);
+				const bgX = bgPadding;
+				const bgY = bgPadding;
 
-				if (aspectRatio > drawWidth / drawHeight) {
-					drawHeight = drawWidth / aspectRatio;
-				} else {
-					drawWidth = drawHeight * aspectRatio;
-				}
-
-				const x = (canvas.width - drawWidth) / 2;
-				const y = (canvas.height - drawHeight) / 2;
-
-				// Dibujar fondo blanco con borde redondeado (fallback si roundRect no está disponible)
 				ctx.fillStyle = '#ffffff';
 				ctx.strokeStyle = '#000000';
 				ctx.lineWidth = 1;
 
 				if (typeof ctx.roundRect === 'function') {
 					ctx.beginPath();
-					ctx.roundRect(x - 2, y - 2, drawWidth + 4, drawHeight + 4, 3);
+					ctx.roundRect(bgX, bgY, bgWidth, bgHeight, 3);
 					ctx.fill();
 					ctx.stroke();
 				} else {
-					ctx.fillRect(x - 2, y - 2, drawWidth + 4, drawHeight + 4);
-					ctx.strokeRect(x - 2, y - 2, drawWidth + 4, drawHeight + 4);
+					ctx.fillRect(bgX, bgY, bgWidth, bgHeight);
+					ctx.strokeRect(bgX, bgY, bgWidth, bgHeight);
 				}
+
+				// Calcular dimensiones de la imagen manteniendo proporción dentro del fondo
+				const aspectRatio = img.width / img.height;
+				const availableWidth = bgWidth - 4; // -4 para padding interno
+				const availableHeight = bgHeight - 4; // -4 para padding interno
+				const availableAspectRatio = availableWidth / availableHeight;
+
+				let drawWidth, drawHeight;
+
+				if (aspectRatio > availableAspectRatio) {
+					// La imagen es más ancha proporcionalmente que el área disponible
+					drawWidth = availableWidth;
+					drawHeight = drawWidth / aspectRatio;
+				} else {
+					// La imagen es más alta proporcionalmente que el área disponible
+					drawHeight = availableHeight;
+					drawWidth = drawHeight * aspectRatio;
+				}
+
+				// Centrar la imagen dentro del fondo
+				const x = bgX + (bgWidth - drawWidth) / 2;
+				const y = bgY + (bgHeight - drawHeight) / 2;
 
 				// Dibujar imagen
 				ctx.drawImage(img, x, y, drawWidth, drawHeight);

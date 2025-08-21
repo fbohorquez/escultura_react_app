@@ -1,19 +1,21 @@
 TODO: 
-- ✅ Mapa sigue posicion (implementado botón de seguimiento)
-- ✅ Especificar la forma de valoración y dar puntos de actividades. 
-- Problemas con los iconos de las pruebas en el mapa (refresco).
+- Especificar la forma de valoración y dar puntos de actividades. 
 - Valoración cuando se falla una actividad por falta de tiempo.
 - Estilos
-- ✅ EN el mapa solo debería imprimir los equipos que tengan deviceID (implementado filtro)
 - ✅ En el mapa no debería establecerse la dirección si el equipo no es el seleccionado (implementado)
-- ✅ En el mapa un botón para seguir al marcador del equipo seleccionado o no (implementado)
 - Objetos requeridos
-- ✅ Variables de Configuración para forzar a que la orientacion siempre sea portrait y para determinar el tipo de dispositivo al que se aplicará el forzado (todos|mobile|tablet)
-- ✅ Corrección de orientación por rotación de pantalla (implementado)
-- ✅ Filtro de centroide para evitar "bailes" GPS (implementado)
-- ✅ Ventana de muestreo GPS para mejor precisión (implementado)
-- ✅ Actualización inmediata de rotación de marcador cuando cambia orientación dispositivo (implementado)
-- Keeplive para ver el estado de conexión del dispositivo 
-- En el listado de prubas salen los puntos de las pruebas por defecto, debería salir el número de puntos que se han conseguido.
+- En el listado de pruebas salen los puntos de las pruebas por defecto, debería salir el número de puntos que se han conseguido.
 - En el listado de pruebas debería salir el estado de la prueba (sin realizar, realizando, realizada-ok, realizada-ko, suspendida)
-- Se debería poder ver la foto del equipo tanto en el listado de fotos como al hacer click en el marcador del mapa.
+- iPad bailaba mucho la geoposición. 
+- Comprimir imágenes antes de subirlas.
+- Sistema para validar estado de conexión a base de datos.
+
+- URL de acceso por Equipo
+- Gadgets de susto
+
+Realizado:
+- Texto de prueba HTML sale RAW
+- Si entro como equipo 2 siendo el primer equipo en entrar, el icono sale como equipo1.
+- Cerrar el bocadillo de información de la actividad al hacer click en el mapa.
+- Poner botón para cambiar de camara en la prueba de foto/video.
+- Verificar el envío de varias actividades a la vez por el organizador.

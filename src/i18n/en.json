@@ -68,7 +68,13 @@
   "start_recording": "Start Recording",
   "stop_recording": "Stop Recording",
   "camera_error": "Error accessing camera. Check permissions.",
+  "camera_permission_denied": "Camera permissions denied. Please allow camera access.",
+  "camera_not_found": "No camera found on this device.",
   "no_camera_available": "Camera not available",
+  "front_camera": "Front Camera",
+  "back_camera": "Back Camera",
+  "camera_switch_error": "Error switching camera",
+  "switching_camera": "Switching camera",
   "or_upload_file": "Or upload a file from your device",
   "upload_image": "Upload Image",
   "upload_video": "Upload Video",
@@ -301,6 +307,14 @@
     "pending_review": "Pending review",
     "reviewed": "Reviewed",
     "has_media": "Multimedia content available"
+  },
+  "deviceNotAssigned": {
+    "title": "Device not assigned",
+    "message": "Your device is no longer associated with any team. This may happen if another device has taken control of the team.",
+    "details": "To continue contact the event organizer",
+    "step1": "Select a new available team",
+    "step2": "Or contact the event organizer",
+    "returnHome": "Return to events"
   }
 }
 

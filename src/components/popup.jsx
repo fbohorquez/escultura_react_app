@@ -14,6 +14,10 @@ const Popup = () => {
   const { currentPopup, isOpen } = useSelector((state) => state.popup);
 
   const handleClose = () => {
+    // Ejecutar callback personalizado si existe
+    if (currentPopup?.onClose && typeof currentPopup.onClose === 'function') {
+      currentPopup.onClose();
+    }
     dispatch(closeCurrentPopup());
   };
 
@@ -25,8 +29,14 @@ const Popup = () => {
   };
 
   const handleOverlayClick = (e) => {
+    // Las actividades (tanto normales como forzadas) no se pueden cerrar con overlay
+    if (currentPopup?.claseCss?.includes('popup-activity-')) {
+      console.log('🚫 No se puede cerrar una actividad haciendo clic en el overlay');
+      return;
+    }
+    
     if (e.target === e.currentTarget && currentPopup?.overlay) {
-      handleClose();
+      handleClose(); // Esto ahora ejecutará el callback personalizado también
     }
   };
 
@@ -115,7 +125,14 @@ const Popup = () => {
         
         {currentPopup.texto && (
           <div className="popup-body">
-            <p className="popup-text">{currentPopup.texto}</p>
+            {currentPopup.isHtml ? (
+              <div 
+                className="popup-text"
+                dangerouslySetInnerHTML={{ __html: currentPopup.texto }}
+              />
+            ) : (
+              <p className="popup-text">{currentPopup.texto}</p>
+            )}
           </div>
         )}
         

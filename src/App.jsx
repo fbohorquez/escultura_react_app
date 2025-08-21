@@ -7,16 +7,16 @@ import CacheEventAssets from "./components/cacheEventAssets";
 import ChatConnectionManager from "./components/ChatConnectionManager";
 import ChatReadStatusManager from "./components/chatReadStatusManager";
 import GadgetDetector from "./components/GadgetDetector";
-import ActivitySendDetector from "./components/ActivitySendDetector";
+import ActivityQueueManager from "./components/ActivityQueueManager";
 import Popup from "./components/popup";
 import NotificationContainer from "./components/notificationContainer";
 import DebugModeIndicator from "./components/DebugModeIndicator";
-import DebugWelcome from "./components/DebugWelcome";
 import URLHandler from "./components/URLHandler";
 import { useEventSuspensionCheck } from "./hooks/useEventSuspensionCheck";
 import { useTheme } from "./hooks/useTheme";
 import useForceOrientation from "./hooks/useForceOrientation";
 import EventLoadBehaviorManager from "./components/EventLoadBehaviorManager";
+import KeepaliveManager from "./components/KeepaliveManager";
 
 // Importar utilidades de token de evento para disponibilidad global
 import "./utils/eventTokenGenerator";
@@ -37,6 +37,8 @@ import ActivityValorate from "./components/ActivityValorate";
 import PhotoManagementPage from "./pages/photoManagementPage";
 import TeamActivitiesPage from "./pages/teamActivitiesPage";
 import TeamActivityDetailPage from "./pages/teamActivityDetailPage";
+import NotFoundPage from "./pages/NotFoundPage";
+import DeviceNotAssignedPage from "./pages/deviceNotAssignedPage";
 
 import './styles/global.css';
 import './styles/fonts.css';
@@ -60,17 +62,17 @@ function App() {
 		<>
 			<URLHandler />
 			<RouteListener />
+			<CacheEventAssets />
 			<EventLoadBehaviorManager />
 			<SubscriptionManager />
-			<CacheEventAssets />
 			<ChatConnectionManager />
 			<ChatReadStatusManager />
 			<GadgetDetector />
-			<ActivitySendDetector />
+			<ActivityQueueManager />
 			<Popup />
 			<NotificationContainer />
 			<DebugModeIndicator />
-			<DebugWelcome />
+			<KeepaliveManager />
 			<Routes>
 				<Route path="/" element={<WelcomePage />} />
 				<Route path="/events" element={<EventsPage />} />
@@ -83,17 +85,34 @@ function App() {
 				<Route path="/ranking/:eventId" element={<RankingPage />} />
 				<Route path="/gadgets/:eventId" element={<GadgetsPage />} />
 				<Route path="/admin/session-control" element={<SessionControlPage />} />
-				<Route path="/admin/photos/:eventId" element={<PhotoManagementPage />} />
-				<Route path="/admin/team-activities/:eventId" element={<TeamActivitiesPage />} />
-				<Route path="/admin/team-activities/:eventId/team/:teamId" element={<TeamActivityDetailPage />} />
+				<Route
+					path="/admin/photos/:eventId"
+					element={<PhotoManagementPage />}
+				/>
+				<Route
+					path="/admin/team-activities/:eventId"
+					element={<TeamActivitiesPage />}
+				/>
+				<Route
+					path="/admin/team-activities/:eventId/team/:teamId"
+					element={<TeamActivityDetailPage />}
+				/>
 				<Route path="/admin/valorate/:eventId" element={<ValoratePage />} />
-				<Route path="/admin/valorate/:eventId/activity/:teamId/:activityId" element={<ActivityValorate />} />
+				<Route
+					path="/admin/valorate/:eventId/activity/:teamId/:activityId"
+					element={<ActivityValorate />}
+				/>
+				<Route path="/device-not-assigned" element={<DeviceNotAssignedPage />} />
+				<Route path="/404" element={<NotFoundPage />} />
 			</Routes>
 		</>
 	);
 }
 
 export default App;
+
+
+
 
 
 

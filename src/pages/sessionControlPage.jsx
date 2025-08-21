@@ -8,6 +8,7 @@ import BackButton from "../components/backButton";
 import { clearSession, refreshSession } from "../features/session/sessionSlice";
 import { updateTeamData } from "../features/teams/teamsSlice";
 import "../styles/sessionControl.css";
+import TeamConnectionStatus from "../components/TeamConnectionStatus";
 
 const SessionControlPage = () => {
 	const { t } = useTranslation();
@@ -39,9 +40,12 @@ const SessionControlPage = () => {
 			localStorage.removeItem("lastRoute");
 			localStorage.removeItem("persist:root");
 			localStorage.removeItem("currentActivity");
+			localStorage.removeItem("validatedEventId");
+			localStorage.removeItem("validatedTeamId");
+			localStorage.removeItem("goToMap");
 			
 			// Recargar página para aplicar cambios
-			window.location.href = "/";
+			navigate("/device-not-assigned", { replace: true });
 		}
 	};
 
@@ -128,6 +132,9 @@ const SessionControlPage = () => {
 												{t("session_control.device")}: {team.device.substring(0, 8)}...
 											</span>
 										</div>
+										<div  style={{ marginLeft: '10px', marginRight: '10px' }}>
+											<TeamConnectionStatus teamId={team.id} eventId={event.id} />
+										</div>
 										<button 
 											className="btn-disassociate"
 											onClick={() => handleDisassociateTeam(team.id)}
@@ -146,3 +153,6 @@ const SessionControlPage = () => {
 };
 
 export default SessionControlPage;
+
+
+

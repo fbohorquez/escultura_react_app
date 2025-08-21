@@ -357,7 +357,7 @@ const PuzzleActivity = ({ activity, onComplete, timeLeft, timeExpired }) => {
 			<div className="puzzle-header">
 				<h2 className="activity-title">{activity.name}</h2>
 				{puzzleData.description && (
-					<p className="puzzle-description">{puzzleData.description}</p>
+					<div className="puzzle-description" dangerouslySetInnerHTML={{ __html: puzzleData.description }} />
 				)}
 				<div className="puzzle-info">
 					<span className="puzzle-pieces">

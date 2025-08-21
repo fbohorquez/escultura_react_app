@@ -77,7 +77,7 @@ const RankingPage = () => {
 					<div className="current-team-position">
 						<h3>{t("ranking.your_position", "Tu posición")}</h3>
 						<div className="position-badge">
-							<span className="position-number">{getMedalIcon(currentTeamPosition)}</span>
+							<span className="position-number">{currentTeamPosition}°</span>
 							<span className="team-name">{selectedTeam.name}</span>
 							<span className="points">{selectedTeam.points || 0} pts</span>
 						</div>

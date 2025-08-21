@@ -191,7 +191,7 @@ const PairsActivity = ({ activity, onComplete, timeLeft, timeExpired }) => {
 			<div className="pairs-header">
 				<h2 className="activity-title">{activity.name}</h2>
 				{pairsData.description && (
-					<p className="pairs-description">{pairsData.description}</p>
+					<div className="pairs-description" dangerouslySetInnerHTML={{ __html: pairsData.description }} />
 				)}
 				<div className="pairs-info">
 					<span className="pairs-count">

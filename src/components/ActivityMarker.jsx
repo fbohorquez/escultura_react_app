@@ -1,5 +1,5 @@
 // src/components/ActivityMarker.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Marker, InfoWindow } from "@react-google-maps/api";
 import { useSelector, useDispatch } from "react-redux";
 import { useTranslation } from "react-i18next";
@@ -35,6 +35,19 @@ const ActivityMarker = ({ activity }) => {
 	const selectedTeam = useSelector((state) => state.session.selectedTeam);
 	const teams = useSelector((state) => state.teams.items);
 
+	// Escuchar evento personalizado para cerrar bocadillos
+	useEffect(() => {
+		const handleCloseActivityBubbles = () => {
+			setShowBubble(false);
+		};
+
+		window.addEventListener('closeActivityBubbles', handleCloseActivityBubbles);
+		
+		return () => {
+			window.removeEventListener('closeActivityBubbles', handleCloseActivityBubbles);
+		};
+	}, []);
+
 	// Si el icono aún no está procesado, no renderizar el marker
 	if (!iconConfig) {
 		return null;
@@ -49,6 +62,9 @@ const ActivityMarker = ({ activity }) => {
 	};
 
 	const getBubbleContent = () => {
+		// Obtener la URL de la imagen desde iconConfig (procesada por useActivityIcon)
+		const imageUrl = iconConfig?.url || iconConfig;
+
 		if (isAdmin) {
 			// Mostrar información administrativa
 			const completedTeams = teams.filter(team => 
@@ -62,9 +78,9 @@ const ActivityMarker = ({ activity }) => {
 			return (
 				<div className="activity-bubble">
 					<div className="activity-bubble-title">{activity.name}</div>
-					{activity.icon && (
+					{imageUrl && (
 						<img
-							src={activity.icon.icon}
+							src={imageUrl}
 							alt={activity.name}
 							className="activity-bubble-image"
 						/>
@@ -110,9 +126,9 @@ const ActivityMarker = ({ activity }) => {
 							×
 						</button>
 						<div className="activity-bubble-title">{activity.name}</div>
-						{activity.icon && (
+						{imageUrl && (
 							<img
-								src={activity.icon.icon}
+								src={imageUrl}
 								alt={activity.name}
 								className="activity-bubble-image"
 							/>
@@ -154,9 +170,9 @@ const ActivityMarker = ({ activity }) => {
 			return (
 				<div className="activity-bubble">
 					<div className="activity-bubble-title">{activity.name}</div>
-					{activity.icon && (
+					{imageUrl && (
 						<img
-							src={activity.icon.icon}
+							src={imageUrl}
 							alt={activity.name}
 							className="activity-bubble-image"
 						/>

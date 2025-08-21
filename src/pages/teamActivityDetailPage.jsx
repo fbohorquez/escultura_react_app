@@ -8,6 +8,7 @@ import BackButton from "../components/backButton";
 import { addToQueue } from "../features/popup/popupSlice";
 import { updateTeamData } from "../features/teams/teamsSlice";
 import "../styles/teamActivities.css";
+import { requiresManualReview } from "../utils/activityValidation";
 
 const TeamActivityDetailPage = () => {
 	const { t } = useTranslation();
@@ -86,6 +87,21 @@ const TeamActivityDetailPage = () => {
 		const date = new Date(timestamp * 1000);
 		return date.toLocaleString();
 	};
+
+	// Nuevo: renderizado de puntos por actividad según si requiere valoración o no
+	const renderActivityPoints = useCallback((activity) => {
+		const manual = requiresManualReview(activity);
+		if (manual) {
+			if (activity.valorate === 1 && activity.awarded_points !== undefined) {
+				return `${activity.awarded_points} (${t("photo_management.awarded", "otorgados")})`;
+			}
+			return t("team_activities.activity_status.pending_review", "Pendiente de valorar");
+		}
+		// Automática: mostrar base y conseguidos
+		const base = activity.points || 0;
+		const achieved = activity.complete && activity.valorate === 1 ? base : 0;
+		return `${base} • ${t("points_earned", "Puntos ganados")}: ${achieved}`;
+	}, [t]);
 
 	const handleDeleteActivity = async (activity) => {
 		// Mostrar confirmación
@@ -252,60 +268,125 @@ const TeamActivityDetailPage = () => {
 	};
 
 	const handleSendActivity = async (activity) => {
-		// Mostrar confirmación
-		const confirmed = await window.confirm(
-			t("team_activities.send_confirm", "¿Estás seguro de que quieres enviar la actividad \"{{activityName}}\" al equipo \"{{teamName}}\"?", {
+		// Mostrar popup con 3 opciones: Cancelar, Enviar, Forzar
+		dispatch(addToQueue({
+			titulo: t("team_activities.send_confirm_title", "Enviar Actividad"),
+			texto: t("team_activities.send_options_message", "¿Cómo quieres enviar la actividad \"{{activityName}}\" al equipo \"{{teamName}}\"?", {
 				activityName: activity.name,
 				teamName: team.name
 			}) + "\n\n" + 
-			t("team_activities.send_confirm_desc", "El equipo recibirá una notificación para realizar esta actividad.")
-		);
+			t("team_activities.send_options_desc", "• Enviar: El equipo puede aceptar o rechazar la actividad\n• Forzar: El equipo debe realizar la actividad obligatoriamente"),
+			array_botones: [
+				{
+					titulo: t("team_activities.cancel_button", "Cancelar"),
+					callback: () => {
+						// No hacer nada, solo cerrar el popup
+						console.log('🚫 Envío de actividad cancelado');
+					}
+				},
+				{
+					titulo: t("team_activities.send_button", "Enviar"),
+					callback: async () => {
+						try {
+							// Enviar con ID normal
+							await dispatch(updateTeamData({
+								eventId: event.id,
+								teamId: team.id,
+								changes: {
+									send: activity.id
+								}
+							})).unwrap();
 
-		if (!confirmed) return;
+							// Mostrar mensaje de éxito
+							dispatch(addToQueue({
+								titulo: t("team_activities.activity_sent", "Actividad Enviada"),
+								texto: t("team_activities.activity_sent_message", "La actividad \"{{activityName}}\" ha sido enviada al equipo \"{{teamName}}\".", {
+									activityName: activity.name,
+									teamName: team.name
+								}),
+								array_botones: [
+									{
+										titulo: t("close", "Cerrar"),
+										callback: null
+									}
+								],
+								overlay: true,
+								close_button: true,
+								layout: "center"
+							}));
+						} catch (error) {
+							console.error("Error sending activity:", error);
+							dispatch(addToQueue({
+								titulo: t("error", "Error"),
+								texto: t("team_activities.send_error", "Error al enviar la actividad"),
+								array_botones: [
+									{
+										titulo: t("close", "Cerrar"),
+										callback: null
+									}
+								],
+								overlay: true,
+								close_button: true,
+								layout: "center"
+							}));
+						}
+					}
+				},
+				{
+					titulo: t("team_activities.force_button", "Forzar"),
+					callback: async () => {
+						try {
+							// Enviar con ID forzado (100 millones + ID de actividad)
+							const forcedId = 100000000 + activity.id;
+							await dispatch(updateTeamData({
+								eventId: event.id,
+								teamId: team.id,
+								changes: {
+									send: forcedId
+								}
+							})).unwrap();
 
-		try {
-			// Actualizar la clave send en Firebase
-			await dispatch(updateTeamData({
-				eventId: event.id,
-				teamId: team.id,
-				changes: {
-					send: activity.id
+							// Mostrar mensaje de éxito
+							dispatch(addToQueue({
+								titulo: t("team_activities.activity_forced", "Actividad Forzada"),
+								texto: t("team_activities.activity_forced_message", "La actividad \"{{activityName}}\" ha sido enviada de forma obligatoria al equipo \"{{teamName}}\".", {
+									activityName: activity.name,
+									teamName: team.name
+								}),
+								array_botones: [
+									{
+										titulo: t("close", "Cerrar"),
+										callback: null
+									}
+								],
+								overlay: true,
+								close_button: true,
+								layout: "center"
+							}));
+						} catch (error) {
+							console.error("Error forcing activity:", error);
+							dispatch(addToQueue({
+								titulo: t("error", "Error"),
+								texto: t("team_activities.force_error", "Error al forzar la actividad"),
+								array_botones: [
+									{
+										titulo: t("close", "Cerrar"),
+										callback: null
+									}
+								],
+								overlay: true,
+								close_button: true,
+								layout: "center"
+							}));
+						}
+					}
 				}
-			})).unwrap();
-
-			// Mostrar mensaje de éxito
-			dispatch(addToQueue({
-				titulo: t("team_activities.activity_sent", "Actividad Enviada"),
-				texto: t("team_activities.activity_sent_message", "La actividad \"{{activityName}}\" ha sido enviada al equipo \"{{teamName}}\".", {
-					activityName: activity.name,
-					teamName: team.name
-				}),
-				array_botones: [
-					{
-						titulo: t("close", "Cerrar"),
-						callback: null
-					}
-				],
-				overlay: true,
-				close_button: true,
-				layout: "center"
-			}));
-		} catch (error) {
-			console.error("Error sending activity:", error);
-			dispatch(addToQueue({
-				titulo: t("error", "Error"),
-				texto: t("valorate.update_error", "Error al actualizar la valoración de la actividad"),
-				array_botones: [
-					{
-						titulo: t("close", "Cerrar"),
-						callback: null
-					}
-				],
-				overlay: true,
-				close_button: true,
-				layout: "center"
-			}));
-		}
+			],
+			overlay: true,
+			close_button: false, // No permitir cerrar sin elegir una opción
+			layout: "center",
+			claseCss: "popup-send-activity-options"
+		}));
 	};
 
 	const handleActivityClick = (activity) => {
@@ -430,13 +511,7 @@ const TeamActivityDetailPage = () => {
 											{t("team_activities.points", "Puntos")}:
 										</span>
 										<span className="detail-value">
-											{activity.valorate === 1 &&
-											activity.awarded_points !== undefined
-												? `${activity.awarded_points} (${t(
-														"photo_management.awarded",
-														"otorgados"
-												  )})`
-												: activity.points || 0}
+											{renderActivityPoints(activity)}
 										</span>
 									</div>
 									<div className="detail-item">

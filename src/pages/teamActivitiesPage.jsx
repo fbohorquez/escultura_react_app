@@ -5,6 +5,10 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import BackgroundLayout from "../components/backgroundLayout";
 import BackButton from "../components/backButton";
+import TeamConnectionStatus from "../components/TeamConnectionStatus";
+import { useKeepalive } from "../hooks/useKeepalive";
+import { getAppStateLabel } from "../constants/appStates";
+import { isTeamActive } from "../utils/keepaliveUtils";
 import "../styles/teamActivities.css";
 
 const TeamActivitiesPage = () => {
@@ -14,6 +18,10 @@ const TeamActivitiesPage = () => {
 
 	const event = useSelector((state) => state.event.event);
 	const teams = useSelector((state) => state.teams.items);
+	const keepaliveTeams = useSelector((state) => state.keepalive.teams);
+
+	// Inicializar keepalive en modo solo lectura para ver el estado de los equipos
+	useKeepalive(eventId, null);
 
 	const handleBack = () => {
 		navigate(`/event/${eventId}`);
@@ -43,15 +51,26 @@ const TeamActivitiesPage = () => {
 			const completed = activities.filter(a => a.complete).length;
 			const total = activities.length;
 
+			// Obtener información de keepalive para este equipo
+			const keepaliveData = keepaliveTeams[team.id];
+			const isOnline = keepaliveData && isTeamActive(keepaliveData.lastSeen);
+			const appStateLabel = keepaliveData && isOnline 
+				? getAppStateLabel(keepaliveData.appState, keepaliveData.currentActivity?.name)
+				: null;
+
 			return {
 				...team,
 				activities,
 				completedCount: completed,
 				totalCount: total,
-				pendingCount: total - completed
+				pendingCount: total - completed,
+				// Información de estado en tiempo real
+				isOnline,
+				appStateLabel,
+				keepaliveData
 			};
-		}).filter(team => team.device && team.device !== ""); // Solo equipos con dispositivo asignado
-	}, [teams, getActivityStatus]);
+		}); // Solo equipos con dispositivo asignado
+	}, [teams, getActivityStatus, keepaliveTeams]);
 
 	const handleTeamClick = (team) => {
 		navigate(`/admin/team-activities/${eventId}/team/${team.id}`);
@@ -94,6 +113,7 @@ const TeamActivitiesPage = () => {
 											<span className="stat-number">{team.pendingCount}</span>
 											<span className="stat-label">{t("team_activities.pending", "Pendientes")}</span>
 										</span>
+										<TeamConnectionStatus teamId={team.id} />
 									</div>
 								</div>
 								
@@ -102,6 +122,13 @@ const TeamActivitiesPage = () => {
 										<span className="detail-label">{t("ranking.stats", "Estadísticas")}:</span>
 										<span className="detail-value">
 											{team.points || 0} {t("team_activities.points", "puntos")}
+										</span>
+									</div>
+									{/* Estado actual del equipo */}
+									<div className="detail-item">
+										<span className="detail-label">Estado:</span>
+										<span className={`detail-value app-state ${team.isOnline ? 'online' : 'offline'}`}>
+											{team.isOnline ? team.appStateLabel : 'Desconectado'}
 										</span>
 									</div>
 								</div>

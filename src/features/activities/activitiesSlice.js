@@ -76,8 +76,10 @@ export const completeActivityWithSync = createAsyncThunk(
 					...activityItem,
 					complete: true,
 					complete_time: Math.floor(Date.now() / 1000),
-					data: media.data || null,
-					valorate: valorateValue
+					data: media?.data || null,
+					valorate: valorateValue,
+					// Guardar puntos conseguidos en automáticas para mostrar en listados
+					awarded_points: valorateValue === 1 ? (success ? (activity.points || 0) : 0) : 0
 				};
 			}
 			return activityItem;

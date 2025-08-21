@@ -1,15 +1,15 @@
 // src/pages/teamPage.jsx
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { useTranslation } from "react-i18next";
 import BackgroundLayout from "../components/backgroundLayout";
 import BackButton from "../components/backButton";
+import { useLocation } from "react-router-dom";
 
 import iconPhoto from "../assets/icono_equipo_foto.png";
 import iconPlay from "../assets/Icon_cohete.png";
 import eventDefaultLogo from "../assets/img_log_event.png";
-import iconTeamDefault from "../assets/icono_equpo@2x.png";
 
 import {
 	setSelectedTeam,
@@ -28,6 +28,9 @@ const TeamPage = () => {
 	const { teamId } = useParams();
 	const dispatch = useDispatch();
 	const navigate = useNavigate();
+	const {state} = useLocation();
+
+	console.log(state);
 
   const event = useSelector((state) => state.event.event);
 	const team = useSelector((state) =>
@@ -37,6 +40,57 @@ const TeamPage = () => {
 	const token = useSelector((state) => state.session.token);
 
 	const fileInputRef = useRef();
+
+	// Effect para verificar si el equipo ya tiene un device y generar token automáticamente
+	useEffect(() => {
+		
+		if (!team || !event) return;
+
+		// Si el equipo ya tiene un device asignado, redirigir a la página de equipos
+		if (team.device && team.device !== "" && team.device !== token) {
+			console.log('🔒 Team already has a device assigned:', team.device);
+			sessionStorage.setItem("autoSelectTeamId", team.id);
+			navigate(`/teams/${event.id}`, { replace: true });
+			return;
+		}
+
+		// Si no hay token en el estado, generar uno nuevo
+		if (!token) {
+			const generatedToken = generateTokenUniqueForDevice();
+			dispatch(setToken(generatedToken));
+			dispatch(setSelectedTeam(team));
+			dispatch(setIsAdmin(false));
+			// Actualizar Firebase inmediatamente con el nuevo token
+			console.log('🔑 Generated new device token:', generatedToken);
+			dispatch(
+				updateTeamData({
+					eventId: event.id,
+					teamId: team.id,
+					changes: {
+						device: generatedToken,
+					},
+				})
+			);
+		}else if (!team.device || team.device === "") {
+			dispatch(setToken(token));
+			dispatch(setSelectedTeam(team));
+			dispatch(setIsAdmin(false));
+			// Si el token ya existe, actualizar Firebase
+			dispatch(
+				updateTeamData({
+					eventId: event.id,
+					teamId: team.id,
+					changes: {
+						device: token,
+					},
+				})
+			);
+		}
+		if (localStorage.getItem("goToMap") === "true") {
+			navigate(`/event/${event.id}`);
+			return;
+		}
+	}, [team, event, token, dispatch, navigate]);
 
   const handleBack = () => {
 		navigate(`/teams/${event.id}`, { replace: true });
@@ -80,24 +134,27 @@ const TeamPage = () => {
 				img_path = "default_team_photo";
 			}
 
-			dispatch(setSelectedTeam(team));
-			dispatch(setIsAdmin(false));
-			let generatedToken = token;
-			if (!generatedToken) {
-				generatedToken = generateTokenUniqueForDevice();
-				dispatch(setToken(generatedToken));
+			
+			
+			// El token ya debería existir en el estado (generado automáticamente al entrar)
+			if (!token) {
+				console.error('❌ No token available - this should not happen');
+				return;
 			}
 			
-			dispatch(
-				updateTeamData({
-					eventId: event.id,
-					teamId: team.id,
-					changes: {
-						device: generatedToken,
-						photo: img_path,
-					},
-				})
-			);
+			// Solo actualizar la foto si se cambió
+			if (photo) {
+				dispatch(
+					updateTeamData({
+						eventId: event.id,
+						teamId: team.id,
+						changes: {
+							photo: img_path,
+						},
+					})
+				);
+			}
+			
 			navigate(`/event/${event.id}`);
 
 		} catch (err) {
@@ -109,9 +166,17 @@ const TeamPage = () => {
 
 	return (
 		<BackgroundLayout>
-			<BackButton onClick={handleBack} />
+			{!state?.fromAutoSelect && <BackButton onClick={handleBack} />}
 			<div className="team-detail">
-				{(photo && <img src={photo} alt="team" className="team-preview" onClick={handlePhotoClick} />) || (
+				{(photo && <img src={photo} alt="team" className="team-preview" onClick={handlePhotoClick} />) || 
+				 (team.photo && team.photo !== "default_team_photo" && (
+					<img 
+						src={`${(import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/events/event_${event.id}/team_${team.id}/photo.jpeg`} 
+						alt="team" 
+						className="team-preview" 
+						onClick={handlePhotoClick} 
+					/>
+				 )) || (
 					<img
 						src={iconPhoto}
 						alt="icono equipo"
@@ -156,6 +221,13 @@ const TeamPage = () => {
 		</BackgroundLayout>
 	);
 };
+
+
+
+
+
+
+
 
 
 

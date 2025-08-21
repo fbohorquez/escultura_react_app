@@ -15,108 +15,159 @@ const generateMD5 = (input) => {
  * Implementación simple de MD5
  * Basada en el algoritmo MD5 estándar
  */
-const simpleMD5 = (input) => {
-  // Convertir string a array de bytes
-  const bytes = [];
-  for (let i = 0; i < input.length; i++) {
-    bytes.push(input.charCodeAt(i));
-  }
-  
-  // Padding
-  const msgLength = bytes.length;
-  bytes.push(0x80);
-  
-  while (bytes.length % 64 !== 56) {
-    bytes.push(0);
-  }
-  
-  // Agregar longitud del mensaje en bits
-  const bitLength = msgLength * 8;
-  for (let i = 0; i < 8; i++) {
-    bytes.push((bitLength >>> (i * 8)) & 0xFF);
-  }
-  
-  // Valores iniciales MD5
-  let h0 = 0x67452301;
-  let h1 = 0xEFCDAB89;
-  let h2 = 0x98BADCFE;
-  let h3 = 0x10325476;
-  
-  // Procesar el mensaje en chunks de 512 bits (64 bytes)
-  for (let chunk = 0; chunk < bytes.length; chunk += 64) {
-    const w = [];
-    for (let i = 0; i < 16; i++) {
-      w[i] = bytes[chunk + i * 4] |
-             (bytes[chunk + i * 4 + 1] << 8) |
-             (bytes[chunk + i * 4 + 2] << 16) |
-             (bytes[chunk + i * 4 + 3] << 24);
-    }
-    
-    let a = h0, b = h1, c = h2, d = h3;
-    
-    // Constantes MD5
-    const s = [
-      7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22,
-      5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20,
-      4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23,
-      6, 10, 15, 21,  6, 10, 15, 21,  6, 10, 15, 21,  6, 10, 15, 21
-    ];
-    
-    const K = [];
-    for (let i = 0; i < 64; i++) {
-      K[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296);
-    }
-    
-    // Rondas principales
-    for (let i = 0; i < 64; i++) {
-      let F, g;
-      if (i < 16) {
-        F = (b & c) | ((~b) & d);
-        g = i;
-      } else if (i < 32) {
-        F = (d & b) | ((~d) & c);
-        g = (5 * i + 1) % 16;
-      } else if (i < 48) {
-        F = b ^ c ^ d;
-        g = (3 * i + 5) % 16;
-      } else {
-        F = c ^ (b | (~d));
-        g = (7 * i) % 16;
-      }
-      
-      F = (F + a + K[i] + w[g]) & 0xFFFFFFFF;
-      a = d;
-      d = c;
-      c = b;
-      b = (b + leftRotate(F, s[i])) & 0xFFFFFFFF;
-    }
-    
-    h0 = (h0 + a) & 0xFFFFFFFF;
-    h1 = (h1 + b) & 0xFFFFFFFF;
-    h2 = (h2 + c) & 0xFFFFFFFF;
-    h3 = (h3 + d) & 0xFFFFFFFF;
-  }
-  
-  // Convertir a hexadecimal
-  return (
-    toLittleEndianHex(h0) +
-    toLittleEndianHex(h1) +
-    toLittleEndianHex(h2) +
-    toLittleEndianHex(h3)
-  );
+function simpleMD5(input) {
+	// --- helpers ---
+	const rotl = (x, n) => ((x << n) | (x >>> (32 - n))) >>> 0;
+	const toLEHex = (n) => {
+		n >>>= 0;
+		return (
+			(n & 0xff).toString(16).padStart(2, "0") +
+			((n >>> 8) & 0xff).toString(16).padStart(2, "0") +
+			((n >>> 16) & 0xff).toString(16).padStart(2, "0") +
+			((n >>> 24) & 0xff).toString(16).padStart(2, "0")
+		);
+	};
+	const utf8 = new TextEncoder().encode(input); // <-- UTF-8 correcto
+
+	// --- padding ---
+	const bytes = Array.from(utf8);
+	const len = bytes.length;
+	bytes.push(0x80);
+	while (bytes.length % 64 !== 56) bytes.push(0);
+	const bitLen = BigInt(len) * 8n;
+	// longitud en bits, 64-bit little endian:
+	for (let i = 0n; i < 8n; i++)
+		bytes.push(Number((bitLen >> (8n * i)) & 0xffn));
+
+	// --- init ---
+	let a0 = 0x67452301 >>> 0;
+	let b0 = 0xefcdab89 >>> 0;
+	let c0 = 0x98badcfe >>> 0;
+	let d0 = 0x10325476 >>> 0;
+
+	const s = [
+		7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 5, 9, 14, 20, 5,
+		9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11,
+		16, 23, 4, 11, 16, 23, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10,
+		15, 21,
+	];
+	const K = Array.from(
+		{ length: 64 },
+		(_, i) => Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296) >>> 0
+	);
+
+	// --- process ---
+	for (let off = 0; off < bytes.length; off += 64) {
+		const M = new Array(16);
+		for (let i = 0; i < 16; i++) {
+			const j = off + i * 4;
+			M[i] =
+				bytes[j] |
+				(bytes[j + 1] << 8) |
+				(bytes[j + 2] << 16) |
+				(bytes[j + 3] << 24);
+		}
+
+		let A = a0,
+			B = b0,
+			C = c0,
+			D = d0;
+
+		for (let i = 0; i < 64; i++) {
+			let F, g;
+			if (i < 16) {
+				F = (B & C) | (~B & D);
+				g = i;
+			} else if (i < 32) {
+				F = (D & B) | (~D & C);
+				g = (5 * i + 1) % 16;
+			} else if (i < 48) {
+				F = B ^ C ^ D;
+				g = (3 * i + 5) % 16;
+			} else {
+				F = C ^ (B | ~D);
+				g = (7 * i) % 16;
+			}
+
+			F = (F + A + K[i] + (M[g] >>> 0)) >>> 0;
+			A = D;
+			D = C;
+			C = B;
+			B = (B + rotl(F, s[i])) >>> 0;
+		}
+
+		a0 = (a0 + A) >>> 0;
+		b0 = (b0 + B) >>> 0;
+		c0 = (c0 + C) >>> 0;
+		d0 = (d0 + D) >>> 0;
+	}
+
+	return toLEHex(a0) + toLEHex(b0) + toLEHex(c0) + toLEHex(d0);
+}
+
+/**
+ * Genera un token para acceso directo al equipo
+ * @param {string} teamId - ID del equipo
+ * @returns {string} - Token generado (teamId + MD5)
+ */
+export const generateTeamToken = (teamId) => {
+  const hash = generateMD5(teamId);
+  return `${teamId}${hash}`;
 };
 
-const leftRotate = (value, amount) => {
-  return (value << amount) | (value >>> (32 - amount));
+/**
+ * Valida un token de equipo
+ * @param {string} token - Token a validar
+ * @returns {object|null} - {teamId, isValid} o null si el formato es inválido
+ */
+export const validateTeamToken = (token) => {
+  if (!token || typeof token !== 'string') {
+    return null;
+  }
+  
+  // El token debe tener al menos 33 caracteres (1 char teamId + 32 chars MD5)
+  if (token.length < 33) {
+    return null;
+  }
+  
+  // Extraer el teamId y el hash
+  // Asumimos que el teamId puede tener longitud variable
+  // pero el MD5 siempre son 32 caracteres al final
+  const hash = token.slice(-32);
+  const teamId = token.slice(0, -32);
+  
+  if (!teamId) {
+    return null;
+  }
+  
+  // Validar que el hash coincida
+  const expectedHash = generateMD5(teamId);
+  const isValid = hash.toLowerCase() === expectedHash.toLowerCase();
+  
+  return {
+    teamId,
+    isValid
+  };
 };
 
-const toLittleEndianHex = (value) => {
-  return (
-    ((value & 0xFF).toString(16).padStart(2, '0')) +
-    (((value >>> 8) & 0xFF).toString(16).padStart(2, '0')) +
-    (((value >>> 16) & 0xFF).toString(16).padStart(2, '0')) +
-    (((value >>> 24) & 0xFF).toString(16).padStart(2, '0'))
-  );
+/**
+ * Extrae el parámetro team de la URL actual
+ * @returns {string|null} - El valor del parámetro team o null
+ */
+export const getTeamParamFromURL = () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('team');
+};
+
+/**
+ * Limpia el parámetro team de la URL sin recargar la página
+ */
+export const clearTeamParamFromURL = () => {
+  const url = new URL(window.location);
+  url.searchParams.delete('team');
+  
+  // Actualizar la URL sin recargar la página
+  window.history.replaceState({}, '', url.pathname + url.search + url.hash);
 };
 
 /**
@@ -183,3 +234,65 @@ export const clearEventParamFromURL = () => {
   // Actualizar la URL sin recargar la página
   window.history.replaceState({}, '', url.pathname + url.search + url.hash);
 };
+
+/**
+ * Función auxiliar para generar una URL completa con tokens de evento y equipo
+ * @param {string} baseUrl - URL base (ej: 'http://localhost:5173/')
+ * @param {string} eventId - ID del evento
+ * @param {string} teamId - ID del equipo (opcional)
+ * @returns {string} - URL completa con tokens
+ */
+export const generateAccessURL = (baseUrl, eventId, teamId = null) => {
+  const eventToken = generateEventToken(eventId);
+  
+  if (teamId) {
+    const teamToken = generateTeamToken(teamId);
+    return `${baseUrl}?event=${eventToken}&team=${teamToken}`;
+  }
+  
+  return `${baseUrl}?event=${eventToken}`;
+};
+
+/**
+ * Función de utilidad para testing - imprime tokens en consola
+ * Solo para desarrollo
+ */
+export const debugTokens = (eventId, teamId = null) => {
+  const eventToken = generateEventToken(eventId);
+  console.log(`Event ID: ${eventId} -> Token: ${eventToken}`);
+  
+  if (teamId) {
+    const teamToken = generateTeamToken(teamId);
+    console.log(`Team ID: ${teamId} -> Token: ${teamToken}`);
+    console.log(`Full URL: http://localhost:5173/?event=${eventToken}&team=${teamToken}`);
+  } else {
+    console.log(`Event URL: http://localhost:5173/?event=${eventToken}`);
+  }
+};
+
+/**
+ * Limpia las credenciales validadas guardadas en localStorage
+ * Útil para cerrar sesión o resetear el acceso por tokens
+ */
+export const clearValidatedCredentials = () => {
+  localStorage.removeItem("validatedEventId");
+  localStorage.removeItem("validatedTeamId");
+  console.log("Validated credentials cleared from localStorage");
+};
+
+/**
+ * Verifica si hay credenciales validadas guardadas en localStorage
+ * @returns {object} - {hasEvent: boolean, hasTeam: boolean, eventId: string|null, teamId: string|null}
+ */
+export const getValidatedCredentials = () => {
+  const eventId = localStorage.getItem("validatedEventId");
+  const teamId = localStorage.getItem("validatedTeamId");
+  
+  return {
+    hasEvent: !!eventId,
+    hasTeam: !!teamId,
+    eventId,
+    teamId
+  };
+};
+

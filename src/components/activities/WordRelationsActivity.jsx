@@ -275,7 +275,7 @@ const WordRelationsActivity = ({ activity, onComplete, timeLeft, timeExpired }) 
 			<div className="word-relations-header">
 				<h2 className="activity-title">{activity.name}</h2>
 				{wordsData.description && (
-					<p className="word-relations-description">{wordsData.description}</p>
+					<div className="word-relations-description" dangerouslySetInnerHTML={{ __html: wordsData.description }} />
 				)}
 				<div className="word-relations-info">
 					<span className="word-relations-progress">

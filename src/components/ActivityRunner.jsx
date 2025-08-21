@@ -10,6 +10,7 @@ import PairsActivity from "./activities/PairsActivity";
 import WordRelationsActivity from "./activities/WordRelationsActivity";
 import { requiresManualReview } from "../utils/activityValidation";
 import { useDebugMode } from "../hooks/useDebugMode";
+import { useAppStateTracker } from "../hooks/useAppStateTracker";
 import "../styles/ActivityRunner.css";
 
 // Utility function to detect if file is video based on extension
@@ -24,6 +25,7 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 	const { t } = useTranslation();
 	const dispatch = useDispatch();
 	const { isDebugMode } = useDebugMode();
+	const { setActivityStartState, setActivityFinishingState, clearActivity } = useAppStateTracker();
 	const [showImageFullscreen, setShowImageFullscreen] = useState(true);
 	const [timeExpired, setTimeExpired] = useState(false);
 	const [hasTimerStarted, setHasTimerStarted] = useState(false);
@@ -38,6 +40,8 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 	const activityStartTime = useSelector((state) => state.activities.activityStartTime);
 	const storedTimeLeft = useSelector((state) => state.activities.activityTimeLeft);
 	const activityResults = useSelector((state) => state.activities.activityResults);
+	// Para mostrar estado actual durante desarrollo
+	const { appState, currentActivity } = useSelector((state) => state.keepalive);
 	
 	const [timeLeft, setTimeLeft] = useState(() => {
 		if (storedTimeLeft !== null && storedTimeLeft !== undefined) {
@@ -69,6 +73,9 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 		
 		// Diferir la actualización global para evitar "Cannot update a component while rendering another"
 		setTimeout(() => {
+			// Actualizar estado a "finalizando prueba"
+			setActivityFinishingState({ id: activity.id, name: activity.name });
+			
 			dispatch(completeActivityWithSync({
 				eventId: event.id,
 				teamId: selectedTeam?.id,
@@ -78,7 +85,7 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 				timeTaken
 			}));
 		}, 0);
-	}, [activity.time, activity.id, timeLeft, dispatch, event.id, selectedTeam?.id, activityStartTime]);
+	}, [activity.time, activity.id, activity.name, timeLeft, dispatch, event.id, selectedTeam?.id, activityStartTime, setActivityFinishingState]);
 
 	const formattedTime = useMemo(() => {
 		if (timeLeft === Infinity) {
@@ -110,6 +117,8 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 						}));
 						
 						setTimeLeft(remaining);
+						// Actualizar estado de la aplicación al restaurar actividad
+						setActivityStartState({ id: data.activity.id, name: data.activity.name });
 					}
 				} catch (error) {
 					console.error('Error parsing stored activity:', error);
@@ -131,7 +140,14 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 				setTimeLeft(activity.time === 0 ? Infinity : (activity.time || 0));
 			}
 		}
-	}, [activity, dispatch, activityStartTime]);
+	}, [activity, dispatch, activityStartTime, setActivityStartState]);
+
+	// Actualizar estado de la aplicación inmediatamente al montar el componente
+	useEffect(() => {
+		if (activity) {
+			setActivityStartState({ id: activity.id, name: activity.name });
+		}
+	}, [activity, setActivityStartState]);
 
 	useEffect(() => {
 		if (!activityStartTime && !hasTimerStarted && activity) {
@@ -212,6 +228,9 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 
 	const handleContinue = () => {
 		dispatch(finishActivityWithSync());
+		
+		// Limpiar actividad y volver al estado de mapa
+		clearActivity();
 		
 		if (onComplete && activityResult) {
 			onComplete(activityResult.success, activityResult.media);
@@ -520,6 +539,16 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 						<div className="debug-info">
 							<strong>{t("activity_debug")}:</strong>
 							<span>{activity.name}</span>
+						</div>
+						
+						{/* Debug info para estado de keepalive */}
+						<div className="debug-info">
+							<strong>App State:</strong>
+							<span>{appState}</span>
+						</div>
+						<div className="debug-info">
+							<strong>Current Activity:</strong>
+							<span>{currentActivity?.name || 'None'}</span>
 						</div>
 						
 						<div className="debug-actions">
