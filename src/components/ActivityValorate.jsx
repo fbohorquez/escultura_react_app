@@ -7,6 +7,7 @@ import { updateTeamData } from "../features/teams/teamsSlice";
 import { addToQueue } from "../features/popup/popupSlice";
 import BackgroundLayout from "./backgroundLayout";
 import BackButton from "./backButton";
+import OptimizedImage from "./OptimizedImage";
 import "../styles/valorate.css";
 
 const ActivityValorate = () => {
@@ -251,7 +252,14 @@ const ActivityValorate = () => {
 			return (
 				<div className="media-content">
 					<h4>{t("valorate.photo_activity", "Actividad de Foto")}</h4>
-					{activity.data && <img src={activity.data} alt={t("valorate.photo_preview", "Vista previa de la foto")} className="photo-preview" />}
+					{activity.data && (
+						<OptimizedImage 
+							src={activity.data} 
+							alt={t("valorate.photo_preview", "Vista previa de la foto")} 
+							className="photo-preview"
+							preferredVersion="compressed"
+						/>
+					)}
 				</div>
 			);
 		}

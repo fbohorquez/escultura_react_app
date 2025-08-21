@@ -1,0 +1,283 @@
+/* src/styles/ranking.css */
+
+/* Navegación entre vistas del ranking */
+.ranking-navigation {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 0 20px;
+}
+
+.nav-button {
+  flex: 1;
+  max-width: 200px;
+  padding: 12px 20px;
+  border: 2px solid var(--primary-color);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--primary-color);
+  border-radius: 25px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.nav-button:hover {
+  background: var(--primary-color-alpha-1);
+}
+
+.nav-button.active {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* Contenedor general del ranking */
+.ranking-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Sección de actividades del equipo */
+.team-activities-section {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.activities-stats {
+  margin-bottom: 30px;
+}
+
+.activities-stats h3 {
+  margin-bottom: 20px;
+  color: #333;
+  font-weight: 600;
+  text-align: center;
+}
+
+.stats-summary {
+  display: flex;
+  justify-content: space-around;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.stats-summary .stat-item {
+  text-align: center;
+  flex: 1;
+}
+
+.stats-summary .stat-number {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--primary-color);
+  display: block;
+}
+
+.stats-summary .stat-label {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 5px;
+  display: block;
+}
+
+/* Lista de actividades en el ranking */
+.activities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.activity-item {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.activity-item.activity-clickable {
+  cursor: pointer;
+}
+
+.activity-item.activity-clickable:hover {
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.activity-name {
+  margin: 0;
+  color: #333;
+  font-weight: 600;
+  font-size: 1.1rem;
+  flex: 1;
+}
+
+.activity-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.activity-status {
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.activity-status.status-pending {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.activity-status.status-reviewed {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.activity-type {
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.activity-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.detail-label {
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.detail-value {
+  font-size: 0.9rem;
+  color: #333;
+  font-weight: 500;
+}
+
+.activity-arrow {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.5rem;
+  color: var(--primary-color);
+  opacity: 0.7;
+}
+
+/* Estado vacío */
+.no-activities {
+  text-align: center;
+  padding: 60px 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  margin: 20px 0;
+}
+
+.no-activities .empty-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  opacity: 0.7;
+}
+
+.no-activities h3 {
+  margin-bottom: 15px;
+  color: #333;
+  font-weight: 600;
+}
+
+.no-activities p {
+  color: #666;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* Responsivo para móviles */
+@media (max-width: 768px) {
+  .ranking-navigation {
+    padding: 0 10px;
+  }
+  
+  .nav-button {
+    padding: 10px 15px;
+    font-size: 0.85rem;
+  }
+  
+  .ranking-container {
+    padding: 0 10px;
+  }
+  
+  .team-activities-section {
+    padding: 15px;
+  }
+  
+  .stats-summary {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .stats-summary .stat-item {
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+  }
+  
+  .activity-item {
+    padding: 15px;
+  }
+  
+  .activity-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .activity-actions {
+    align-items: flex-start;
+    width: 100%;
+  }
+  
+  .activity-details {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .activity-arrow {
+    position: static;
+    transform: none;
+    align-self: center;
+    margin-top: 10px;
+  }
+}

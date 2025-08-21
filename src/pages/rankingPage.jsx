@@ -1,5 +1,5 @@
 // src/pages/rankingPage.jsx
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -15,6 +15,9 @@ const RankingPage = () => {
 	const teams = useSelector((state) => state.teams.items);
 	const selectedTeam = useSelector((state) => state.session.selectedTeam);
 	const isAdmin = useSelector((state) => state.session.isAdmin);
+
+	// Estado para cambiar entre vistas
+	const [currentView, setCurrentView] = useState('ranking');
 
 	const handleBack = () => {
 		navigate(`/event/${eventId}`);
@@ -37,6 +40,67 @@ const RankingPage = () => {
 		const team = rankedTeams.find(t => t.id === selectedTeam.id);
 		return team?.position || null;
 	}, [rankedTeams, selectedTeam]);
+
+	// Obtener actividades completadas del equipo actual
+	const completedActivities = useMemo(() => {
+		if (!selectedTeam || !selectedTeam.activities_data) return [];
+		
+		return selectedTeam.activities_data
+			.filter(activity => activity.complete && activity.del !== true) // Solo completadas y no eliminadas
+			.sort((a, b) => (b.complete_time || 0) - (a.complete_time || 0)) // Más recientes primero
+			.map(activity => ({
+				...activity,
+				statusKey: activity.valorate === 0 ? 'pending_review' : 'reviewed'
+			}));
+	}, [selectedTeam]);
+
+	// Función para determinar el estado de la actividad
+	const getActivityStatusText = (statusKey) => {
+		const statusMap = {
+			pending_review: t("ranking.activity_status.pending_review", "Pendiente de valorar"),
+			reviewed: t("ranking.activity_status.reviewed", "Valorada")
+		};
+		return statusMap[statusKey] || statusKey;
+	};
+
+	const getActivityStatusClass = (statusKey) => {
+		const classMap = {
+			pending_review: "status-pending",
+			reviewed: "status-reviewed"
+		};
+		return classMap[statusKey] || "";
+	};
+
+	const getActivityTypeText = (typeId) => {
+		switch (typeId) {
+			case 1: return t("valorate.type_question", "Pregunta");
+			case 2: return t("valorate.type_clue", "Pista");
+			case 3: return t("valorate.type_media", "Foto/Video");
+			case 4: return t("valorate.type_puzzle", "Puzzle");
+			case 5: return t("valorate.type_pairs", "Parejas");
+			default: return t("valorate.type_unknown", "Desconocido");
+		}
+	};
+
+	const formatCompletedTime = (timestamp) => {
+		if (!timestamp) return "--";
+		const date = new Date(timestamp * 1000);
+		return date.toLocaleString();
+	};
+
+	const renderActivityPoints = (activity) => {
+		if (activity.valorate === 1 && activity.awarded_points !== undefined) {
+			return `${activity.awarded_points} ${t("ranking.points_awarded", "puntos otorgados")}`;
+		}
+		if (activity.valorate === 0) {
+			return t("ranking.activity_status.pending_review", "Pendiente de valorar");
+		}
+		return `${activity.points || 0} ${t("ranking.points", "puntos")}`;
+	};
+
+	const handleActivityClick = (activity) => {
+		navigate(`/team/activity/${eventId}/${selectedTeam.id}/${activity.id}`);
+	};
 
 	const getMedalIcon = (position) => {
 		if (position === 1) {
@@ -72,72 +136,165 @@ const RankingPage = () => {
 		>
 			<BackButton onClick={handleBack} />
 			
+			{/* Navegación entre vistas - solo para equipos no admin */}
+			{!isAdmin && selectedTeam && (
+				<div className="ranking-navigation">
+					<button 
+						className={`nav-button ${currentView === 'ranking' ? 'active' : ''}`}
+						onClick={() => setCurrentView('ranking')}
+					>
+						{t("ranking.general_ranking", "Ranking General")}
+					</button>
+					<button 
+						className={`nav-button ${currentView === 'activities' ? 'active' : ''}`}
+						onClick={() => setCurrentView('activities')}
+					>
+						{t("ranking.my_activities", "Mis Actividades")}
+					</button>
+				</div>
+			)}
+			
 			<div className="ranking-container">
-				{!isAdmin && currentTeamPosition && (
-					<div className="current-team-position">
-						<h3>{t("ranking.your_position", "Tu posición")}</h3>
-						<div className="position-badge">
-							<span className="position-number">{currentTeamPosition}°</span>
-							<span className="team-name">{selectedTeam.name}</span>
-							<span className="points">{selectedTeam.points || 0} pts</span>
-						</div>
-					</div>
-				)}
+				{/* Vista de Ranking General */}
+				{(currentView === 'ranking' || isAdmin) && (
+					<>
+						{!isAdmin && currentTeamPosition && (
+							<div className="current-team-position">
+								<h3>{t("ranking.your_position", "Tu posición")}</h3>
+								<div className="position-badge">
+									<span className="position-number">{currentTeamPosition}°</span>
+									<span className="team-name">{selectedTeam.name}</span>
+									<span className="points">{selectedTeam.points || 0} pts</span>
+								</div>
+							</div>
+						)}
 
-				<div className="ranking-list">
-					<h3>{t("ranking.general", "Clasificación General")}</h3>
-					
-					{rankedTeams.length === 0 ? (
-						<div className="no-teams">
-							<p>{t("ranking.no_teams", "Aún no hay equipos clasificados")}</p>
+						<div className="ranking-list">
+							<h3>{t("ranking.general", "Clasificación General")}</h3>
+							
+							{rankedTeams.length === 0 ? (
+								<div className="no-teams">
+									<p>{t("ranking.no_teams", "Aún no hay equipos clasificados")}</p>
+								</div>
+							) : (
+								<div className="teams-list">
+									{rankedTeams.map((team) => (
+										<div 
+											key={team.id} 
+											className={`team-rank-item ${team.id === selectedTeam?.id ? 'current-team' : ''}`}
+										>
+											<div className="position">
+												{getMedalIcon(team.position)}
+											</div>
+											<div className="team-info">
+												<span className="team-name">{team.name}</span>
+												{team.device && (
+													<span className="status online">●</span>
+												)}
+											</div>
+											<div className="points">
+												{team.points || 0} pts
+											</div>
+										</div>
+									))}
+								</div>
+							)}
 						</div>
-					) : (
-						<div className="teams-list">
-							{rankedTeams.map((team) => (
-								<div 
-									key={team.id} 
-									className={`team-rank-item ${team.id === selectedTeam?.id ? 'current-team' : ''}`}
-								>
-									<div className="position">
-										{getMedalIcon(team.position)}
+
+						{isAdmin && (
+							<div className="admin-stats">
+								<h4>{t("ranking.stats", "Estadísticas")}</h4>
+								<div className="stats-grid">
+									<div className="stat-item">
+										<span className="stat-label">{t("ranking.total_teams", "Equipos totales")}:</span>
+										<span className="stat-value">{teams.length}</span>
 									</div>
-									<div className="team-info">
-										<span className="team-name">{team.name}</span>
-										{team.device && (
-											<span className="status online">●</span>
-										)}
+									<div className="stat-item">
+										<span className="stat-label">{t("ranking.active_teams", "Equipos activos")}:</span>
+										<span className="stat-value">{rankedTeams.length}</span>
 									</div>
-									<div className="points">
-										{team.points || 0} pts
+									<div className="stat-item">
+										<span className="stat-label">{t("ranking.avg_points", "Puntos promedio")}:</span>
+										<span className="stat-value">
+											{rankedTeams.length > 0 
+												? Math.round(rankedTeams.reduce((sum, team) => sum + (team.points || 0), 0) / rankedTeams.length)
+												: 0
+											}
+										</span>
 									</div>
 								</div>
-							))}
-						</div>
-					)}
-				</div>
+							</div>
+						)}
+					</>
+				)}
 
-				{isAdmin && (
-					<div className="admin-stats">
-						<h4>{t("ranking.stats", "Estadísticas")}</h4>
-						<div className="stats-grid">
-							<div className="stat-item">
-								<span className="stat-label">{t("ranking.total_teams", "Equipos totales")}:</span>
-								<span className="stat-value">{teams.length}</span>
-							</div>
-							<div className="stat-item">
-								<span className="stat-label">{t("ranking.active_teams", "Equipos activos")}:</span>
-								<span className="stat-value">{rankedTeams.length}</span>
-							</div>
-							<div className="stat-item">
-								<span className="stat-label">{t("ranking.avg_points", "Puntos promedio")}:</span>
-								<span className="stat-value">
-									{rankedTeams.length > 0 
-										? Math.round(rankedTeams.reduce((sum, team) => sum + (team.points || 0), 0) / rankedTeams.length)
-										: 0
-									}
-								</span>
+				{/* Vista de Actividades del Equipo */}
+				{currentView === 'activities' && !isAdmin && selectedTeam && (
+					<div className="team-activities-section">
+						<div className="activities-stats">
+							<h3>{t("ranking.my_activities_title", "Mis Actividades Completadas")}</h3>
+							<div className="stats-summary">
+								<div className="stat-item">
+									<span className="stat-number">{completedActivities.length}</span>
+									<span className="stat-label">{t("ranking.completed_count", "Completadas")}</span>
+								</div>
+								<div className="stat-item">
+									<span className="stat-number">
+										{completedActivities.filter(a => a.statusKey === 'pending_review').length}
+									</span>
+									<span className="stat-label">{t("ranking.pending_review_count", "Pendientes")}</span>
+								</div>
+								<div className="stat-item">
+									<span className="stat-number">{selectedTeam.points || 0}</span>
+									<span className="stat-label">{t("ranking.total_points", "Puntos totales")}</span>
+								</div>
 							</div>
 						</div>
+
+						{completedActivities.length === 0 ? (
+							<div className="no-activities">
+								<div className="empty-icon">📋</div>
+								<h3>{t("ranking.no_completed_activities", "No hay actividades completadas")}</h3>
+								<p>{t("ranking.no_completed_activities_desc", "Aún no has completado ninguna actividad en este evento")}</p>
+							</div>
+						) : (
+							<div className="activities-list">
+								{completedActivities.map((activity) => (
+									<div 
+										key={activity.id}
+										className="activity-item activity-clickable"
+										onClick={() => handleActivityClick(activity)}
+									>
+										<div className="activity-header">
+											<h4 className="activity-name">{activity.name}</h4>
+											<div className="activity-actions">
+												<span className={`activity-status ${getActivityStatusClass(activity.statusKey)}`}>
+													{getActivityStatusText(activity.statusKey)}
+												</span>
+												<span className="activity-type">
+													{getActivityTypeText(activity.type?.id)}
+												</span>
+											</div>
+										</div>
+
+										<div className="activity-details">
+											<div className="detail-item">
+												<span className="detail-label">{t("ranking.points", "Puntos")}:</span>
+												<span className="detail-value">
+													{renderActivityPoints(activity)}
+												</span>
+											</div>
+											<div className="detail-item">
+												<span className="detail-label">{t("ranking.completed_time", "Completada")}:</span>
+												<span className="detail-value">{formatCompletedTime(activity.complete_time)}</span>
+											</div>
+										</div>
+										
+										<div className="activity-arrow">›</div>
+									</div>
+								))}
+							</div>
+						)}
 					</div>
 				)}
 			</div>

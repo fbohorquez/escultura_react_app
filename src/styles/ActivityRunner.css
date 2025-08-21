@@ -535,7 +535,6 @@
 /* Pending Review Styles */
 .pending-review .result-icon {
   color: #ffc107;
-  animation: pulse 2s infinite;
 }
 
 .pending-review .result-title {

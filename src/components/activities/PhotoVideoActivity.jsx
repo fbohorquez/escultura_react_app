@@ -2,7 +2,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useSelector } from "react-redux";
-import { enqueueUpload } from "../../services/uploadQueue";
+import { enqueueMultipleVersions, generateVersionUrls } from "../../services/uploadQueue";
+import { createImageVersions, isImageFile, COMPRESSION_CONFIGS } from "../../utils/imageCompressionUtils";
 
 import iconPhoto from "../../assets/icono_equipo_foto.png";
 
@@ -82,65 +83,126 @@ const PhotoVideoActivity = ({ activity, onComplete, timeExpired }) => {
 			setIsUploading(true);
 			setUploadError(null);
 			
-			// Convertir archivo a base64 usando exactamente el mismo patrón que teamPage
-			const reader = new FileReader();
-			reader.onload = async () => {
-				const base64Data = reader.result;
-				
+			// Construir información básica del archivo
+			const timestamp = Date.now();
+			const event_path = "event_" + String(event.id);
+			const team_path = "team_" + String(selectedTeam.id);
+			const fileExtension = selectedMedia.type.split('/')[1] || (isVideo ? 'mp4' : 'jpg');
+			const file_name = `activity_${activity.id}.${fileExtension}`;
+			const basePath = `/${event_path}@${team_path}@activity_${activity.id}`;
+			
+			// Si es imagen, crear múltiples versiones
+			if (isImageFile(selectedMedia) && !isVideo) {
 				try {
-					// Construir ruta del archivo siguiendo el patrón de teamPage
-					const timestamp = Date.now();
-					const event_path = "event_" + String(event.id);
-					const team_path = "team_" + String(selectedTeam.id);
-					const fileExtension = selectedMedia.type.split('/')[1] || (isVideo ? 'mp4' : 'jpg');
-					const file_name = `activity_${activity.id}.${fileExtension}`;
-					const file_path = event_path + "@" + team_path + "@" + file_name;
+					// Crear versiones comprimidas de la imagen
+					const imageVersions = await createImageVersions(selectedMedia, [
+						COMPRESSION_CONFIGS.MOBILE
+					]);
 					
-					const uploadUrl = `/${file_path}/upload`;
-					
-					// Usar el mismo sistema de cola que teamPage
-					await enqueueUpload({
-						file: base64Data,
-						url: uploadUrl,
-						metadata: {
-							activityId: activity.id,
-							timestamp: timestamp,
-							type: isVideo ? 'video' : 'photo',
-							source: 'device'
-						},
+					// Subir todas las versiones (agregando la extensión como parámetro)
+					await enqueueMultipleVersions(imageVersions, basePath, fileExtension, {
+						activityId: activity.id,
+						timestamp: timestamp,
+						type: 'photo',
+						source: 'device',
+						originalFileName: selectedMedia.name
 					});
 					
-					// Construir la URL completa del archivo subido para guardar en data
+					// Construir URL base para las versiones
 					const baseUrl = import.meta.env.VITE_API_BASE_URL.replace('/api', '');
-					const fileUrl = `${baseUrl}/uploads/events/event_${event.id}/team_${selectedTeam.id}/${file_name}`;
+					const baseFileUrl = `${baseUrl}/uploads/events/event_${event.id}/team_${selectedTeam.id}/activity_${activity.id}.${fileExtension}`;
+					
+					// Generar URLs de las diferentes versiones
+					const versionUrls = generateVersionUrls(baseFileUrl, ['original', 'compressed']);
 					
 					// Limpiar recursos antes de completar
 					URL.revokeObjectURL(mediaPreview);
 					
-					// Completar actividad con éxito
+					// Completar actividad con éxito, incluyendo información de versiones
 					onComplete(true, {
-						type: isVideo ? 'video' : 'photo',
-						path: file_path,
+						type: 'photo',
+						path: basePath,
 						uploadedAt: timestamp,
 						originalFile: selectedMedia.name,
 						source: 'device',
-						data: fileUrl
+						data: baseFileUrl, // URL original para compatibilidad
+						versions: versionUrls, // URLs de todas las versiones
+						hasCompression: true
 					});
 					
-				} catch (error) {
-					console.error('Error uploading selected media:', error);
-					setUploadError(t('upload_failed'));
-					setIsUploading(false);
+				} catch (compressionError) {
+					console.warn('Error en compresión, subiendo solo original:', compressionError);
+					// Fallback: subir solo versión original si falla la compresión
+					await handleOriginalUploadFallback();
 				}
-			};
-			
-			reader.readAsDataURL(selectedMedia);
+			} else {
+				// Para videos o si no es imagen, usar el método original
+				await handleOriginalUploadFallback();
+			}
 			
 		} catch (error) {
 			console.error('Error processing selected media:', error);
 			setUploadError(t('upload_failed'));
 			setIsUploading(false);
 		}
+	};
+
+	// Función auxiliar para subir solo la versión original (fallback)
+	const handleOriginalUploadFallback = async () => {
+		const reader = new FileReader();
+		reader.onload = async () => {
+			const base64Data = reader.result;
+			
+			try {
+				// Construir ruta del archivo siguiendo el patrón original
+				const timestamp = Date.now();
+				const event_path = "event_" + String(event.id);
+				const team_path = "team_" + String(selectedTeam.id);
+				const fileExtension = selectedMedia.type.split('/')[1] || (isVideo ? 'mp4' : 'jpg');
+				const file_name = `activity_${activity.id}.${fileExtension}`;
+				const file_path = event_path + "@" + team_path + "@" + file_name;
+				
+				const uploadUrl = `/${file_path}/upload`;
+				
+				// Usar el método original de enqueue (compatibilidad)
+				const { enqueueUpload } = await import("../../services/uploadQueue");
+				await enqueueUpload({
+					file: base64Data,
+					url: uploadUrl,
+					metadata: {
+						activityId: activity.id,
+						timestamp: timestamp,
+						type: isVideo ? 'video' : 'photo',
+						source: 'device'
+					},
+				});
+				
+				// Construir la URL completa del archivo subido para guardar en data
+				const baseUrl = import.meta.env.VITE_API_BASE_URL.replace('/api', '');
+				const fileUrl = `${baseUrl}/uploads/events/event_${event.id}/team_${selectedTeam.id}/${file_name}`;
+				
+				// Limpiar recursos antes de completar
+				URL.revokeObjectURL(mediaPreview);
+				
+				// Completar actividad con éxito (método original)
+				onComplete(true, {
+					type: isVideo ? 'video' : 'photo',
+					path: file_path,
+					uploadedAt: timestamp,
+					originalFile: selectedMedia.name,
+					source: 'device',
+					data: fileUrl,
+					hasCompression: false // Indicar que no se comprimió
+				});
+				
+			} catch (error) {
+				console.error('Error uploading selected media:', error);
+				setUploadError(t('upload_failed'));
+				setIsUploading(false);
+			}
+		};
+		
+		reader.readAsDataURL(selectedMedia);
 	};
 
 	// Función para volver a tomar (limpiar selección actual)

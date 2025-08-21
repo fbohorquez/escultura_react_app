@@ -37,6 +37,7 @@ import ActivityValorate from "./components/ActivityValorate";
 import PhotoManagementPage from "./pages/photoManagementPage";
 import TeamActivitiesPage from "./pages/teamActivitiesPage";
 import TeamActivityDetailPage from "./pages/teamActivityDetailPage";
+import TeamActivityReadOnlyPage from "./pages/teamActivityReadOnlyPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import DeviceNotAssignedPage from "./pages/deviceNotAssignedPage";
 
@@ -47,6 +48,8 @@ import './styles/reset.css';
 import './styles/sessionControl.css';
 import './styles/valorate.css';
 import './styles/gadgets.css';
+import './styles/ranking.css';
+import './styles/teamActivityReadOnly.css';
 
 function App() {
 	// Hook para verificar suspensión del evento
@@ -101,6 +104,10 @@ function App() {
 				<Route
 					path="/admin/valorate/:eventId/activity/:teamId/:activityId"
 					element={<ActivityValorate />}
+				/>
+				<Route
+					path="/team/activity/:eventId/:teamId/:activityId"
+					element={<TeamActivityReadOnlyPage />}
 				/>
 				<Route path="/device-not-assigned" element={<DeviceNotAssignedPage />} />
 				<Route path="/404" element={<NotFoundPage />} />

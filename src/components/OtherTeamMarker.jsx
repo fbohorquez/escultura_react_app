@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { usePopup } from "../hooks/usePopup";
 import { useTranslation } from "react-i18next";
 import { isTeamActive, formatLastSeen } from "../utils/keepaliveUtils";
+import { getPreferredVersionUrl } from "../services/uploadQueue";
 import defaultTeamPhoto from "../assets/icono_equpo@2x.png";
 
 // Cargar assets de equipos (Equipo_0.png a Equipo_29.png)
@@ -62,7 +63,11 @@ const OtherTeamMarker = ({ team, index, onMarkerLoad }) => {
       try {
         const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace("/api", "");
         const photoPath = team.photo.replace(/@/g, "/");
-        return `${baseUrl}/uploads/events/${photoPath}`;
+        const originalUrl = `${baseUrl}/uploads/events/${photoPath}`;
+        
+        // Obtener URL de versión comprimida con fallback a original
+        const { url: optimizedUrl } = getPreferredVersionUrl(originalUrl, 'compressed');
+        return optimizedUrl;
       } catch {
         return defaultTeamPhoto;
       }

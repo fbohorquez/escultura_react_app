@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { useTranslation } from "react-i18next";
 import BackgroundLayout from "../components/backgroundLayout";
 import BackButton from "../components/backButton";
+import { TeamPhoto } from "../components/OptimizedImage";
 import { useLocation } from "react-router-dom";
 
 import iconPhoto from "../assets/icono_equipo_foto.png";
@@ -21,7 +22,8 @@ import {
 
 import {updateTeamData} from "../features/teams/teamsSlice";
 
-import { enqueueUpload } from "../services/uploadQueue";
+import { enqueueUpload, enqueueMultipleVersions, generateVersionUrls } from "../services/uploadQueue";
+import { createImageVersions, isImageFile, COMPRESSION_CONFIGS, blobToBase64 } from "../utils/imageCompressionUtils";
 
 const TeamPage = () => {
 	const { t } = useTranslation();
@@ -117,18 +119,66 @@ const TeamPage = () => {
 			
 			// Solo procesar la foto si el usuario seleccionó una
 			if (photo) {
-				let event_path = "event_" + String(event.id);
-				let team_path = "team_" + String(team.id);
-				let file_name = "photo.jpeg"
-				img_path = event_path + "@" + team_path + "@" + file_name
+				const event_path = "event_" + String(event.id);
+				const team_path = "team_" + String(team.id);
+				const file_name = "photo.jpeg";
+				const basePath = `/${event_path}@${team_path}@photo`;
+				
+				try {
+					// Convertir base64 a Blob para procesamiento
+					const response = await fetch(photo);
+					const photoBlob = await response.blob();
+					
+					// Verificar si es imagen y crear versiones comprimidas
+					if (isImageFile(photoBlob)) {
+						// Crear versiones comprimidas de la imagen
+						const imageVersions = await createImageVersions(photoBlob, [
+							COMPRESSION_CONFIGS.MOBILE
+						]);
+						
+						// Subir todas las versiones (agregando extensión jpeg)
+						await enqueueMultipleVersions(imageVersions, basePath, 'jpeg', {
+							teamId: team.id,
+							eventId: event.id,
+							type: 'team_photo',
+							timestamp: Date.now()
+						});
+						
+						// Usar path base para el estado (compatible con código existente)
+						img_path = `${event_path}@${team_path}@photo.jpeg`;
+						
+					} else {
+						// Fallback al método original si no es imagen válida
+						img_path = event_path + "@" + team_path + "@" + file_name;
+						const uploadUrl = `/${img_path}/upload`;
 
-				const uploadUrl = `/${img_path}/upload`;
+						await enqueueUpload({
+							file: photo,
+							url: uploadUrl,
+							metadata: {
+								teamId: team.id,
+								eventId: event.id,
+								type: 'team_photo'
+							},
+						});
+					}
+					
+				} catch (compressionError) {
+					console.warn('Error en compresión de foto de equipo, usando método original:', compressionError);
+					// Fallback al método original si falla la compresión
+					img_path = event_path + "@" + team_path + "@" + file_name;
+					const uploadUrl = `/${img_path}/upload`;
 
-				await enqueueUpload({
-					file: photo,
-					url: uploadUrl,
-					metadata: {},
-				});
+					await enqueueUpload({
+						file: photo,
+						url: uploadUrl,
+						metadata: {
+							teamId: team.id,
+							eventId: event.id,
+							type: 'team_photo'
+						},
+					});
+				}
 			} else {
 				// Usar imagen por defecto cuando no se selecciona foto
 				img_path = "default_team_photo";
@@ -168,21 +218,28 @@ const TeamPage = () => {
 		<BackgroundLayout>
 			{!state?.fromAutoSelect && <BackButton onClick={handleBack} />}
 			<div className="team-detail">
-				{(photo && <img src={photo} alt="team" className="team-preview" onClick={handlePhotoClick} />) || 
-				 (team.photo && team.photo !== "default_team_photo" && (
-					<img 
-						src={`${(import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace('/api', '')}/uploads/events/event_${event.id}/team_${team.id}/photo.jpeg`} 
-						alt="team" 
-						className="team-preview" 
-						onClick={handlePhotoClick} 
-					/>
-				 )) || (
-					<img
-						src={iconPhoto}
-						alt="icono equipo"
-						className="team-detail-icon"
-						onClick={handlePhotoClick}
-					/>
+				{/* Si hay foto seleccionada (preview), mostrarla */}
+				{photo ? (
+					<img src={photo} alt="team" className="team-preview" onClick={handlePhotoClick} />
+				) : (
+					/* Si el equipo tiene foto guardada, usar componente optimizado */
+					team.photo && team.photo !== "default_team_photo" ? (
+						<TeamPhoto
+							eventId={event.id}
+							teamId={team.id}
+							alt="Foto del equipo"
+							onClick={handlePhotoClick}
+							style={{ cursor: 'pointer' }}
+						/>
+					) : (
+						/* Icono por defecto si no hay foto */
+						<img
+							src={iconPhoto}
+							alt="icono equipo"
+							className="team-detail-icon"
+							onClick={handlePhotoClick}
+						/>
+					)
 				)}
 				<input
 					type="file"

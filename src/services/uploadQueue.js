@@ -121,6 +121,88 @@ export async function processUploadQueue() {
 }
 
 /**
+ * Añade múltiples versiones de un archivo a la cola de subida.
+ * @param {Object} versions - Objeto con las diferentes versiones del archivo {original: Blob, compressed: Blob, etc.}
+ * @param {string} basePath - Ruta base del archivo (sin extensión ni sufijo de versión)
+ * @param {string} fileExtension - Extensión del archivo (ej: 'jpeg', 'png', 'jpg')
+ * @param {Object} baseMetadata - Metadatos base que se aplicarán a todas las versiones
+ * @returns {Promise<Array>} - Array de promesas de subida
+ */
+export async function enqueueMultipleVersions(versions, basePath, fileExtension, baseMetadata = {}) {
+	const uploadPromises = [];
+	
+	for (const [versionName, fileBlob] of Object.entries(versions)) {
+		if (!fileBlob) continue;
+		
+		// Construir URL específica para esta versión con extensión
+		const versionSuffix = versionName === 'original' ? '' : `_${versionName}`;
+		const fileName = `${basePath}${versionSuffix}.${fileExtension}`;
+		const versionUrl = `/${fileName}/upload`;
+		
+		// Metadatos específicos para esta versión
+		const versionMetadata = {
+			...baseMetadata,
+			version: versionName,
+			isOriginal: versionName === 'original',
+			hasMultipleVersions: true,
+			fileName: fileName
+		};
+		
+		// Encolar cada versión
+		const uploadPromise = enqueueUpload({
+			file: fileBlob,
+			url: versionUrl,
+			metadata: versionMetadata
+		});
+		
+		uploadPromises.push(uploadPromise);
+	}
+	
+	return Promise.all(uploadPromises);
+}
+
+/**
+ * Genera URLs para las diferentes versiones de un archivo
+ * @param {string} baseUrl - URL base del archivo
+ * @param {Array} availableVersions - Versiones disponibles ['original', 'compressed', 'thumbnail']
+ * @returns {Object} - Objeto con URLs de las diferentes versiones
+ */
+export function generateVersionUrls(baseUrl, availableVersions = ['original', 'compressed']) {
+	const urls = {};
+	const basePath = baseUrl.replace(/\.[^/.]+$/, ''); // Quitar extensión
+	const extension = baseUrl.split('.').pop();
+	
+	for (const version of availableVersions) {
+		if (version === 'original') {
+			urls[version] = baseUrl;
+		} else {
+			urls[version] = `${basePath}_${version}.${extension}`;
+		}
+	}
+	
+	return urls;
+}
+
+/**
+ * Obtiene la URL de la versión preferida de un archivo con fallback
+ * @param {string} baseUrl - URL base del archivo
+ * @param {string} preferredVersion - Versión preferida ('compressed', 'thumbnail', etc.)
+ * @param {string} fallbackVersion - Versión de fallback (por defecto 'original')
+ * @returns {Object} - {url: string, version: string} URL y versión que se está usando
+ */
+export function getPreferredVersionUrl(baseUrl, preferredVersion = 'compressed', fallbackVersion = 'original') {
+	const versions = generateVersionUrls(baseUrl, [preferredVersion, fallbackVersion]);
+	
+	// En una implementación completa, aquí verificaríamos si la versión preferida existe
+	// Por ahora, siempre devolvemos la preferida y dejamos que el navegador maneje el fallback
+	return {
+		url: versions[preferredVersion] || versions[fallbackVersion] || baseUrl,
+		version: versions[preferredVersion] ? preferredVersion : fallbackVersion,
+		fallbackUrl: versions[fallbackVersion] || baseUrl
+	};
+}
+
+/**
  * Inicializa el manejador de la cola: se dispara al montar la app.
  * Retriada al reconectar.
  */
