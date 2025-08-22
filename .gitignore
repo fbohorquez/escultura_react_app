@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 
 .env
+
+# Notification server
+notification-server/.env
+notification-server/backup.json
+notification-server/logs/

@@ -137,7 +137,7 @@ export async function enqueueMultipleVersions(versions, basePath, fileExtension,
 		// Construir URL específica para esta versión con extensión
 		const versionSuffix = versionName === 'original' ? '' : `_${versionName}`;
 		const fileName = `${basePath}${versionSuffix}.${fileExtension}`;
-		const versionUrl = `/${fileName}/upload`;
+		const versionUrl = `${fileName}/upload`;
 		
 		// Metadatos específicos para esta versión
 		const versionMetadata = {

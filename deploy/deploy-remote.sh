@@ -136,6 +136,17 @@ manage_remote_docker() {
                 sleep 5
             fi
         done
+        
+        # Verificar servidor de notificaciones
+        for i in {1..6}; do
+            if curl -s http://localhost:3089/health > /dev/null; then
+                echo "✅ Servidor de notificaciones respondiendo en puerto 3089"
+                break
+            else
+                echo "⏳ Esperando servidor de notificaciones... ($i/6)"
+                sleep 5
+            fi
+        done
 EOF
     
     log_success "Gestión Docker completada"
@@ -165,7 +176,9 @@ verify_deployment() {
     echo "🌐 URLs de acceso:"
     echo "   📱 Aplicación React: https://escultura.dev2bit.com:5173"
     echo "   🔗 Servidor Signaling: ws://escultura.dev2bit.com:3088"
-    echo "   💚 Health Check: http://escultura.dev2bit.com:3088/health"
+    echo "   � Servidor Notificaciones: http://escultura.dev2bit.com:3089"
+    echo "   �💚 Health Check Signaling: http://escultura.dev2bit.com:3088/health"
+    echo "   💚 Health Check Notificaciones: http://escultura.dev2bit.com:3089/health"
     echo ""
     echo "📋 Comandos útiles:"
     echo "   Ver logs: ./deploy-remote.sh logs"

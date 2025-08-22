@@ -10,6 +10,8 @@ import GadgetDetector from "./components/GadgetDetector";
 import ActivityQueueManager from "./components/ActivityQueueManager";
 import Popup from "./components/popup";
 import NotificationContainer from "./components/notificationContainer";
+import NotificationPermissionBanner from "./components/notifications/NotificationPermissionBanner";
+import NotificationNavigationManager from "./components/NotificationNavigationManager";
 import DebugModeIndicator from "./components/DebugModeIndicator";
 import URLHandler from "./components/URLHandler";
 import { useEventSuspensionCheck } from "./hooks/useEventSuspensionCheck";
@@ -74,6 +76,8 @@ function App() {
 			<ActivityQueueManager />
 			<Popup />
 			<NotificationContainer />
+			<NotificationPermissionBanner />
+			<NotificationNavigationManager />
 			<DebugModeIndicator />
 			<KeepaliveManager />
 			<Routes>

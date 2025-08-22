@@ -9,6 +9,7 @@ import "./i18n";
 import { PersistGate } from "redux-persist/integration/react";
 import { initUploadQueue } from "./services/uploadQueue";
 import { initAssetCaching } from "./services/assetCache";
+import { initNotificationSystem, promptNotificationPermission } from "./services/notificationInit";
 import { validateEventToken, getEventParamFromURL, clearEventParamFromURL, validateTeamToken, getTeamParamFromURL, clearTeamParamFromURL } from "./utils/eventToken";
 import { overrideNative } from "./utils/overrideNative";
 import { startConnectionMonitor } from "./services/firebase";
@@ -207,6 +208,14 @@ const getInitialRoute = async () => {
 getInitialRoute().then(initialRoute => {
 	initUploadQueue();
 	initAssetCaching();
+	
+	// Inicializar sistema de notificaciones push
+	initNotificationSystem();
+	
+	// Solicitar permisos de notificación después de que cargue la app
+	setTimeout(() => {
+		promptNotificationPermission();
+	}, 2000); // Esperar 2 segundos para que el usuario vea la interfaz
 	
 	// Inicializar monitor de conexiones Firebase
 	startConnectionMonitor();

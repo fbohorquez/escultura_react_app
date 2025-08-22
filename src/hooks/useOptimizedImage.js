@@ -168,12 +168,13 @@ function loadImagePromise(imageUrl) {
       resolve(true);
     };
     
-    img.onerror = () => {
+    img.onerror = (e) => {
+      console.log(e);
       reject(new Error(`Failed to load image: ${imageUrl}`));
     };
     
     // Configurar CORS si es necesario
-    img.crossOrigin = 'anonymous';
+    // img.crossOrigin = 'anonymous';
     img.src = imageUrl;
   });
 }

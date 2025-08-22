@@ -9,6 +9,7 @@ import {
   markChatAsReadThunk
 } from "../features/chats/chatsSlice";
 import { subscribeToChat } from "../services/firebase";
+import { notifyUserChatActivity, clearUserChatActivity } from "../services/chatNotifications";
 import { isMyMessage, getMessageSenderName, formatMessageTime } from "../utils/chatUtils";
 import BackgroundLayout from "../components/backgroundLayout";
 import BackButton from "../components/backButton";
@@ -50,6 +51,19 @@ const ChatRoomPage = () => {
       };
     }
   }, [eventId, chatId, dispatch]);
+
+  // Notificar actividad de usuario en chat (para evitar spam de notificaciones)
+  useEffect(() => {
+    if (eventId && chatId && currentUserId) {
+      // Notificar que el usuario está activo en este chat
+      notifyUserChatActivity(currentUserId, eventId, chatId);
+      
+      // Cleanup: notificar que ya no está activo al salir
+      return () => {
+        clearUserChatActivity(currentUserId, eventId);
+      };
+    }
+  }, [eventId, chatId, currentUserId]);
 
   // Marcar mensajes como leídos cuando se entra al chat
   useEffect(() => {

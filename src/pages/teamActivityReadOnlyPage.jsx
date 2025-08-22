@@ -172,6 +172,11 @@ const TeamActivityReadOnlyPage = () => {
 		               activity.data.toLowerCase().includes('.mov') || 
 		               activity.data.toLowerCase().includes('.avi');
 
+		let url = activity.data;
+		if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png')) {
+			url = url.replace(/(\.jpg|\.jpeg|\.png)$/, '_compressed$1');
+		}
+
 		if (isVideo) {
 			return (
 				<div className="media-content">
@@ -188,7 +193,11 @@ const TeamActivityReadOnlyPage = () => {
 			<div className="media-content">
 				<h4>{t("team_activity_readonly.photo_activity", "Actividad de Foto")}</h4>
 				<div className="media-preview">
-					<img src={activity.data} alt={activity.name} className="image-preview" />
+					{/* Debe intentar mostrar url y si no existe, debe mostrar activity.data */}
+					<img 
+						src={url} 
+						loading="lazy"
+						alt={activity.name} className="image-preview" />
 				</div>
 			</div>
 		);

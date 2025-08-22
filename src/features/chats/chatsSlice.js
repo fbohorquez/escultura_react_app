@@ -6,6 +6,7 @@ import {
   markChatAsRead as markChatAsReadInFirebase,
   getChatReadStatus
 } from "../../services/firebase";
+import { sendChatNotification } from "../../services/chatNotifications";
 
 // Thunk para enviar mensaje
 export const sendMessage = createAsyncThunk(
@@ -20,7 +21,32 @@ export const sendMessage = createAsyncThunk(
         type: senderType
       };
       
+      // PASO 1: Enviar mensaje a Firebase (como siempre)
       await sendMessageToFirebase(eventId, chatId, messageData);
+      
+      // PASO 2: NUEVP Y ADICIONAL - Enviar notificación push
+      // Esto NO interfiere con Firebase, es complementario
+      try {
+        const state = getState();
+        const chatRooms = state.chats.rooms || [];
+        const currentRoom = chatRooms.find(room => room.id === chatId);
+        const chatName = currentRoom?.name || `Chat ${chatId}`;
+        
+        await sendChatNotification(
+          eventId,
+          chatId,
+          messageData,
+          {
+            senderId,
+            senderName,
+            senderType
+          },
+          chatName
+        );
+      } catch (notificationError) {
+        // Error en notificaciones NO debe afectar el chat
+        console.warn('Error enviando notificación push (no crítico):', notificationError);
+      }
       
       // Marcar inmediatamente como leído para el remitente
       const state = getState();

@@ -17,6 +17,7 @@ services:
       - ../.env:/app/.env:ro
     depends_on:
       - signaling-server
+      - notification-server
     networks:
       - escultura-network
 
@@ -31,6 +32,23 @@ services:
       - PORT=3088
     networks:
       - escultura-network
+
+  notification-server:
+    build:
+      context: ../notification-server
+      dockerfile: Dockerfile
+    ports:
+      - "3089:3089"
+    environment:
+      - NODE_ENV=production
+      - PORT=3089
+    env_file:
+      - ../notification-server/.env
+    volumes:
+      - ../notification-server/backup:/app/backup
+    networks:
+      - escultura-network
+    restart: unless-stopped
 
 networks:
   escultura-network:
