@@ -127,13 +127,23 @@ export const clearLocalStorage = () => {
  */
 export const handleExistingSession = async (dispatch, state, navigate) => {
   const behavior = getEventLoadBehavior();
+  const selectedTeam = state.session.selectedTeam;
+  const event = state.event.event;
   
   console.log('🔄 Handling existing session with behavior:', behavior);
   
   switch (behavior) {
     case EVENT_LOAD_BEHAVIORS.KEEP_TEAM:
       // Mantener la asignación del equipo actual
-      navigate(`/team/${state.session.selectedTeam.id}`);
+      if (selectedTeam?.id) {
+        navigate(`/team/${selectedTeam.id}`);
+      } else if (event?.id) {
+        console.warn('⚠️ KEEP_TEAM behavior requested but no team is selected. Falling back to event view.');
+        navigate(`/event/${event.id}`);
+      } else {
+        console.warn('⚠️ KEEP_TEAM behavior requested without team or event. Redirecting to events list.');
+        navigate('/events');
+      }
       break;
     case EVENT_LOAD_BEHAVIORS.RESET_EVENT:
       // Desasociar dispositivo y limpiar todo
@@ -157,8 +167,15 @@ export const handleExistingSession = async (dispatch, state, navigate) => {
       
     case EVENT_LOAD_BEHAVIORS.KEEP_EVENT: {
       // Ir al mapa del evento actual
-      const eventId = state.event.event.id;
-      navigate(`/event/${eventId}`);
+      if (event?.id) {
+        navigate(`/event/${event.id}`);
+      } else if (selectedTeam?.id) {
+        console.warn('⚠️ KEEP_EVENT behavior requested but event is missing. Redirecting to team view.');
+        navigate(`/team/${selectedTeam.id}`);
+      } else {
+        console.warn('⚠️ KEEP_EVENT behavior requested without event or team. Redirecting to events list.');
+        navigate('/events');
+      }
       break;
     }
       

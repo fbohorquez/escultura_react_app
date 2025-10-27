@@ -176,10 +176,10 @@ const ActivityQueueManager = () => {
 		});
 		
 		dispatch(addToQueue({
-			titulo: t(titleKey, isForced ? "Actividad Obligatoria Asignada" : "Nueva Actividad Asignada"),
+			titulo: t(titleKey, isForced ? "Actividad Asignada" : "Actividad Recibida"),
 			texto: t(messageKey, isForced 
-				? "El organizador te ha asignado una actividad obligatoria: \"{{activityName}}\". Debes realizarla."
-				: "El organizador te ha asignado una nueva actividad: \"{{activityName}}\"", {
+				? "{{activityName}}"
+				: "{{activityName}}", {
 				activityName: queueItem.activity.name
 			}),
 			array_botones: buttons,

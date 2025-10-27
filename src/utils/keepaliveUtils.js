@@ -56,20 +56,33 @@ export const isRecentlyConnected = (lastSeen) => {
  */
 export const getActiveTeams = (teamsState) => {
   if (!teamsState) return [];
-  
+  const now = Date.now();
+
   return Object.entries(teamsState)
-    .map(([teamId, teamData]) => ({
-      teamId,
-      status: isTeamActive(teamData.lastSeen) ? 'online' : 'offline',
-      lastSeen: teamData.lastSeen,
-      isActive: isTeamActive(teamData.lastSeen),
-      sessionId: teamData.sessionId,
-      // Información del estado de la aplicación
-      appState: teamData.appState,
-      currentActivity: teamData.currentActivity,
-      appStateLabel: getAppStateLabel(teamData.appState, teamData.currentActivity?.name)
-    }))
-    .filter(team => team.status === 'online');
+    .map(([teamId, teamData]) => {
+      const lastSeen = teamData.lastSeen;
+      const sleepTimestamp = teamData.sleepTimestamp;
+      const withinActiveWindow = lastSeen && (now - lastSeen) < KEEPALIVE_TIMEOUT;
+      const withinSleepWindow = sleepTimestamp && (now - sleepTimestamp) < KEEPALIVE_TIMEOUT;
+      let status = 'offline';
+      if (withinActiveWindow) {
+        status = 'online';
+      } else if (teamData?.status === 'sleep' && withinSleepWindow) {
+        status = 'sleep';
+      }
+      return {
+        teamId,
+        status,
+        lastSeen,
+        sleepTimestamp: sleepTimestamp || null,
+        isActive: status === 'online' || status === 'sleep',
+        sessionId: teamData.sessionId,
+        appState: teamData.appState,
+        currentActivity: teamData.currentActivity,
+        appStateLabel: getAppStateLabel(teamData.appState, teamData.currentActivity?.name)
+      };
+    })
+    .filter(team => team.status === 'online' || team.status === 'sleep');
 };
 
 /**

@@ -177,4 +177,34 @@ router.get('/stats', (req, res) => {
   res.json(stats);
 });
 
+/**
+ * POST /api/user-app-activity - Reportar actividad del usuario en la aplicación
+ */
+router.post('/user-app-activity', async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        error: 'Falta userId'
+      });
+    }
+
+    // Actualizar actividad del usuario
+    subscriptionService.setUserAppActivity(userId);
+
+    res.json({
+      message: 'Actividad de usuario actualizada',
+      userId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error(`Error en POST /user-app-activity: ${error.message}`);
+    res.status(500).json({
+      error: 'Error actualizando actividad de usuario'
+    });
+  }
+});
+
 module.exports = router;

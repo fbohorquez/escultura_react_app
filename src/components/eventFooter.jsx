@@ -62,11 +62,46 @@ const EventFooter = ({ eventId, collapsed }) => {
 	const teamPosition = useMemo(() => {
 		if (isAdmin || !selectedTeam) return null;
 
-		const rankedTeams = [...teams]
-			.filter(team => team.device !== "") // Solo equipos activos
-			.sort((a, b) => (b.points || 0) - (a.points || 0));
-
-		const position = rankedTeams.findIndex(team => team.id === selectedTeam.id) + 1;
+		const activeTeams = [...teams].filter(team => team.device !== ""); // Solo equipos activos
+		
+		// Detectar si hay equipos con "#" (grupos)
+		const hasGroups = activeTeams.some(team => team.name.includes('#'));
+		
+		if (!hasGroups) {
+			// Comportamiento normal sin grupos
+			const rankedTeams = activeTeams.sort((a, b) => (b.points || 0) - (a.points || 0));
+			const position = rankedTeams.findIndex(team => team.id === selectedTeam.id) + 1;
+			return position > 0 ? position : null;
+		}
+		
+		// Agrupar equipos por nombre base y sumar puntos
+		const teamGroups = {};
+		activeTeams.forEach(team => {
+			const baseName = team.name.includes('#') 
+				? team.name.split('#')[0].trim() 
+				: team.name;
+			
+			if (!teamGroups[baseName]) {
+				teamGroups[baseName] = {
+					name: baseName,
+					points: 0,
+					teamIds: []
+				};
+			}
+			
+			teamGroups[baseName].points += (team.points || 0);
+			teamGroups[baseName].teamIds.push(team.id);
+		});
+		
+		// Convertir a array y ordenar por puntos
+		const rankedGroups = Object.values(teamGroups)
+			.sort((a, b) => b.points - a.points);
+		
+		// Buscar la posición del equipo actual
+		const position = rankedGroups.findIndex(group => 
+			group.teamIds.includes(selectedTeam.id)
+		) + 1;
+		
 		return position > 0 ? position : null;
 	}, [teams, selectedTeam, isAdmin]);
 

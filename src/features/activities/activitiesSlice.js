@@ -4,6 +4,7 @@ import { updateTeamData } from "../teams/teamsSlice";
 import { getValorateValue } from "../../utils/activityValidation";
 import { addToQueue } from "../popup/popupSlice";
 import { updateTeamActivityStatus } from "../../services/firebase";
+import { completeUniqueActivityWithTransaction } from "../../services/uniqueActivityService";
 
 // Thunk para actualizar estado de actividad en Firebase
 export const syncActivityStatus = createAsyncThunk(
@@ -44,70 +45,113 @@ export const finishActivityWithSync = createAsyncThunk(
 
 // Thunk para completar actividad y actualizar Firebase
 export const completeActivityWithSync = createAsyncThunk(
-	"activities/completeActivityWithSync",
-	async ({ eventId, teamId, activityId, success, media, timeTaken }, { getState, dispatch }) => {
-		const state = getState();
-		const team = state.teams.items.find(t => t.id === teamId);
-		
-		if (!team) {
-			throw new Error("Team not found");
-		}
-		
-		// Encontrar la actividad en el equipo
-		const activity = team.activities_data.find(a => a.id === activityId);
-		if (!activity) {
-			throw new Error("Activity not found in team data");
-		}
-		
-		// Determinar el valor de valorate basado en el tipo de actividad y resultado
-		const valorateValue = getValorateValue(activity, success);
-		
-		// Calcular puntos a sumar si la actividad es exitosa y no requiere valoración manual
-		let pointsToAdd = 0;
-		if (success && valorateValue === 1) {
-			// Si la actividad es exitosa y no requiere valoración manual, sumar puntos automáticamente
-			pointsToAdd = activity.points || 0;
-		}
-		
-		// Actualizar activities_data del equipo
-		const updatedActivitiesData = team.activities_data.map(activityItem => {
-			if (activityItem.id === activityId) {
-				return {
-					...activityItem,
-					complete: true,
-					complete_time: Math.floor(Date.now() / 1000),
-					data: media?.data || null,
-					valorate: valorateValue,
-					// Guardar puntos conseguidos en automáticas para mostrar en listados
-					awarded_points: valorateValue === 1 ? (success ? (activity.points || 0) : 0) : 0
-				};
-			}
-			return activityItem;
-		});
-		
-		// Preparar cambios para Firebase
-		const changes = {
-			activities_data: updatedActivitiesData
-		};
-		
-		// Si hay puntos que sumar, actualizar también los puntos del equipo
-		if (pointsToAdd > 0) {
-			const currentPoints = team.points || 0;
-			changes.points = currentPoints + pointsToAdd;
-			console.log(`✅ Sumando ${pointsToAdd} puntos al equipo ${team.name}. Total: ${changes.points}`);
-		}
-		
-		// Actualizar Firebase usando el thunk de teams para asegurar sincronización
-		await dispatch(updateTeamData({ eventId, teamId, changes })).unwrap();
-		
-		// Completar actividad localmente
-		dispatch(completeActivity({ activityId, success, media, timeTaken }));
-		
-		return { activityId, success, media, timeTaken, pointsAwarded: pointsToAdd };
-	}
-);
+        "activities/completeActivityWithSync",
+        async ({ eventId, teamId, activityId, success, media, timeTaken }, { getState, dispatch }) => {
+                const state = getState();
+                const team = state.teams.items.find(t => t.id === teamId);
 
-// Thunk para iniciar actividad verificando suspensión del evento
+                if (!team) {
+                        throw new Error("Team not found");
+                }
+
+                // Encontrar la actividad en el equipo
+                const activity = team.activities_data.find(a => a.id === activityId);
+                if (!activity) {
+                        throw new Error("Activity not found in team data");
+                }
+
+                // Determinar el valor de valorate basado en el tipo de actividad y resultado
+                const valorateValue = getValorateValue(activity, success);
+
+                // Calcular puntos a sumar si la actividad es exitosa y no requiere valoración manual
+                let pointsToAdd = 0;
+                if (success && valorateValue === 1) {
+                        // Si la actividad es exitosa y no requiere valoración manual, sumar puntos automáticamente
+                        pointsToAdd = activity.points || 0;
+                }
+
+                // ========== MANEJO DE ACTIVIDADES ÚNICAS ==========
+                // Si la actividad tiene uniq === 1, usar transacción atómica
+                if (activity.uniq === 1) {
+                        console.log(`🔒 Actividad única detectada: ${activity.name} (ID: ${activityId})`);
+                        
+                        try {
+                                const result = await completeUniqueActivityWithTransaction(
+                                        eventId,
+                                        teamId,
+                                        activityId,
+                                        activity,
+                                        success,
+                                        media,
+                                        valorateValue,
+                                        pointsToAdd
+                                );
+
+                                if (!result.success && result.alreadyCompleted) {
+                                        // Otro equipo ya completó esta actividad
+                                        console.warn(`⚠️ Actividad ${activityId} ya fue completada por el equipo ${result.completedByTeam}`);
+                                        
+                                        // Lanzar error para que el usuario sea informado
+                                        throw new Error(`ACTIVITY_ALREADY_COMPLETED:${result.completedByTeam}`);
+                                }
+
+                                console.log(`✅ Actividad única completada exitosamente y eliminada para otros equipos`);
+                                
+                                // Completar actividad localmente
+                                dispatch(completeActivity({ activityId, success, media, timeTaken }));
+
+                                return { 
+                                        activityId, 
+                                        success, 
+                                        media, 
+                                        timeTaken, 
+                                        pointsAwarded: result.pointsAwarded || 0,
+                                        wasUnique: true
+                                };
+                        } catch (error) {
+                                console.error("Error completando actividad única:", error);
+                                throw error;
+                        }
+                }
+
+                // ========== ACTIVIDADES NORMALES (NO ÚNICAS) ==========
+                // Actualizar activities_data del equipo
+                const updatedActivitiesData = team.activities_data.map(activityItem => {
+                        if (activityItem.id === activityId) {
+                                return {
+                                        ...activityItem,
+                                        complete: true,
+                                        complete_time: Math.floor(Date.now() / 1000),
+                                        data: media?.data || null,
+                                        valorate: valorateValue,
+                                        // Guardar puntos conseguidos en automáticas para mostrar en listados
+                                        awarded_points: valorateValue === 1 ? (success ? (activity.points || 0) : 0) : 0
+                                };
+                        }
+                        return activityItem;
+                });
+
+                // Preparar cambios para Firebase
+                const changes = {
+                        activities_data: updatedActivitiesData
+                };
+
+                // Si hay puntos que sumar, actualizar también los puntos del equipo
+                if (pointsToAdd > 0) {
+                        const currentPoints = team.points || 0;
+                        changes.points = currentPoints + pointsToAdd;
+                        console.log(`✅ Sumando ${pointsToAdd} puntos al equipo ${team.name}. Total: ${changes.points}`);
+                }
+
+                // Actualizar Firebase usando el thunk de teams para asegurar sincronización
+                await dispatch(updateTeamData({ eventId, teamId, changes })).unwrap();
+
+                // Completar actividad localmente
+                dispatch(completeActivity({ activityId, success, media, timeTaken }));
+
+                return { activityId, success, media, timeTaken, pointsAwarded: pointsToAdd, wasUnique: false };
+        }
+);// Thunk para iniciar actividad verificando suspensión del evento
 export const startActivityWithSuspensionCheck = createAsyncThunk(
 	"activities/startActivityWithSuspensionCheck",
 	async (activity, { getState, dispatch, rejectWithValue }) => {

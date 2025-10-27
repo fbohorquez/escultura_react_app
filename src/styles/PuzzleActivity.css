@@ -67,6 +67,7 @@
 	min-height: 300px;
 	overflow: hidden;
 	position: relative;
+	touch-action: none;
 }
 
 .jigsaw-puzzle {
@@ -74,6 +75,16 @@
 	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 	background: white;
 	padding: 10px;
+}
+
+.jigsaw-puzzle.touch-optimized,
+.jigsaw-puzzle.touch-optimized * {
+	touch-action: none;
+	-webkit-user-select: none;
+	user-select: none;
+	overscroll-behavior: contain;
+	-webkit-touch-callout: none;
+	-webkit-user-drag: none;
 }
 
 .puzzle-loading {

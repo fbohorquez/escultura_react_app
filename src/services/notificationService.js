@@ -340,3 +340,115 @@ export async function checkActiveSubscription(userId, eventId) {
     return { isSubscribed: false, source: 'error', error: error.message };
   }
 }
+
+/**
+ * Notificar valoración de actividad al equipo
+ */
+export async function notifyActivityValoration(eventId, teamId, activityId, activityName, points, isUpdate = false) {
+  try {
+    // Verificar que las notificaciones estén habilitadas
+    if (!ENABLE_NOTIFICATIONS) {
+      console.log('Notificaciones deshabilitadas, saltando notificación de valoración');
+      return false;
+    }
+
+    const response = await fetch(`${NOTIFICATION_SERVER_URL}/api/send-activity-valuation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        eventId,
+        teamId,
+        activityId,
+        activityName,
+        points,
+        isUpdate
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Error del servidor: ${response.status}`);
+    }
+
+    console.log('Notificación de valoración enviada exitosamente');
+    return true;
+  } catch (error) {
+    console.error('Error enviando notificación de valoración:', error);
+    return false;
+  }
+}
+
+/**
+ * Notificar al equipo que se le ha enviado una nueva actividad
+ */
+export async function notifyActivitySent(eventId, teamId, activityId, activityName, isForced = false) {
+  try {
+    // Verificar que las notificaciones estén habilitadas
+    if (!ENABLE_NOTIFICATIONS) {
+      console.log('Notificaciones deshabilitadas, saltando notificación de actividad');
+      return false;
+    }
+
+    const response = await fetch(`${NOTIFICATION_SERVER_URL}/api/send-activity-sent`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        eventId,
+        teamId,
+        activityId,
+        activityName,
+        isForced
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Error del servidor: ${response.status}`);
+    }
+
+    console.log('Notificación de actividad enviada exitosamente');
+    return true;
+  } catch (error) {
+    console.error('Error enviando notificación de actividad:', error);
+    return false;
+  }
+}
+
+/**
+ * Reportar actividad del usuario en la aplicación
+ */
+export async function reportUserActivity(userId) {
+  try {
+    // Usar timeout para no bloquear la UI
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout')), 3000)
+    );
+
+    const fetchPromise = fetch(`${NOTIFICATION_SERVER_URL}/api/user-app-activity`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId
+      })
+    });
+
+    const response = await Promise.race([fetchPromise, timeoutPromise]);
+
+    if (!response.ok) {
+      console.warn(`Error reportando actividad de usuario: ${response.status}`);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    // Fallar silenciosamente para no afectar la UX
+    console.warn('Error reportando actividad de usuario:', error.message);
+    return false;
+  }
+}

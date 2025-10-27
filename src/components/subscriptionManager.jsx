@@ -93,7 +93,27 @@ export default function SubscriptionManager() {
 							changed: !compareRecursive(teamData, selectedTeam)
 						});
 						if (!compareRecursive(teamData, selectedTeam)) {
-							dispatch(updateSelectedTeam(teamData));
+									dispatch(updateSelectedTeam(teamData));
+								}
+
+								// Verificar si se solicita refresh para este equipo
+								if (teamData.refreshRequested && teamData.refreshRequested === true) {
+									console.log('🔄 Refresh requested for current team, reloading page...');
+									
+									// Limpiar flag de refresh antes de recargar
+									import('../services/firebase').then(({ updateTeam }) => {
+										updateTeam(eventId, teamData.id, { 
+											refreshRequested: false,
+											refreshTimestamp: null
+										}).then(() => {
+											// Recargar página después de limpiar el flag
+											window.location.reload();
+										}).catch(error => {
+											console.error('Error clearing refresh flag:', error);
+											// Recargar de todas formas
+											window.location.reload();
+										});
+									});
 						}					
 					}
 				}

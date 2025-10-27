@@ -9,9 +9,9 @@ export const APP_STATES = {
 };
 
 export const APP_STATE_LABELS = {
-  [APP_STATES.EN_MAPA]: 'En mapa',
-  [APP_STATES.REALIZANDO_PRUEBA]: 'Realizando prueba',
-  [APP_STATES.FINALIZANDO_PRUEBA]: 'Finalizando prueba'
+  [APP_STATES.EN_MAPA]: 'InMap',
+  [APP_STATES.REALIZANDO_PRUEBA]: 'InAct',
+  [APP_STATES.FINALIZANDO_PRUEBA]: 'EndAct'
 };
 
 /**
@@ -21,16 +21,19 @@ export const APP_STATE_LABELS = {
  * @returns {string} Etiqueta descriptiva
  */
 export const getAppStateLabel = (state, activityName = null) => {
-  if (!state) return 'Desconocido';
+  if (!state) return 'Undef';
   
   switch (state) {
     case APP_STATES.EN_MAPA:
       return APP_STATE_LABELS[APP_STATES.EN_MAPA];
     case APP_STATES.REALIZANDO_PRUEBA:
-      return activityName ? `Realizando prueba "${activityName}"` : APP_STATE_LABELS[APP_STATES.REALIZANDO_PRUEBA];
+      return activityName
+				? `${APP_STATE_LABELS[APP_STATES.REALIZANDO_PRUEBA]} "${activityName}"`
+				: APP_STATE_LABELS[APP_STATES.REALIZANDO_PRUEBA];
     case APP_STATES.FINALIZANDO_PRUEBA:
-      return activityName ? `Finalizando prueba "${activityName}"` : APP_STATE_LABELS[APP_STATES.FINALIZANDO_PRUEBA];
+      return activityName ? `${APP_STATE_LABELS[APP_STATES.FINALIZANDO_PRUEBA]} "${activityName}"` : APP_STATE_LABELS[APP_STATES.FINALIZANDO_PRUEBA];
     default:
-      return 'Desconocido';
+      return 'Undef';
   }
 };
+

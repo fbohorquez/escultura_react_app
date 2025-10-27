@@ -10,6 +10,9 @@ const eventSubscriptions = new Map();
 // Usuarios activos en chat: key = userId, value = chatId actual
 const activeChatUsers = new Map();
 
+// Usuarios activos en la aplicación: key = userId, value = timestamp de última actividad
+const activeAppUsers = new Map();
+
 /**
  * Normalizar IDs a string para consistencia
  */
@@ -194,6 +197,37 @@ function filterActiveUsers(subscriptions, chatId) {
 }
 
 /**
+ * Marcar usuario como activo en la aplicación
+ */
+function setUserAppActivity(userId) {
+  userId = normalizeId(userId);
+  const timestamp = Date.now();
+  activeAppUsers.set(userId, timestamp);
+  logger.info(`Usuario ${userId} activo en la aplicación (${new Date(timestamp).toISOString()})`);
+}
+
+/**
+ * Verificar si usuario está activo en la aplicación (últimos 5 minutos)
+ */
+function isUserActiveInApp(userId) {
+  userId = normalizeId(userId);
+  const lastActivity = activeAppUsers.get(userId);
+  if (!lastActivity) return false;
+
+  const timeAgo = Date.now() - (1 * 30 * 1000); // 30 segundos
+  return lastActivity > timeAgo;
+}
+
+/**
+ * Filtrar usuarios activos en la aplicación para notificaciones de actividades
+ */
+function filterActiveAppUsers(subscriptions) {
+  // Todos los usuarios se consideran activos (Check)
+  return subscriptions;
+  return subscriptions.filter(sub => !isUserActiveInApp(sub.userId));
+}
+
+/**
  * Limpiar suscripciones expiradas (más de 24 horas sin actividad)
  */
 function cleanupExpiredSubscriptions() {
@@ -302,6 +336,9 @@ module.exports = {
   isUserActiveInChat,
   setUserActiveChat,
   filterActiveUsers,
+  setUserAppActivity,
+  isUserActiveInApp,
+  filterActiveAppUsers,
   cleanupExpiredSubscriptions,
   updateSubscriptionActivity,
   getStats,

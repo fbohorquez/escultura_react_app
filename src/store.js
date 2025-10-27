@@ -24,6 +24,7 @@ import notificationsReducer from "./features/notifications/notificationsSlice"; 
 import chatsReducer from "./features/chats/chatsSlice";
 import gadgetsReducer from "./features/gadgets/gadgetsSlice";
 import keepaliveReducer from "./features/keepalive/keepaliveSlice";
+import systemStatusReducer from "./features/systemStatus/systemStatusSlice";
 
 import { firebaseSyncMiddleware, forceKeepaliveHeartbeat } from "./services/firebase";
 import { sessionClearMiddleware } from "./utils/sessionClearMiddleware";
@@ -40,7 +41,8 @@ const rootReducer = combineReducers({
   notifications: notificationsReducer, // Notificaciones push
   chats: chatsReducer,
   gadgets: gadgetsReducer,
-  keepalive: keepaliveReducer
+  keepalive: keepaliveReducer,
+  systemStatus: systemStatusReducer
 });
 
 const persistConfig = {

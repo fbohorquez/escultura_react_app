@@ -1,5 +1,5 @@
 // src/pages/teamPage.jsx
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ import {updateTeamData} from "../features/teams/teamsSlice";
 
 import { enqueueUpload, enqueueMultipleVersions, generateVersionUrls } from "../services/uploadQueue";
 import { createImageVersions, isImageFile, COMPRESSION_CONFIGS, blobToBase64 } from "../utils/imageCompressionUtils";
+import { getSameTeamBehavior, SAME_TEAM_BEHAVIORS } from "../services/sameTeamBehavior";
 
 const TeamPage = () => {
 	const { t } = useTranslation();
@@ -42,27 +43,91 @@ const TeamPage = () => {
 	const token = useSelector((state) => state.session.token);
 
 	const fileInputRef = useRef();
+	const sameTeamBehavior = useMemo(() => getSameTeamBehavior(), []);
+	const isTakeBehavior = sameTeamBehavior === SAME_TEAM_BEHAVIORS.TAKE;
+	const isAdminBehavior = sameTeamBehavior === SAME_TEAM_BEHAVIORS.ADMIN;
+	const [adminApprovalPending, setAdminApprovalPending] = useState(false);
+	const [takeoverStatus, setTakeoverStatus] = useState("idle");
+	const takeoverAttemptRef = useRef(false);
+
+	const attemptTakeover = useCallback(async () => {
+		if (!team || !event) return;
+		if (takeoverAttemptRef.current) return;
+
+		takeoverAttemptRef.current = true;
+		setTakeoverStatus("in-progress");
+
+		const newToken = generateTokenUniqueForDevice();
+		const updatedTeam = { ...team, device: newToken };
+
+		dispatch(setToken(newToken));
+		dispatch(setSelectedTeam(updatedTeam));
+		dispatch(setIsAdmin(false));
+
+		try {
+			await dispatch(
+				updateTeamData({
+					eventId: event.id,
+					teamId: team.id,
+					changes: {
+						device: newToken,
+					},
+				})
+			).unwrap();
+			setTakeoverStatus("success");
+			sessionStorage.removeItem("autoSelectTeamId");
+		} catch (error) {
+			console.error("❌ Error taking over team device:", error);
+			setTakeoverStatus("error");
+		}
+	}, [dispatch, event, team]);
+
+	const actionDisabled =
+		(isTakeBehavior && takeoverStatus === "in-progress") ||
+		(isAdminBehavior && adminApprovalPending);
+
+	const handleTakeoverRetry = useCallback(() => {
+		takeoverAttemptRef.current = false;
+		setTakeoverStatus("idle");
+		setTimeout(() => {
+			attemptTakeover();
+		}, 0);
+	}, [attemptTakeover]);
 
 	// Effect para verificar si el equipo ya tiene un device y generar token automáticamente
 	useEffect(() => {
-		
 		if (!team || !event) return;
 
-		// Si el equipo ya tiene un device asignado, redirigir a la página de equipos
 		if (team.device && team.device !== "" && team.device !== token) {
+			if (isTakeBehavior) {
+				attemptTakeover();
+				return;
+			}
+
+			if (isAdminBehavior) {
+				if (!adminApprovalPending) {
+					setAdminApprovalPending(true);
+				}
+				return;
+			}
+
 			console.log('🔒 Team already has a device assigned:', team.device);
 			sessionStorage.setItem("autoSelectTeamId", team.id);
 			navigate(`/teams/${event.id}`, { replace: true });
 			return;
 		}
 
+		if (adminApprovalPending) {
+			setAdminApprovalPending(false);
+		}
+
 		// Si no hay token en el estado, generar uno nuevo
 		if (!token) {
 			const generatedToken = generateTokenUniqueForDevice();
+			const updatedTeam = { ...team, device: generatedToken };
 			dispatch(setToken(generatedToken));
-			dispatch(setSelectedTeam(team));
+			dispatch(setSelectedTeam(updatedTeam));
 			dispatch(setIsAdmin(false));
-			// Actualizar Firebase inmediatamente con el nuevo token
 			console.log('🔑 Generated new device token:', generatedToken);
 			dispatch(
 				updateTeamData({
@@ -73,11 +138,11 @@ const TeamPage = () => {
 					},
 				})
 			);
-		}else if (!team.device || team.device === "") {
+		} else if (!team.device || team.device === "") {
+			const updatedTeam = { ...team, device: token };
 			dispatch(setToken(token));
-			dispatch(setSelectedTeam(team));
+			dispatch(setSelectedTeam(updatedTeam));
 			dispatch(setIsAdmin(false));
-			// Si el token ya existe, actualizar Firebase
 			dispatch(
 				updateTeamData({
 					eventId: event.id,
@@ -88,11 +153,12 @@ const TeamPage = () => {
 				})
 			);
 		}
+
 		if (localStorage.getItem("goToMap") === "true") {
 			navigate(`/event/${event.id}`);
 			return;
 		}
-	}, [team, event, token, dispatch, navigate]);
+	}, [team, event, token, dispatch, navigate, isTakeBehavior, isAdminBehavior, attemptTakeover, adminApprovalPending]);
 
   const handleBack = () => {
 		navigate(`/teams/${event.id}`, { replace: true });
@@ -214,10 +280,61 @@ const TeamPage = () => {
 
 	if (!team) return <p>{t("teams.notFound")}</p>;
 
+	if (isAdminBehavior && adminApprovalPending) {
+		return (
+			<BackgroundLayout>
+				{!state?.fromAutoSelect && <BackButton onClick={handleBack} />}
+				<div className="team-detail">
+					<div className="info-box">
+						<h3>{t("teams.awaitingAdminApprovalTitle", "Solicitud enviada al administrador")}</h3>
+						<p>
+							{t(
+								"teams.awaitingAdminApprovalDescription",
+								"Hemos notificado al dispositivo administrador. Por favor espera a que aprueben el cambio de dispositivo."
+							)}
+						</p>
+					</div>
+				</div>
+			</BackgroundLayout>
+		);
+	}
+
 	return (
 		<BackgroundLayout>
-			{!state?.fromAutoSelect && <BackButton onClick={handleBack} />}
+			{/* {!state?.fromAutoSelect && <BackButton onClick={handleBack} />} */}
 			<div className="team-detail">
+				{isTakeBehavior && (
+					<div className="team-takeover-status">
+						{takeoverStatus === "in-progress" && (
+							<div className="info-box">
+								<p>
+									{t(
+										"teams.takeoverInProgress",
+										"Tomando el control del equipo, espera un momento..."
+									)}
+								</p>
+							</div>
+						)}
+						{takeoverStatus === "error" && (
+							<div className="info-box warning">
+								<p>
+									{t(
+										"teams.takeoverError",
+										"No pudimos tomar el control. Comprueba la conexión y vuelve a intentarlo."
+									)}
+								</p>
+								<button
+									type="button"
+									className="play-button"
+									onClick={handleTakeoverRetry}
+									disabled={takeoverStatus === "in-progress"}
+								>
+									{t("teams.takeoverRetry", "Reintentar")}
+								</button>
+							</div>
+						)}
+					</div>
+				)}
 				{/* Si hay foto seleccionada (preview), mostrarla */}
 				{photo ? (
 					<img src={photo} alt="team" className="team-preview" onClick={handlePhotoClick} />
@@ -266,7 +383,7 @@ const TeamPage = () => {
             />
           )
         }
-				<button onClick={handlePlay} className="play-button">
+				<button onClick={handlePlay} className="play-button" type="button" disabled={actionDisabled}>
           <img
             src={iconPlay}
             alt="icono play"

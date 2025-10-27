@@ -31,6 +31,8 @@
   height: 60px;
   border-radius: 50%;
   border: 1px solid var(--primary-color);
+  object-fit: none;
+  background: #fff;
 }
 
 .activity-details h2 {
@@ -451,13 +453,16 @@
 
 /* Activity Result Styles */
 .activity-result {
+  position: relative;
   padding: 2rem;
+  padding-bottom: 7rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 60vh;
   text-align: center;
+  width: 100%;
 }
 
 .activity-result-content {
@@ -522,9 +527,17 @@
 }
 
 .result-actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   gap: 1rem;
   justify-content: center;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.9) 45%, #ffffff 100%);
+  border-top: 1px solid #dee2e6;
+  z-index: 2;
 }
 
 .result-actions .btn {
@@ -619,6 +632,7 @@
   .result-actions {
     flex-direction: column;
     width: 100%;
+    padding: 1rem;
   }
   
   .result-actions .btn {

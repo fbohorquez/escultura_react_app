@@ -2,10 +2,11 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useSelector } from "react-redux";
 import { completeGadget, GADGETS } from "../services/firebase";
-import { useNotification } from "../hooks/useNotification";
 import glassBackground from "../assets/glass-background.png";
 import corazonGif from "../assets/corazon.gif";
 import besoKissGif from "../assets/beso-kiss.gif";
+import gritoImage from "../assets/Grito.jpg";
+import gritoAudio from "../assets/grito.mp3";
 
 /**
  * Componente que detecta cuando se recibe un gadget y ejecuta la acción correspondiente
@@ -13,7 +14,6 @@ import besoKissGif from "../assets/beso-kiss.gif";
 const GadgetDetector = () => {
   const event = useSelector((state) => state.event.event);
 	const eventId  = event?.id;
-	const { showNotification } = useNotification();
 	
 	const selectedTeam = useSelector((state) => state.session.selectedTeam);
 	const isAdmin = useSelector((state) => state.session.isAdmin);
@@ -58,69 +58,101 @@ const GadgetDetector = () => {
 		return new Promise((resolve) => {
 			console.log("Scare gadget started");
 			
-			// Crear efecto de susto con vibración y sonido
-			
-			// Vibración si está disponible
 			if (navigator.vibrate) {
 				navigator.vibrate([200, 100, 200, 100, 200]);
 			}
 			
-			// Crear overlay de susto
-			const scareOverlay = document.createElement('div');
-			scareOverlay.style.cssText = `
+			const displayDuration = 3500;
+			const overlay = document.createElement('div');
+			overlay.style.cssText = `
 				position: fixed;
 				top: 0;
 				left: 0;
-				right: 0;
-				bottom: 0;
-				background: linear-gradient(45deg, #ff0000, #000000, #ff0000, #000000);
-				background-size: 4px 4px;
-				z-index: 9999;
+				width: 100vw;
+				height: 100vh;
+				background: black;
 				display: flex;
 				align-items: center;
 				justify-content: center;
-				animation: scareFlash 0.2s infinite;
+				opacity: 0;
+				z-index: 9999;
+				animation: scareFadeIn 0.2s ease-out forwards;
 			`;
 			
-			// Agregar texto de susto
-			const scareText = document.createElement('div');
-			scareText.innerHTML = '😱<br/>¡SUSTO!';
-			scareText.style.cssText = `
-				color: white;
-				font-size: 3rem;
-				font-weight: bold;
-				text-align: center;
-				text-shadow: 2px 2px 4px black;
-				animation: scareShake 0.1s infinite;
+			const image = document.createElement('img');
+			image.src = gritoImage;
+			image.alt = "Susto";
+			image.style.cssText = `
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+				animation: scareZoom 0.6s ease-out forwards;
 			`;
+			overlay.appendChild(image);
 			
-			scareOverlay.appendChild(scareText);
-			
-			// Agregar estilos de animación
 			const style = document.createElement('style');
 			style.textContent = `
-				@keyframes scareFlash {
-					0%, 50% { opacity: 1; }
-					25%, 75% { opacity: 0.8; }
+				@keyframes scareFadeIn {
+					0% { opacity: 0; }
+					100% { opacity: 1; }
 				}
-				@keyframes scareShake {
-					0% { transform: translate(0px, 0px) rotate(0deg); }
-					25% { transform: translate(2px, -2px) rotate(1deg); }
-					50% { transform: translate(-1px, 2px) rotate(-1deg); }
-					75% { transform: translate(-2px, -1px) rotate(1deg); }
-					100% { transform: translate(1px, 1px) rotate(0deg); }
+				@keyframes scareFadeOut {
+					0% { opacity: 1; }
+					100% { opacity: 0; }
+				}
+				@keyframes scareZoom {
+					0% { transform: scale(1.1); }
+					100% { transform: scale(1); }
 				}
 			`;
 			document.head.appendChild(style);
-			document.body.appendChild(scareOverlay);
+			document.body.appendChild(overlay);
 			
-			// Remover después de 3 segundos y resolver la promesa
-			setTimeout(() => {
-				document.body.removeChild(scareOverlay);
-				document.head.removeChild(style);
+			const audio = new Audio(gritoAudio);
+			audio.volume = 1;
+			const playPromise = audio.play();
+			if (playPromise && playPromise.catch) {
+				playPromise.catch((error) => {
+					console.warn("Unable to play scare audio:", error);
+				});
+			}
+			
+			let resolved = false;
+			let fadeOutTimeout;
+			let endTimeout;
+			const cleanup = () => {
+				if (resolved) {
+					return;
+				}
+				resolved = true;
+				if (fadeOutTimeout) {
+					clearTimeout(fadeOutTimeout);
+				}
+				if (endTimeout) {
+					clearTimeout(endTimeout);
+				}
+				audio.pause();
+				audio.currentTime = 0;
+				if (document.body.contains(overlay)) {
+					document.body.removeChild(overlay);
+				}
+				if (document.head.contains(style)) {
+					document.head.removeChild(style);
+				}
 				console.log("Scare gadget completed");
-				resolve(); // Resolver la promesa cuando termine completamente
-			}, 3000);
+				resolve();
+			};
+			
+			fadeOutTimeout = setTimeout(() => {
+				overlay.style.animation = `${overlay.style.animation}, scareFadeOut 0.4s ease-in forwards`;
+			}, Math.max(0, displayDuration - 400));
+			
+			endTimeout = setTimeout(() => {
+				cleanup();
+			}, displayDuration);
+			
+			audio.addEventListener('ended', cleanup, { once: true });
+			overlay.addEventListener('animationcancel', cleanup, { once: true });
 		});
 	}, []);
 	
@@ -407,16 +439,6 @@ const GadgetDetector = () => {
 			return;
 		}
 		
-		// Mostrar notificación del gadget recibido
-		if (import.meta.env.VITE_GADGET_NOTIFICATION === 'true' || !import.meta.env.VITE_GADGET_NOTIFICATION) {
-			showNotification({
-				type: "warning",
-				title: "¡Gadget Recibido!",
-				message: `${gadgetInfo.name}: ${gadgetInfo.description}`,
-				duration: 5000
-			});
-		}
-		
 		// Ejecutar la acción específica del gadget y esperar a que termine
 		try {
 			switch (gadgetId) {
@@ -448,7 +470,9 @@ const GadgetDetector = () => {
 		} catch (error) {
 			console.error(`❌ Error executing gadget ${gadgetId}:`, error);
 		}
-	}, [showNotification, executeRotateScreen, executeSusto, executeBrokenGlass, executeHearts, executeKiss]);
+	}, [
+		executeRotateScreen, executeSusto, executeBrokenGlass, executeHearts, executeKiss
+	]);
 
 	// Función para procesar la cola de gadgets
 	const processGadgetQueue = useCallback(async () => {
@@ -536,16 +560,6 @@ const GadgetDetector = () => {
 			
 			if (preventActivity && currentTeam.isActivityActive) {
 				console.log('🔧 GadgetDetector: Gadget execution prevented - team is doing activity');
-				
-				// Mostrar notificación sobre el bloqueo
-				showNotification({
-					type: "info",
-					title: "Gadget Diferido",
-					message: "El gadget se ejecutará cuando termines la actividad actual",
-					duration: 4000
-				});
-				
-				// No actualizar la referencia para que se ejecute cuando termine la actividad
 				return;
 			}
 			
@@ -562,7 +576,9 @@ const GadgetDetector = () => {
 		// Actualizar la referencia
 		previousGadgetRef.current = currentGadget;
 		
-	}, [currentTeam, isAdmin, eventId, addGadgetToQueue, showNotification]);
+	}, [
+		currentTeam, isAdmin, eventId, addGadgetToQueue, 
+	]);
 	
 	// Este componente no renderiza nada
 	return null;

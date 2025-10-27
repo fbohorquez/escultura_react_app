@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import BackgroundLayout from "../components/backgroundLayout";
 import BackButton from "../components/backButton";
 import { clearSession, refreshSession } from "../features/session/sessionSlice";
-import { updateTeamData } from "../features/teams/teamsSlice";
+import { updateTeamData, requestTeamRefresh } from "../features/teams/teamsSlice";
 import "../styles/sessionControl.css";
 import TeamConnectionStatus from "../components/TeamConnectionStatus";
 
@@ -17,6 +17,8 @@ const SessionControlPage = () => {
 	
 	const event = useSelector((state) => state.event.event);
 	const teams = useSelector((state) => state.teams.items);
+	// Estado keepalive para detectar status sleep
+	const keepaliveTeams = useSelector((state) => state.keepalive.teams || {});
 	const session = useSelector((state) => state.session);
 
 	// Forzar actualización cuando se monta el componente
@@ -26,8 +28,15 @@ const SessionControlPage = () => {
 
 	// Calcular equipos asociados usando useMemo para optimizar re-renders
 	const associatedTeams = useMemo(() => {
-		return teams.filter(team => team.device && team.device !== "");
-	}, [teams]);
+		return teams.filter(team => team.device && team.device !== "").map(team => {
+			const keep = keepaliveTeams[team.id];
+			return {
+				...team,
+				_keepaliveStatus: keep?.status,
+				_keepaliveLastSeen: keep?.lastSeen
+			};
+		});
+	}, [teams, keepaliveTeams]);
 
 	const handleBack = () => {
 		navigate(-1);
@@ -73,6 +82,38 @@ const SessionControlPage = () => {
 				top: 20px;
 				right: 20px;
 				background: #4CAF50;
+				color: white;
+				padding: 12px 20px;
+				border-radius: 6px;
+				z-index: 10000;
+				box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+			`;
+			document.body.appendChild(notification);
+			setTimeout(() => document.body.removeChild(notification), 3000);
+		}
+	};
+
+	const handleRefreshTeam = async (teamId) => {
+		const team = teams.find(t => t.id === teamId);
+		if (team && await window.confirm(t("session_control.confirm_refresh", { teamName: team.name }))) {
+			dispatch(
+				requestTeamRefresh({
+					eventId: event.id,
+					teamId: teamId,
+				})
+			);
+			
+			// Mostrar feedback al usuario
+			console.log(`✅ Refresh solicitado para equipo "${team.name}"`);
+			
+			// Mostrar notificación temporal
+			const notification = document.createElement('div');
+			notification.textContent = `Refresh enviado a "${team.name}"`;
+			notification.style.cssText = `
+				position: fixed;
+				top: 20px;
+				right: 20px;
+				background: #2196F3;
 				color: white;
 				padding: 12px 20px;
 				border-radius: 6px;
@@ -131,16 +172,30 @@ const SessionControlPage = () => {
 											<span className="team-device">
 												{t("session_control.device")}: {team.device.substring(0, 8)}...
 											</span>
+															{team._keepaliveStatus === 'sleep' && (
+																<span className="team-sleep-status" style={{ color: '#ffa500', fontSize: '0.7rem', marginLeft: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+																	Pantalla bloqueada
+																</span>
+															)}
 										</div>
 										<div  style={{ marginLeft: '10px', marginRight: '10px' }}>
 											<TeamConnectionStatus teamId={team.id} eventId={event.id} />
 										</div>
-										<button 
-											className="btn-disassociate"
-											onClick={() => handleDisassociateTeam(team.id)}
-										>
-											{t("session_control.disassociate")}
-										</button>
+										<div className="team-actions">
+											<button 
+												className="btn-refresh-team"
+												onClick={() => handleRefreshTeam(team.id)}
+												title={t("session_control.refresh_team_tooltip")}
+											>
+												{t("session_control.refresh_team")}
+											</button>
+											<button 
+												className="btn-disassociate"
+												onClick={() => handleDisassociateTeam(team.id)}
+											>
+												{t("session_control.disassociate")}
+											</button>
+										</div>
 									</div>
 								))}
 							</div>

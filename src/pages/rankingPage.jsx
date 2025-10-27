@@ -25,9 +25,43 @@ const RankingPage = () => {
 
 	// Calcular ranking ordenado por puntos
 	const rankedTeams = useMemo(() => {
-		return [...teams]
-			.filter(team => team.device !== "") // Solo equipos que han empezado
-			.sort((a, b) => (b.points || 0) - (a.points || 0))
+		const activeTeams = [...teams].filter(team => team.device !== ""); // Solo equipos que han empezado
+		
+		// Detectar si hay equipos con "#" (grupos)
+		const hasGroups = activeTeams.some(team => team.name.includes('#'));
+		
+		if (!hasGroups) {
+			// Comportamiento normal sin grupos
+			return activeTeams
+				.sort((a, b) => (b.points || 0) - (a.points || 0))
+				.map((team, index) => ({
+					...team,
+					position: index + 1
+				}));
+		}
+		
+		// Agrupar equipos por nombre base y sumar puntos
+		const teamGroups = {};
+		activeTeams.forEach(team => {
+			const baseName = team.name.includes('#') 
+				? team.name.split('#')[0].trim() 
+				: team.name;
+			
+			if (!teamGroups[baseName]) {
+				teamGroups[baseName] = {
+					name: baseName,
+					points: 0,
+					groups: []
+				};
+			}
+			
+			teamGroups[baseName].points += (team.points || 0);
+			teamGroups[baseName].groups.push(team);
+		});
+		
+		// Convertir a array y ordenar por puntos
+		return Object.values(teamGroups)
+			.sort((a, b) => b.points - a.points)
 			.map((team, index) => ({
 				...team,
 				position: index + 1

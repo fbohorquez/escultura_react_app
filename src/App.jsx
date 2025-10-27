@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Routes, Route } from "react-router-dom";
 
 import RouteListener from "./components/routeListener";
@@ -9,14 +9,16 @@ import ChatReadStatusManager from "./components/chatReadStatusManager";
 import GadgetDetector from "./components/GadgetDetector";
 import ActivityQueueManager from "./components/ActivityQueueManager";
 import Popup from "./components/popup";
-import NotificationContainer from "./components/notificationContainer";
+// import NotificationContainer from "./components/notificationContainer.jsx";
 import NotificationPermissionBanner from "./components/notifications/NotificationPermissionBanner";
 import NotificationNavigationManager from "./components/NotificationNavigationManager";
+import UserActivityTracker from "./components/UserActivityTracker";
 import DebugModeIndicator from "./components/DebugModeIndicator";
 import URLHandler from "./components/URLHandler";
 import { useEventSuspensionCheck } from "./hooks/useEventSuspensionCheck";
 import { useTheme } from "./hooks/useTheme";
 import useForceOrientation from "./hooks/useForceOrientation";
+import useAppConfig from "./hooks/useAppConfig";
 import EventLoadBehaviorManager from "./components/EventLoadBehaviorManager";
 import KeepaliveManager from "./components/KeepaliveManager";
 
@@ -39,9 +41,12 @@ import ActivityValorate from "./components/ActivityValorate";
 import PhotoManagementPage from "./pages/photoManagementPage";
 import TeamActivitiesPage from "./pages/teamActivitiesPage";
 import TeamActivityDetailPage from "./pages/teamActivityDetailPage";
+import TeamGroupDetailPage from "./pages/teamGroupDetailPage";
 import TeamActivityReadOnlyPage from "./pages/teamActivityReadOnlyPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import DeviceNotAssignedPage from "./pages/deviceNotAssignedPage";
+import InitPage from "./pages/initPage";
+import SystemStatusPage from "./pages/SystemStatusPage";
 
 import './styles/global.css';
 import './styles/fonts.css';
@@ -63,6 +68,84 @@ function App() {
 	// Hook para controlar la orientación forzada según configuración
 	useForceOrientation();
 
+	// Hook para aplicar configuración dinámica de la aplicación (título e icono)
+	useAppConfig();
+
+	const wakeLockRef = useRef(null);
+	const wakeLockRetryTimeout = useRef(null);
+	const wakeLockRetryAttempts = useRef(0);
+
+	const MAX_WAKELOCK_RETRIES = 5;
+	const RETRY_BASE_DELAY = 2000; // 2 seconds
+
+	useEffect(() => {
+		const clearRetry = () => {
+			if (wakeLockRetryTimeout.current) {
+				clearTimeout(wakeLockRetryTimeout.current);
+				wakeLockRetryTimeout.current = null;
+			}
+		};
+
+		const requestWakeLock = async () => {
+			if (!('wakeLock' in navigator)) {
+				return;
+			}
+
+			try {
+				wakeLockRef.current = await navigator.wakeLock.request('screen');
+				wakeLockRetryAttempts.current = 0;
+				clearRetry();
+				wakeLockRef.current.addEventListener('release', () => {
+					wakeLockRef.current = null;
+					if (document.visibilityState === 'visible') {
+						retryWakeLock();
+					}
+				});
+			} catch (error) {
+				console.warn('Wake Lock request failed:', error);
+				retryWakeLock();
+			}
+		};
+
+		const retryWakeLock = () => {
+			if (!('wakeLock' in navigator)) {
+				return;
+			}
+
+			if (wakeLockRetryAttempts.current >= MAX_WAKELOCK_RETRIES) {
+				console.warn('Wake Lock max retry attempts reached');
+				return;
+			}
+
+			const delay = RETRY_BASE_DELAY * Math.pow(2, wakeLockRetryAttempts.current);
+			wakeLockRetryAttempts.current += 1;
+			clearRetry();
+			wakeLockRetryTimeout.current = setTimeout(() => {
+				requestWakeLock();
+			}, delay);
+		};
+
+		requestWakeLock();
+
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === 'visible' && !wakeLockRef.current) {
+				wakeLockRetryAttempts.current = 0;
+				retryWakeLock();
+			}
+		};
+
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+
+		return () => {
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+			clearRetry();
+			if (wakeLockRef.current) {
+				wakeLockRef.current.release().catch(() => {});
+				wakeLockRef.current = null;
+			}
+		};
+	}, []);
+
 	return (
 		<>
 			<URLHandler />
@@ -75,13 +158,15 @@ function App() {
 			<GadgetDetector />
 			<ActivityQueueManager />
 			<Popup />
-			<NotificationContainer />
+			{/* <NotificationContainer /> */}
 			<NotificationPermissionBanner />
 			<NotificationNavigationManager />
+			<UserActivityTracker />
 			<DebugModeIndicator />
 			<KeepaliveManager />
 			<Routes>
 				<Route path="/" element={<WelcomePage />} />
+				<Route path="/init" element={<InitPage />} />
 				<Route path="/events" element={<EventsPage />} />
 				<Route path="/teams/:eventId" element={<TeamsPage />} />
 				<Route path="/team/:teamId" element={<TeamPage />} />
@@ -100,10 +185,14 @@ function App() {
 					path="/admin/team-activities/:eventId"
 					element={<TeamActivitiesPage />}
 				/>
-				<Route
-					path="/admin/team-activities/:eventId/team/:teamId"
-					element={<TeamActivityDetailPage />}
-				/>
+				                                <Route
+                                        path="/admin/team-activities/:eventId/team/:teamId"
+                                        element={<TeamActivityDetailPage />}
+                                />
+                                <Route
+                                        path="/admin/team-activities/:eventId/team-group/:teamGroupName"
+                                        element={<TeamGroupDetailPage />}
+                                />
 				<Route path="/admin/valorate/:eventId" element={<ValoratePage />} />
 				<Route
 					path="/admin/valorate/:eventId/activity/:teamId/:activityId"
@@ -114,6 +203,7 @@ function App() {
 					element={<TeamActivityReadOnlyPage />}
 				/>
 				<Route path="/device-not-assigned" element={<DeviceNotAssignedPage />} />
+				<Route path="/system-status" element={<SystemStatusPage />} />
 				<Route path="/404" element={<NotFoundPage />} />
 			</Routes>
 		</>

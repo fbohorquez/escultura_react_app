@@ -3,13 +3,16 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { GoogleMap, useJsApiLoader, Marker, OverlayView } from "@react-google-maps/api";
 import { updateTeamData } from "../features/teams/teamsSlice";
+import { selectSelectedTeamData } from "../features/teams/teamsSelectors";
 import ActivityMarker from "./ActivityMarker";
 import markMe from "../assets/mark-me.png";
+import { KEEPALIVE_TIMEOUT } from "../utils/keepaliveUtils";
 import { usePopup } from "../hooks/usePopup";
 import { useDebugMode } from "../hooks/useDebugMode";
 import { useActivityProximity } from "../hooks/useActivityProximity";
 import { useTranslation } from "react-i18next";
 import { startActivityWithSuspensionCheck } from "../features/activities/activitiesSlice";
+import { getPermissionsSnapshot, requestGeolocationAccess, requestMotionAccess } from "../services/systemDiagnostics";
 import KalmanFilter from "kalmanjs";
 import "../styles/followButton.css";
 import OtherTeamMarker from "./OtherTeamMarker";
@@ -20,7 +23,7 @@ for (let i = 0; i <= 29; i++) {
 	try {
 		teamAssets[i] = new URL(`../assets/Equipo_${i}.png`, import.meta.url).href;
 	} catch {
-		console.warn(`Asset Equipo_${i}.png not found`);
+		// No-op: algunos assets pueden no existir en el bundle
 	}
 }
 
@@ -30,6 +33,7 @@ const MAX_JUMP_DISTANCE = 200; // Filtro de saltos grandes (mantenido como fallb
 const CENTROID_MOVEMENT_FACTOR = 0.8; // Factor k para filtro de centroide (k≈0.7–1.0)
 const ICON_SIZE = 80;
 const UPDATE_THROTTLE_MS = 500; // Throttle para actualizaciones de Firebase (500ms)
+const MAP_VIEW_PERSIST_THROTTLE_MS = 400;
 
 // Configuración del filtro de Kalman
 const KALMAN_R = 0.01; // Ruido de medición (más bajo = confía más en GPS)
@@ -37,6 +41,10 @@ const KALMAN_Q = 0.1;  // Ruido del proceso (más bajo = cambios más suaves)
 
 // Cache de imágenes precargadas
 const imageCache = new Map();
+const rotatedIconCache = new Map();
+
+const MAP_VIEW_STORAGE_PREFIX = 'mapView:event_';
+const CENTER_BUTTON_LONG_PRESS_MS = 600;
 
 // Función para precargar una imagen
 const preloadImage = (url) => {
@@ -64,69 +72,49 @@ const preloadImage = (url) => {
 
 // Función para crear iconos rotados usando Canvas (más compatible con Google Maps)
 const createRotatedIconSync = (imageUrl, rotation = 0, size = 80) => {
-	// Si no hay rotación, devolver la URL original
-	if (rotation === 0) {
+	const normalizedRotation = norm360(rotation || 0);
+	const roundedRotation = normalizedRotation === 0 ? 0 : (Math.round(normalizedRotation / 5) * 5) % 360;
+
+	if (roundedRotation === 0) {
 		return imageUrl;
 	}
 
-	console.log("🔄 Attempting to create rotated icon:", { imageUrl, rotation, size });
+	const cacheKey = `${imageUrl}|${roundedRotation}|${size}`;
+	const cachedIcon = rotatedIconCache.get(cacheKey);
+	if (cachedIcon) {
+		return cachedIcon;
+	}
 
-	// Verificar si la imagen está en caché
 	let cachedImage = imageCache.get(imageUrl);
-	
-	// Si no está en caché, intentar cargarla de forma síncrona
 	if (!cachedImage) {
-		try {
-			const img = new Image();
-			img.src = imageUrl;
-			
-			// Si la imagen ya está cargada (cache del navegador)
-			if (img.complete && img.naturalWidth > 0) {
-				imageCache.set(imageUrl, img);
-				cachedImage = img;
-				console.log("📸 Image loaded from browser cache:", imageUrl);
-			} else {
-				console.warn("⚠️ Image not immediately available, using original:", imageUrl);
-				return imageUrl;
-			}
-		} catch (error) {
-			console.warn("⚠️ Error loading image, using original:", error);
+		const img = new Image();
+		img.src = imageUrl;
+		if (img.complete && img.naturalWidth > 0) {
+			imageCache.set(imageUrl, img);
+			cachedImage = img;
+		} else {
 			return imageUrl;
 		}
 	}
 
 	try {
-		// Crear un canvas temporal
 		const canvas = document.createElement('canvas');
 		const ctx = canvas.getContext('2d');
 		canvas.width = size;
 		canvas.height = size;
 
-		// Limpiar el canvas con fondo transparente
 		ctx.clearRect(0, 0, size, size);
-		
-		// Guardar el estado del contexto
 		ctx.save();
-		
-		// Mover al centro del canvas
 		ctx.translate(size / 2, size / 2);
-		
-		// Rotar
-		ctx.rotate((rotation * Math.PI) / 180);
-		
-		// Dibujar la imagen centrada
+		ctx.rotate((roundedRotation * Math.PI) / 180);
 		ctx.drawImage(cachedImage, -size / 2, -size / 2, size, size);
-		
-		// Restaurar el estado del contexto
 		ctx.restore();
-		
-		// Convertir a data URL PNG
+
 		const result = canvas.toDataURL('image/png');
-		console.log("✅ Generated rotated PNG icon for rotation", rotation + "°");
+		rotatedIconCache.set(cacheKey, result);
 		return result;
-	} catch (error) {
-		console.warn('Error creating rotated icon:', error);
-		return imageUrl; // Fallback a imagen original
+	} catch {
+		return imageUrl;
 	}
 };
 
@@ -265,6 +253,12 @@ const isActivityVisible = (activity, team, isAdmin) => {
 		return false;
 	}
 
+	// Si la actividad tiene without_route=true, NO mostrarla en el mapa
+	// (solo será accesible mediante envío del organizador)
+	if (activity.without_route === true) {
+		return false;
+	}
+
 	// Si el equipo no tiene ruta (route === 0), mostrar todas las actividades según visibilidad
 	if (team.route === 0) {
 		// Si sequential es 0, mostrar según visible
@@ -274,9 +268,7 @@ const isActivityVisible = (activity, team, isAdmin) => {
 		// Si sequential es 1, mostrar solo si visible es 1
 		return team.visible === 1;
 	}
-
-	// Si el equipo tiene ruta (route === 1)
-	if (team.route === 1) {
+	else {
 		// Si sequential es 0, mostrar según visible
 		if (team.sequential === 0) {
 			return team.visible === 1;
@@ -315,28 +307,150 @@ const EventMap = () => {
 	const [markersCreated, setMarkersCreated] = useState(false); // Control para crear marcadores solo una vez
 	const [isFollowMode, setIsFollowMode] = useState(false); // Estado para el modo seguimiento
 	const [useCompass, setUseCompass] = useState(true); // Control para usar o no la brújula
+	const [permissionOverlayVisible, setPermissionOverlayVisible] = useState(false);
+	const [permissionChecking, setPermissionChecking] = useState(true);
+	const [permissionRequesting, setPermissionRequesting] = useState(false);
+	const [permissionError, setPermissionError] = useState(null);
+	const [permissionInfo, setPermissionInfo] = useState({
+		geolocation: { status: 'unknown', supported: true, canRequest: true },
+		motion: { status: 'unknown', supported: true, canRequest: false }
+	});
+	const [openActivityId, setOpenActivityId] = useState(null);
+
+	const formatPermissionStatus = (status) => {
+		switch (status) {
+			case 'granted':
+			case 'granted_soft':
+				return t('permissions.status_granted', 'Concedido');
+			case 'prompt':
+			case 'default':
+			case 'unknown':
+				return t('permissions.status_pending', 'Pendiente');
+			case 'denied':
+				return t('permissions.status_denied', 'Denegado');
+			case 'unsupported':
+				return t('permissions.status_unsupported', 'No soportado');
+			case 'error':
+				return t('permissions.status_error', 'Error');
+			default:
+				return status || t('permissions.status_unknown', 'Desconocido');
+		}
+	};
+
+	const geolocationPermissionGranted = !permissionInfo.geolocation.supported || ['granted', 'granted_soft'].includes(permissionInfo.geolocation.status);
+	const motionPermissionGranted = !permissionInfo.motion.supported || ['granted', 'granted_soft'].includes(permissionInfo.motion.status);
+
+	const refreshPermissions = useCallback(async () => {
+		try {
+			const snapshot = await getPermissionsSnapshot();
+			const geoPerm = snapshot.geolocation?.permission ?? 'unknown';
+			const motionPerm = snapshot.motion?.permission ?? 'unknown';
+			const geoSupported = snapshot.geolocation?.supported !== false;
+			const motionSupported = snapshot.motion?.supported !== false;
+			const geoCanRequest = snapshot.geolocation?.canRequest ?? geoSupported;
+			const motionCanRequest = snapshot.motion?.canRequest ?? motionSupported;
+			setPermissionInfo({
+				geolocation: { status: geoPerm, supported: geoSupported, canRequest: geoCanRequest },
+				motion: { status: motionPerm, supported: motionSupported, canRequest: motionCanRequest }
+			});
+			const needsGeo = geoSupported && geoPerm !== 'granted';
+			const needsMotion = motionSupported && motionPerm !== 'granted';
+			setPermissionOverlayVisible(needsGeo || needsMotion);
+			return { needsGeo, needsMotion };
+		} catch (error) {
+			if (isDebugMode) {
+				console.warn('⚠️ No se pudo actualizar el estado de permisos:', error);
+			}
+			setPermissionOverlayVisible(true);
+			return { needsGeo: true, needsMotion: true };
+		} finally {
+			setPermissionChecking(false);
+		}
+	}, [isDebugMode]);
+
+	useEffect(() => {
+		refreshPermissions();
+	}, [refreshPermissions]);
+
+	useEffect(() => {
+		const handleVisibility = () => {
+			if (document.visibilityState === 'visible') {
+				refreshPermissions();
+			}
+		};
+		document.addEventListener('visibilitychange', handleVisibility);
+		return () => document.removeEventListener('visibilitychange', handleVisibility);
+	}, [refreshPermissions]);
+
+	const handleRequestPermissions = useCallback(async () => {
+		if (permissionRequesting) return;
+		setPermissionRequesting(true);
+		setPermissionError(null);
+		try {
+			let motionResult = { ok: true };
+			let geoResult = { ok: true };
+
+			if (permissionInfo.motion.supported && permissionInfo.motion.status !== 'granted') {
+				motionResult = await requestMotionAccess();
+				if (!motionResult.ok) {
+					const lowerMotionError = (motionResult.error || '').toLowerCase();
+					let message;
+					if (motionResult.state === 'denied') {
+						message = t('permissions.motion_denied', 'Los sensores de movimiento están bloqueados. Ve a Ajustes > Safari > Movimiento y Orientación para habilitarlos.');
+					} else if (lowerMotionError.includes('gesture')) {
+						message = t('permissions.motion_gesture_required', 'Para iOS es necesario tocar el botón "Conceder permisos" y mantener la página activa para autorizar los sensores de movimiento.');
+					} else {
+						message = motionResult.error || t('permissions.motion_error', 'No se pudieron activar los sensores de movimiento.');
+					}
+					throw new Error(message);
+				}
+			}
+			if (permissionInfo.geolocation.supported && permissionInfo.geolocation.status !== 'granted') {
+				geoResult = await requestGeolocationAccess();
+				if (!geoResult.ok) {
+					const lower = (geoResult.error || '').toLowerCase();
+					const message = lower.includes('denied')
+						? t('permissions.geo_denied', 'La geolocalización está denegada. Abre Ajustes y habilita el acceso a tu ubicación para Escultura.')
+						: (geoResult.error || t('permissions.geo_error', 'No se pudo activar la geolocalización.'));
+					throw new Error(message);
+				}
+			}
+			const { needsGeo, needsMotion } = await refreshPermissions();
+			if (!needsGeo && !needsMotion) {
+				setPermissionOverlayVisible(false);
+			}
+		} catch (error) {
+			if (isDebugMode) {
+				console.error('❌ Error solicitando permisos:', error);
+			}
+			setPermissionError(error.message || t('permissions.generic_error', 'No se pudieron actualizar los permisos. Revisa los ajustes del dispositivo.'));
+		} finally {
+			setPermissionRequesting(false);
+		}
+	}, [isDebugMode, permissionInfo, permissionRequesting, refreshPermissions, t]);
+
+	const handleSkipPermissions = useCallback(() => {
+		setPermissionOverlayVisible(false);
+		setPermissionError(null);
+	}, []);
 
 	// Obtener el nivel de detalle del mapa desde las variables de entorno
 	const mapDetailLevel = import.meta.env.VITE_GOOGLE_MAPS_DETAIL_LEVEL || 'basic';
 
-	// Obtener configuración de zoom desde las variables de entorno
-	const getZoomLimits = () => {
+	const zoomLimits = React.useMemo(() => {
 		const minZoom = parseInt(import.meta.env.VITE_GOOGLE_MAPS_MIN_ZOOM) || 1;
 		const maxZoom = parseInt(import.meta.env.VITE_GOOGLE_MAPS_MAX_ZOOM) || 21;
-		
-		// Validar que los valores estén en el rango permitido por Google Maps (1-21)
+
 		return {
 			minZoom: Math.max(1, Math.min(21, minZoom)),
-			maxZoom: Math.max(1, Math.min(21, maxZoom))
+			maxZoom: Math.max(1, Math.min(21, maxZoom)),
 		};
-	};
+	}, []);
 
-	// Configurar estilos del mapa según el nivel de detalle
-	const getMapStyles = () => {
+	const mapStyles = React.useMemo(() => {
 		switch (mapDetailLevel) {
 			case 'minimal':
 				return [
-					// Ocultar casi todos los POIs y elementos secundarios
 					{ featureType: "poi", stylers: [{ visibility: "off" }] },
 					{ featureType: "transit", stylers: [{ visibility: "off" }] },
 					{ featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
@@ -345,27 +459,31 @@ const EventMap = () => {
 				];
 			case 'detailed':
 				return [
-					// Mostrar todos los detalles, solo ocultar iconos de POI por defecto
 					{ featureType: "poi", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
 				];
 			case 'all':
 				return [
-					// Mostrar todos los detalles, incluyendo iconos de POI
 					{ featureType: "poi", elementType: "labels.icon", stylers: [{ visibility: "on" }] },
 					{ featureType: "poi.business", stylers: [{ visibility: "on" }] },
 					{ featureType: "transit.station", stylers: [{ visibility: "on" }] },
 				];
-			// Si no se especifica o es un valor desconocido, usar configuración básica
 			case 'basic':
 			default:
 				return [
-					// Configuración equilibrada - ocultar POIs pero mantener elementos importantes
 					{ featureType: "poi", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
 					{ featureType: "poi.business", stylers: [{ visibility: "off" }] },
 					{ featureType: "transit.station", stylers: [{ visibility: "simplified" }] },
 				];
 		}
-	};
+	}, [mapDetailLevel]);
+
+	const mapOptions = React.useMemo(() => ({
+		styles: mapStyles,
+		disableDefaultUI: true,
+		gestureHandling: "greedy",
+		clickableIcons: false,
+		...zoomLimits,
+	}), [mapStyles, zoomLimits]);
 
 	const { isLoaded } = useJsApiLoader({
 		googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
@@ -377,8 +495,16 @@ const EventMap = () => {
 	const lastFiltered = useRef(null); // Última posición filtrada
 	const lastAccuracy = useRef(null); // Última precisión GPS
 	const previousPosition = useRef(null); // Para calcular la dirección
+	const adminKalmanLat = useRef(null); // Filtro de Kalman para latitud del admin
+	const adminKalmanLng = useRef(null); // Filtro de Kalman para longitud del admin
+	const adminLastFiltered = useRef(null); // Última posición filtrada del admin
+	const adminLastAccuracy = useRef(null); // Precisión más reciente del admin
+	const adminPreviousPosition = useRef(null); // Posición previa del admin
 	const [initialCenter, setInitialCenter] = useState(null);
+	const [initialZoom, setInitialZoom] = useState(null);
+	const [keepaliveTick, setKeepaliveTick] = useState(Date.now());
 	const mapRef = useRef(null);
+	const previousEventIdRef = useRef(null);
 	const lastUpdateTime = useRef(0);
 	const updateTimeoutRef = useRef(null);
 	const teamMarkersRef = useRef(new Map()); // Referencias a los marcadores de equipos
@@ -386,37 +512,180 @@ const EventMap = () => {
 	const deviceOrientationRef = useRef(null); // Última orientación del dispositivo
 	const compassHeadingRef = useRef(null); // Dirección del dispositivo
 	const lastCompassUpdate = useRef(0); // Timestamp de la última actualización de brújula
+	const mapViewPersistMetaRef = useRef({ timeoutId: null, lastRun: 0 });
+	const adminMarkerRef = useRef(null);
+	const adminLocationRef = useRef(null);
+	const adminDirectionRef = useRef(null);
+	const [adminLocation, setAdminLocation] = useState(null);
+	const centerButtonLongPressTimeoutRef = useRef(null);
+	const centerButtonLongPressTriggeredRef = useRef(false);
 
+	const eventId = useSelector((state) => state.event.id);
 	const event = useSelector((state) => state.event.event);
 	const teams = useSelector((state) => state.teams.items);
 	const isAdmin = useSelector((state) => state.session.isAdmin);
+	const adminPositionViewEnabled = ((import.meta.env.VITE_ADMIN_POSITION_VIEW ?? 'true') + '').toLowerCase() === 'true';
+	const keepaliveLastHeartbeat = useSelector((state) => state.keepalive.lastHeartbeat);
+	const keepaliveConnectionStatus = useSelector((state) => state.keepalive.connectionStatus);
 
 	// Separar selectedTeam (estable) de selectedTeamData (cambia constantemente)
 	const selectedTeam = useSelector((state) => state.session.selectedTeam);
+	const selectedTeamData = useSelector(selectSelectedTeamData);
+	const hasSelectedTeamData = Boolean(selectedTeamData?.id);
+
+	const selectedTeamDataRef = useRef(selectedTeamData);
+	const isDebugModeRef = useRef(isDebugMode);
+	const isFollowModeRef = useRef(isFollowMode);
+	const useCompassRef = useRef(useCompass);
+	const activityProximityCacheRef = useRef(new Map());
+	const checkActivityProximityNewRef = useRef(null);
+	const throttledFirebaseUpdateRef = useRef(null);
+	const updateSelectedTeamMarkerPositionRef = useRef(null);
 	
-	// Función estable para obtener datos del equipo seleccionado sin causar re-renders
-	const getSelectedTeamData = useCallback(() => {
-		if (!selectedTeam) return null;
-		return teams.find(team => team.id === selectedTeam.id) || selectedTeam;
-	}, [selectedTeam, teams]);
+	useEffect(() => {
+		if (!selectedTeam || isAdmin) {
+			return;
+		}
+
+		setKeepaliveTick(Date.now());
+
+		const interval = setInterval(() => {
+			setKeepaliveTick(Date.now());
+		}, 5000);
+
+		return () => clearInterval(interval);
+	}, [selectedTeam, isAdmin]);
+
+	const ownTeamStatus = React.useMemo(() => {
+		if (!selectedTeam || isAdmin) {
+			return null;
+		}
+
+		if (keepaliveConnectionStatus === 'sleep') {
+			return 'sleep';
+		}
+
+		const heartbeatFresh = keepaliveLastHeartbeat != null
+			? (keepaliveTick - keepaliveLastHeartbeat) < KEEPALIVE_TIMEOUT
+			: false;
+
+		if (keepaliveConnectionStatus === 'disconnected' || keepaliveConnectionStatus === 'error') {
+			return 'offline';
+		}
+
+		if (!keepaliveLastHeartbeat) {
+			return keepaliveConnectionStatus === 'connecting'
+				? 'connecting'
+				: 'offline';
+		}
+
+		if (heartbeatFresh) {
+			return 'online';
+		}
+
+		if (keepaliveConnectionStatus === 'connecting') {
+			return 'connecting';
+		}
+
+		return 'offline';
+	}, [selectedTeam, isAdmin, keepaliveConnectionStatus, keepaliveLastHeartbeat, keepaliveTick]);
+
+	const loadStoredMapView = useCallback(() => {
+		if (typeof window === 'undefined' || !eventId) {
+			return null;
+		}
+
+		try {
+			const raw = localStorage.getItem(`${MAP_VIEW_STORAGE_PREFIX}${eventId}`);
+			if (!raw) {
+				return null;
+			}
+
+			const data = JSON.parse(raw);
+			if (!data) {
+				return null;
+			}
+
+			const centerData = data.center || data;
+			if (
+				centerData &&
+				typeof centerData.lat === 'number' &&
+				typeof centerData.lng === 'number'
+			) {
+				return {
+					center: { lat: centerData.lat, lng: centerData.lng },
+					zoom: typeof data.zoom === 'number' ? data.zoom : null,
+				};
+			}
+		} catch (error) {
+			if (isDebugMode) {
+				console.warn('No se pudo restaurar la vista del mapa:', error);
+			}
+		}
+
+		return null;
+	}, [eventId, isDebugMode]);
+
+	const persistMapView = useCallback(() => {
+		if (typeof window === 'undefined' || !eventId || !mapRef.current) {
+			return;
+		}
+
+		const map = mapRef.current;
+		const center = typeof map.getCenter === 'function' ? map.getCenter() : null;
+		if (!center) {
+			return;
+		}
+
+		const latValue = typeof center.lat === 'function' ? center.lat() : center.lat;
+		const lngValue = typeof center.lng === 'function' ? center.lng() : center.lng;
+
+		if (typeof latValue !== 'number' || typeof lngValue !== 'number' || Number.isNaN(latValue) || Number.isNaN(lngValue)) {
+			return;
+		}
+
+		const zoomValue = typeof map.getZoom === 'function' ? map.getZoom() : null;
+		const payload = {
+			center: { lat: latValue, lng: lngValue },
+		};
+
+		if (typeof zoomValue === 'number' && !Number.isNaN(zoomValue)) {
+			payload.zoom = zoomValue;
+		}
+
+		try {
+			localStorage.setItem(`${MAP_VIEW_STORAGE_PREFIX}${eventId}`, JSON.stringify(payload));
+			const meta = mapViewPersistMetaRef.current;
+			meta.lastRun = Date.now();
+			meta.timeoutId = null;
+		} catch (error) {
+			if (isDebugMode) {
+				console.warn('No se pudo guardar la vista del mapa:', error);
+			}
+		}
+	}, [eventId, isDebugMode]);
 
 	// Función para mostrar popup de proximidad automática a actividad
+	const skipActivityPopup = import.meta.env.VITE_POPUP_ACTIVITY_SKIP === 'true';
 	const showActivityAutoProximityPopup = useCallback((activity) => {
+		if (skipActivityPopup) {
+			dispatch(startActivityWithSuspensionCheck(activity));
+			return;
+		}
+
 		openPopup({
 			titulo: t('activity_auto_proximity_title', 'Actividad Disponible'),
-			texto: t('activity_auto_proximity_text', 'Has estado cerca de la actividad "{{activityName}}" el tiempo suficiente. ¿Deseas realizarla?', { activityName: activity.name }) + '\n\n' + t('activity_auto_proximity_reminder', 'Podrás activarla de nuevo acercándote y pulsando sobre ella en el mapa'),
+			texto: t('activity_auto_proximity_text', 'Actividad "{{activityName}}". ¿Quieres iniciarla ahora?', { activityName: activity.name }),
 			array_botones: [
 				{
 					titulo: t('close', 'Cerrar'),
 					callback: () => {
-						console.log('🚫 Popup de actividad automática cerrado:', activity.name);
 						closePopup();
 					}
 				},
 				{
 					titulo: t('start_activity', 'Iniciar Actividad'),
 					callback: () => {
-						console.log('🚀 Iniciando actividad automática:', activity.name, 'ID:', activity.id);
 						dispatch(startActivityWithSuspensionCheck(activity));
 						closePopup();
 					}
@@ -426,7 +695,7 @@ const EventMap = () => {
 			overlay: true,
 			close_button: true
 		});
-	}, [openPopup, closePopup, t, dispatch]);
+	}, [skipActivityPopup, openPopup, closePopup, t, dispatch]);
 
 	// Función para throttle de actualizaciones de Firebase solamente
 	const throttledFirebaseUpdate = useCallback((newPosition, teamData, direction = null) => {
@@ -480,7 +749,9 @@ const EventMap = () => {
 	const updateSelectedTeamMarkerPosition = useCallback((newPosition, direction = null) => {
 		// Verificar que Google Maps esté disponible
 		if (!window.google?.maps) {
-			console.log('⏳ Google Maps not available, skipping marker position update');
+			if (isDebugModeRef.current) {
+				console.log('⏳ Google Maps not available, skipping marker position update');
+			}
 			return;
 		}
 
@@ -494,17 +765,8 @@ const EventMap = () => {
 				
 				// Si hay dirección, actualizar el icono con rotación
 				if (direction !== null && marker.setIcon) {
-					// SIEMPRE usar el icono base (markMe) para evitar acumulación de rotaciones
 					const size = ICON_SIZE;
 					const rotatedIconUrl = createRotatedIconSync(markMe, direction, size);
-					
-					console.log('🔄 Updating marker rotation:', { 
-						teamId: selectedTeam.id, 
-						direction, 
-						baseUrl: 'markMe (base icon)', 
-						rotatedUrl: rotatedIconUrl.substring(0, 50) + '...' 
-					});
-					
 					marker.setIcon({
 						url: rotatedIconUrl,
 						scaledSize: new window.google.maps.Size(size, size),
@@ -517,15 +779,12 @@ const EventMap = () => {
 
 	// Función para actualizar solo la rotación del marcador (sin cambiar posición)
 	const updateSelectedTeamMarkerRotation = useCallback((direction) => {
-		console.log('🔄 updateSelectedTeamMarkerRotation called with direction:', direction);
-		
 		// NOTA: Con el nuevo sistema de EMA circular y throttling temporal (66ms),
 		// ya no necesitamos filtrar por diferencia mínima de grados aquí.
 		// El filtrado ahora se hace en el origen (sensor events) con angleDelta()
 		
 		// Verificar que Google Maps esté disponible
 		if (!window.google?.maps) {
-			console.log('⏳ Google Maps not available, skipping marker rotation update');
 			return;
 		}
 
@@ -533,37 +792,55 @@ const EventMap = () => {
 		const markers = teamMarkersRef.current;
 		if (selectedTeam && markers.has(selectedTeam.id)) {
 			const marker = markers.get(selectedTeam.id);
-			console.log('🎯 Found marker for team:', selectedTeam.id, 'marker available:', !!marker);
 			if (marker && marker.setIcon) {
 				// SIEMPRE usar el icono base (markMe) para evitar acumulación de rotaciones
 				const size = ICON_SIZE;
 				const rotatedIconUrl = createRotatedIconSync(markMe, direction, size);
-				
-				console.log('🔄 Updating marker rotation only:', { 
-					teamId: selectedTeam.id, 
-					direction, 
-					baseUrl: 'markMe (base icon)',
-					size
-				});
-				
 				marker.setIcon({
 					url: rotatedIconUrl,
 					scaledSize: new window.google.maps.Size(size, size),
 					anchor: new window.google.maps.Point(size/2, size/2),
 				});
-				console.log('✅ Marker rotation updated successfully');
-			} else {
-				console.log('❌ Marker or setIcon not available');
 			}
-		} else {
-			console.log('❌ Team not found in markers:', {
-				selectedTeamId: selectedTeam?.id,
-				hasSelectedTeam: !!selectedTeam,
-				markersSize: markers.size,
-				availableMarkers: Array.from(markers.keys())
-			});
 		}
 	}, [selectedTeam]); // Solo depender del objeto selectedTeam
+
+	const updateAdminMarkerPosition = useCallback((newPosition, direction = null) => {
+		if (!window.google?.maps) {
+			return;
+		}
+
+		const marker = adminMarkerRef.current;
+		if (!marker) {
+			return;
+		}
+
+		if (marker.setPosition) {
+			marker.setPosition(newPosition);
+		}
+
+		const directionToUse = typeof direction === 'number'
+			? direction
+			: (typeof adminDirectionRef.current === 'number' ? adminDirectionRef.current : 0);
+
+		if (marker.setIcon) {
+			const size = ICON_SIZE;
+			const rotatedIconUrl = createRotatedIconSync(markMe, directionToUse, size);
+			marker.setIcon({
+				url: rotatedIconUrl,
+				scaledSize: new window.google.maps.Size(size, size),
+				anchor: new window.google.maps.Point(size / 2, size / 2),
+			});
+		}
+	}, []);
+
+	const updateAdminMarkerRotation = useCallback((direction) => {
+		const currentLocation = adminLocationRef.current;
+		if (!currentLocation) {
+			return;
+		}
+		updateAdminMarkerPosition(currentLocation.position, direction);
+	}, [updateAdminMarkerPosition]);
 
 	// Función para actualizar cualquier marcador de equipo por cambios de Firebase
 	const updateTeamMarkerFromFirebase = useCallback((teamId, newData) => {
@@ -578,98 +855,252 @@ const EventMap = () => {
 				const isSelectedTeam = selectedTeam && teamId === selectedTeam.id;
 				if (isSelectedTeam && newData.direction != null && marker.setIcon) {
 					const currentIcon = marker.getIcon();
-					if (currentIcon) {
-						// Usar SVG rotado para una rotación precisa
-						const baseUrl = currentIcon.url || currentIcon;
-						const size = currentIcon.scaledSize?.width || ICON_SIZE; // Tamaño del equipo seleccionado
-						const rotatedIconUrl = createRotatedIconSync(baseUrl, newData.direction, size);
-						
-						const rotatedIcon = {
-							url: rotatedIconUrl,
-							scaledSize: currentIcon.scaledSize,
-							anchor: currentIcon.anchor
-						};
-						
-						marker.setIcon(rotatedIcon);
-					}
+					const size = currentIcon?.scaledSize?.width || ICON_SIZE;
+					const scaledSize = currentIcon?.scaledSize || new window.google.maps.Size(size, size);
+					const anchor = currentIcon?.anchor || new window.google.maps.Point(size / 2, size / 2);
+					const rotatedIconUrl = createRotatedIconSync(markMe, newData.direction, size);
+
+					marker.setIcon({
+						url: rotatedIconUrl,
+						scaledSize,
+						anchor
+					});
 				}
 				
 			}
 		}
 	}, [selectedTeam]); // Depender de selectedTeam para controlar la rotación
 
+	const computeActivityProximityInfo = useCallback((activity, teamPosition, accuracy) => {
+		const distance = getDistance(teamPosition, { lat: activity.lat, lng: activity.lon });
+		const distanceText = distance < 1000
+			? `${Math.round(distance)} ${t('activity_info.meters', 'metros')}`
+			: `${(distance / 1000).toFixed(1)} ${t('activity_info.kilometers', 'kilómetros')}`;
+		const distanceMessage = t('activity_info.team_distance', 'Distancia: {{distance}}', {
+			distance: distanceText
+		});
+		const proximityStatus = checkActivityProximity(activity, teamPosition, accuracy);
+		const canStartByClick = proximityStatus.canClickActivate && !activity.complete;
+		const statusMessages = [];
+
+		if (!proximityStatus.isWithinRange) {
+			statusMessages.push(t('activity_info.too_far', 'Debes acercarte más para realizar esta actividad'));
+		}
+
+		if (proximityStatus.isWithinRange && !proximityStatus.hasPrecision) {
+			statusMessages.push(t('activity_info.poor_precision', 'Precisión GPS insuficiente'));
+		}
+
+		if (activity.complete) {
+			statusMessages.push(t('activity_info.already_completed', 'Actividad ya completada'));
+		}
+
+		return {
+			distance,
+			distanceText,
+			distanceMessage,
+			proximityStatus,
+			canStartByClick,
+			statusMessages,
+		};
+	}, [checkActivityProximity, t]);
+
 	// Nueva función para verificar proximidad con el sistema mejorado
 	const checkActivityProximityNew = useCallback((teamPosition, accuracy) => {
-		console.log('🔍 checkActivityProximityNew called with:', { teamPosition, accuracy });
-		
-		const currentTeamData = getSelectedTeamData();
+		const currentTeamData = selectedTeamData;
 		if (!currentTeamData || isAdmin) {
-			console.log('🔍 Skipping proximity check - no team or is admin:', { hasTeam: !!currentTeamData, isAdmin });
+			activityProximityCacheRef.current = new Map();
 			return;
 		}
 
 		const visibleActivities = (currentTeamData.activities_data || [])
 			.filter((activity) => isActivityVisible(activity, currentTeamData, false));
 
-		console.log('🔍 Visible activities found:', visibleActivities.length);
-		console.log('🔍 Activities details:', visibleActivities.map(a => ({
-			name: a.name,
-			id: a.id,
-			lat: a.lat,
-			lng: a.lon,
-			distance: a.distance,
-			complete: a.complete
-		})));
+		const proximityResults = new Map();
 
 		visibleActivities.forEach((activity) => {
 			if (!activity.lat || !activity.lon || !activity.distance || activity.complete) {
-				console.log('🔍 Skipping activity (incomplete data or completed):', activity.name);
 				return;
 			}
 
-			const proximityStatus = checkActivityProximity(
-				activity,
-				teamPosition,
-				accuracy
-			);
-
-			console.log('🎯 New proximity check:', {
-				activityName: activity.name,
-				activityId: activity.id,
-				distance: Math.round(proximityStatus.distance),
-				requiredDistance: activity.distance,
-				isWithinRange: proximityStatus.isWithinRange,
-				hasPrecision: proximityStatus.hasPrecision,
-				timeInProximity: proximityStatus.timeInProximity.toFixed(1),
-				canAutoActivate: proximityStatus.canAutoActivate,
-				canClickActivate: proximityStatus.canClickActivate,
-				isAutoActivated: isAutoActivated(activity.id)
-			});
+			const info = computeActivityProximityInfo(activity, teamPosition, accuracy);
+			proximityResults.set(activity.id, info);
 
 			// Si puede activarse automáticamente y no ha sido activada ya
-			if (proximityStatus.canAutoActivate && !isAutoActivated(activity.id)) {
-				console.log('✅ Auto-activating activity:', activity.name);
+			if (info.proximityStatus.canAutoActivate && !isAutoActivated(activity.id)) {
+				if (isDebugModeRef.current) {
+					console.log('✅ Auto-activating activity:', activity.name);
+				}
 				markAsAutoActivated(activity.id);
 				showActivityAutoProximityPopup(activity);
 			}
 		});
-	}, [getSelectedTeamData, isAdmin, checkActivityProximity, isAutoActivated, markAsAutoActivated, showActivityAutoProximityPopup]);
 
-	// Limpiar estado de proximidad cuando cambie el equipo seleccionado
-	useEffect(() => {
-		clearProximityState();
-	}, [selectedTeam?.id, clearProximityState]);
+		activityProximityCacheRef.current = proximityResults;
+	}, [selectedTeamData, isAdmin, computeActivityProximityInfo, isAutoActivated, markAsAutoActivated, showActivityAutoProximityPopup]);
 
-	// Establecer center inicial solo una vez
 	useEffect(() => {
-		if (event && !initialCenter) {
-			setInitialCenter({ lat: event.lat, lng: event.lon });
+			selectedTeamDataRef.current = selectedTeamData;
+			if (!selectedTeamData) {
+				activityProximityCacheRef.current = new Map();
+			}
+		}, [selectedTeamData]);
+
+		useEffect(() => {
+			isDebugModeRef.current = isDebugMode;
+		}, [isDebugMode]);
+
+		useEffect(() => {
+			isFollowModeRef.current = isFollowMode;
+		}, [isFollowMode]);
+
+		useEffect(() => {
+			useCompassRef.current = useCompass;
+		}, [useCompass]);
+
+		useEffect(() => {
+			checkActivityProximityNewRef.current = checkActivityProximityNew;
+		}, [checkActivityProximityNew]);
+
+		useEffect(() => {
+			throttledFirebaseUpdateRef.current = throttledFirebaseUpdate;
+		}, [throttledFirebaseUpdate]);
+
+		useEffect(() => {
+			updateSelectedTeamMarkerPositionRef.current = updateSelectedTeamMarkerPosition;
+		}, [updateSelectedTeamMarkerPosition]);
+
+		useEffect(() => {
+			if (isAdmin && adminPositionViewEnabled) {
+				return;
+			}
+
+			adminMarkerRef.current = null;
+			adminLocationRef.current = null;
+			adminDirectionRef.current = null;
+			adminKalmanLat.current = null;
+			adminKalmanLng.current = null;
+			adminLastFiltered.current = null;
+			adminLastAccuracy.current = null;
+                        adminPreviousPosition.current = null;
+                        setAdminLocation(null);
+                }, [isAdmin, adminPositionViewEnabled]);
+
+
+        // Limpiar estado de proximidad cuando cambie el equipo seleccionado
+        useEffect(() => {
+                clearProximityState();
+                setOpenActivityId(null);
+        }, [selectedTeam?.id, clearProximityState]);
+
+        /**
+         * Determina el centro inicial del mapa según si el equipo tiene ruta
+         * @param {Object} event - Datos del evento
+         * @param {Object} selectedTeamData - Datos del equipo seleccionado
+         * @param {boolean} isAdmin - Si el usuario es administrador
+         * @returns {Object|null} Coordenadas {lat, lng} o null
+         */
+        const calculateInitialMapCenter = useCallback((event, selectedTeamData, isAdmin) => {
+                // Validar que tenemos evento
+                if (!event || typeof event.lat !== 'number' || typeof event.lon !== 'number') {
+                        if (isDebugMode) {
+                                console.log('🗺️ calculateInitialMapCenter: No hay datos válidos de evento');
+                        }
+                        return null;
+                }
+                
+                // Si es admin, usar centro del evento
+                if (isAdmin) {
+                        if (isDebugMode) {
+                                console.log('🗺️ calculateInitialMapCenter: Usuario admin, usando centro del evento');
+                        }
+                        return { lat: event.lat, lng: event.lon };
+                }
+                
+                // Si no hay equipo seleccionado o el equipo no tiene ruta, usar centro del evento
+                if (!selectedTeamData || selectedTeamData.route === 0) {
+                        if (isDebugMode) {
+                                console.log('🗺️ calculateInitialMapCenter: Sin ruta asignada, usando centro del evento', {
+                                        hasTeamData: !!selectedTeamData,
+                                        route: selectedTeamData?.route
+                                });
+                        }
+                        return { lat: event.lat, lng: event.lon };
+                }
+                
+                // El equipo tiene ruta, buscar la primera actividad válida
+                const activities = selectedTeamData.activities_data || [];
+                const firstActivity = activities.find(activity => 
+                        !activity.complete && 
+                        !activity.del && 
+                        typeof activity.lat === 'number' && 
+                        typeof activity.lon === 'number'
+                );
+                
+                // Si encontramos una actividad válida, usar sus coordenadas
+                if (firstActivity) {
+                        if (isDebugMode) {
+                                console.log('🗺️ calculateInitialMapCenter: Equipo con ruta, centrando en primera actividad', {
+                                        activityId: firstActivity.id,
+                                        activityName: firstActivity.name,
+                                        lat: firstActivity.lat,
+                                        lng: firstActivity.lon
+                                });
+                        }
+                        return { lat: firstActivity.lat, lng: firstActivity.lon };
+                }
+                
+                // Fallback al centro del evento
+                if (isDebugMode) {
+                        console.log('🗺️ calculateInitialMapCenter: No se encontró actividad válida, usando centro del evento');
+                }
+                return { lat: event.lat, lng: event.lon };
+        }, [isDebugMode]);
+
+        // Establecer center inicial solo una vez
+        useEffect(() => {
+                if (!eventId) {
+                        return;
+                }		const sameEvent = previousEventIdRef.current === eventId;
+		if (sameEvent && initialCenter) {
+			return;
 		}
-	}, [event, initialCenter]);
 
-	// Inicializar orientación del dispositivo para obtener la dirección del teléfono
+                const storedView = loadStoredMapView();
+                if (storedView?.center) {
+                        if (isDebugMode) {
+                                console.log('🗺️ Usando vista guardada del mapa:', storedView.center);
+                        }
+                        setInitialCenter(storedView.center);
+                        setInitialZoom(typeof storedView.zoom === 'number' ? storedView.zoom : null);
+                } else {
+                        // Calcular centro según si el equipo tiene ruta o no
+                        const calculatedCenter = calculateInitialMapCenter(event, selectedTeamData, isAdmin);
+                        if (calculatedCenter) {
+                                setInitialCenter(calculatedCenter);
+                                setInitialZoom(null);
+                        }
+                }
+
+                previousEventIdRef.current = eventId;
+        }, [eventId, event, initialCenter, loadStoredMapView, selectedTeamData, isAdmin, calculateInitialMapCenter, isDebugMode]);	// Inicializar orientación del dispositivo para obtener la dirección del teléfono
 	useEffect(() => {
-		if (!selectedTeam || isDebugMode || !useCompass) return;
+		const shouldTrackCompass = !isDebugMode
+			&& useCompass
+			&& !permissionChecking
+			&& !permissionOverlayVisible
+			&& (
+				(!isAdmin && Boolean(selectedTeam))
+				|| (isAdmin && adminPositionViewEnabled)
+			);
+
+		if (!shouldTrackCompass) {
+			return;
+		}
+
+		if (!motionPermissionGranted && typeof window.DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+			return;
+		}
 
 		let remove = () => {};
 		let ema = makeAngleEMA(0.2);
@@ -713,7 +1144,24 @@ const EventMap = () => {
 				last = smooth;
 				compassHeadingRef.current = smooth;
 				lastCompassUpdate.current = now;
-				updateSelectedTeamMarkerRotation(smooth);
+				if (!isAdmin && selectedTeam) {
+					updateSelectedTeamMarkerRotation(smooth);
+				}
+				if (isAdmin && adminPositionViewEnabled) {
+					adminDirectionRef.current = smooth;
+					if (adminLocationRef.current) {
+						adminLocationRef.current = { ...adminLocationRef.current, direction: smooth };
+					}
+					updateAdminMarkerRotation(smooth);
+					setAdminLocation((prev) => {
+						if (!prev) return prev;
+						const prevDirection = typeof prev.direction === 'number' ? prev.direction : null;
+						if (prevDirection != null && angleDelta(prevDirection, smooth) < 2) {
+							return prev;
+						}
+						return { ...prev, direction: smooth };
+					});
+				}
 			}
 		};
 
@@ -721,15 +1169,6 @@ const EventMap = () => {
 		const rm  = (type, handler, opts) => window.removeEventListener(type, handler, opts);
 
 		const start = async () => {
-			try {
-				// iOS 13+: permiso
-				if (typeof window.DeviceOrientationEvent !== 'undefined' &&
-					typeof DeviceOrientationEvent.requestPermission === 'function') {
-					const p = await DeviceOrientationEvent.requestPermission();
-					if (p !== 'granted') return;
-				}
-			} catch { void 0; }
-
 			let handlerAbs, handlerRel;
 			if ('ondeviceorientationabsolute' in window) {
 				handlerAbs = (e) => onOrientation(e);
@@ -746,7 +1185,7 @@ const EventMap = () => {
 
 		start();
 		return () => remove();
-	}, [selectedTeam, isDebugMode, useCompass, updateSelectedTeamMarkerRotation]);
+	}, [selectedTeam, isAdmin, isDebugMode, useCompass, adminPositionViewEnabled, updateSelectedTeamMarkerRotation, updateAdminMarkerRotation, permissionChecking, permissionOverlayVisible, motionPermissionGranted]);
 
 	// Precargar imágenes de marcadores
 	useEffect(() => {
@@ -759,13 +1198,19 @@ const EventMap = () => {
 
 		// Precargar todas las imágenes
 		const preloadPromises = imagesToPreload.map(url => 
-			preloadImage(url).catch(err => console.warn('Failed to preload image:', url, err))
+			preloadImage(url).catch(err => {
+				if (isDebugMode) {
+					console.warn('Failed to preload image:', url, err);
+				}
+			})
 		);
 
 		Promise.allSettled(preloadPromises).then(() => {
-			console.log('📸 Image preloading completed');
+			if (isDebugMode) {
+				console.log('📸 Image preloading completed');
+			}
 		});
-	}, []); // Solo una vez al inicializar
+		}, [isDebugMode]); // Solo una vez al inicializar
 
 	// Efecto para actualizar marcadores cuando cambien los datos de equipos SIN re-renderizar
 	useEffect(() => {
@@ -784,7 +1229,9 @@ const EventMap = () => {
 				const directionChanged = previousTeam.direction !== team.direction;
 				
 				if (positionChanged || directionChanged) {
-					console.log('🔄 Firebase update detected for team:', team.id, {positionChanged, directionChanged});
+					if (isDebugMode) {
+						console.log('🔄 Firebase update detected for team:', team.id, { positionChanged, directionChanged });
+					}
 					updateTeamMarkerFromFirebase(team.id, team);
 					
 					// Si está en modo seguimiento y es el equipo seleccionado, centrar el mapa
@@ -796,12 +1243,14 @@ const EventMap = () => {
 		});
 
 		initialTeamsRef.current = [...teams];
-	}, [teams, updateTeamMarkerFromFirebase, isFollowMode, selectedTeam]);
+	}, [isDebugMode, teams, updateTeamMarkerFromFirebase, isFollowMode, selectedTeam]);
 
 	// Limpiar notificaciones cuando cambie el equipo seleccionado
 	useEffect(() => {
 		if (selectedTeam) {
-			console.log('🔄 Team changed, clearing activity notifications and resetting Kalman filters for team:', selectedTeam.id);
+			if (isDebugMode) {
+				console.log('🔄 Team changed, clearing activity notifications and resetting Kalman filters for team:', selectedTeam.id);
+			}
 			// También limpiar la posición anterior para el cálculo de dirección
 			previousPosition.current = null;
 			// Reiniciar filtros de Kalman para el nuevo equipo
@@ -809,54 +1258,54 @@ const EventMap = () => {
 			kalmanLng.current = null;
 			lastFiltered.current = null;
 			lastAccuracy.current = null; // Limpiar precisión anterior
+			activityProximityCacheRef.current = new Map();
 		}
-	}, [selectedTeam]); // Solo el objeto selectedTeam
+	}, [isDebugMode, selectedTeam]); // Solo el objeto selectedTeam
 
 	// Suscripción a geolocalización con ventana de muestreo para mejor precisión
 	useEffect(() => {
-		const currentTeamData = getSelectedTeamData();
-		
-		console.log('🔄 Geolocation effect triggered:', {
-			hasGeolocation: !!navigator.geolocation,
-			currentTeamData: !!currentTeamData,
-			initialCenter: !!initialCenter,
-			teamId: currentTeamData?.id,
-			isDebugMode
-		});
-		
-		// Si está en modo debug, no escuchar GPS
-		if (isDebugMode) {
-			console.log('🔧 Debug mode active - GPS tracking disabled');
+		if (permissionChecking) {
 			return;
 		}
-		
-		if (!navigator.geolocation) {
-			console.error('❌ Geolocation is not supported by this browser');
+		if (permissionOverlayVisible) {
 			return;
 		}
-		
-		if (!currentTeamData) {
-			console.log('❌ No selected team data');
-			return;
-		}
-		
-		if (!initialCenter) {
-			console.log('❌ No initial center');
+		if (!geolocationPermissionGranted) {
 			return;
 		}
 
-		console.log('🌍 Starting geolocation watch for team:', currentTeamData.id);
+		const currentTeamData = selectedTeamDataRef.current;
+
+		// Si está en modo debug, no escuchar GPS
+		if (isDebugModeRef.current) {
+			return;
+		}
+
+		if (!navigator.geolocation) {
+			if (isDebugModeRef.current) {
+				console.error('❌ Geolocation is not supported by this browser');
+			}
+			return;
+		}
+
+		if (!hasSelectedTeamData || !currentTeamData) {
+			return;
+		}
+
+		if (!initialCenter) {
+			return;
+		}
 
 		// Verificar permisos de geolocalización
 		if (navigator.permissions) {
 			navigator.permissions.query({ name: 'geolocation' }).then((permission) => {
-				console.log('📍 Geolocation permission status:', permission.state);
-				if (permission.state === 'denied') {
+				if (permission.state === 'denied' && isDebugModeRef.current) {
 					console.error('❌ Geolocation permission denied');
-					return;
 				}
 			}).catch((err) => {
-				console.warn('⚠️ Could not check geolocation permissions:', err);
+				if (isDebugModeRef.current) {
+					console.warn('⚠️ Could not check geolocation permissions:', err);
+				}
 			});
 		}
 
@@ -868,11 +1317,8 @@ const EventMap = () => {
 		
 		const processBestSample = () => {
 			if (positionSamples.length === 0) {
-				console.log('📊 No samples to process');
 				return;
 			}
-			
-			console.log('📊 Processing', positionSamples.length, 'GPS samples');
 			
 			// Ordenar por precisión (menor accuracy = mejor)
 			positionSamples.sort((a, b) => a.accuracy - b.accuracy);
@@ -883,9 +1329,6 @@ const EventMap = () => {
 			// Si no hay ninguna dentro del umbral, usar la mejor disponible
 			if (!bestSample) {
 				bestSample = positionSamples[0]; // La primera es la mejor después del sort
-				console.log('⚠️ No sample within accuracy threshold, using best available:', bestSample.accuracy, 'm');
-			} else {
-				console.log('✅ Using sample within accuracy threshold:', bestSample.accuracy, 'm');
 			}
 			
 			// Filtro de centroide basado en precisión relativa para evitar "bailes"
@@ -899,24 +1342,10 @@ const EventMap = () => {
 				const maxAccuracy = Math.max(lastAccuracy.current, bestSample.accuracy);
 				const centroidThreshold = CENTROID_MOVEMENT_FACTOR * maxAccuracy;
 				
-				console.log('📏 Centroid movement analysis:', {
-					distance: centroidDistance.toFixed(1) + 'm',
-					oldAccuracy: lastAccuracy.current.toFixed(1) + 'm',
-					newAccuracy: bestSample.accuracy.toFixed(1) + 'm',
-					maxAccuracy: maxAccuracy.toFixed(1) + 'm',
-					threshold: centroidThreshold.toFixed(1) + 'm',
-					factor: CENTROID_MOVEMENT_FACTOR
-				});
-				
 				if (centroidDistance <= centroidThreshold) {
-					console.log('🎯 Movement within centroid threshold - rejecting to avoid GPS "dance":', 
-						centroidDistance.toFixed(1), '≤', centroidThreshold.toFixed(1));
 					// Limpiar muestras y esperar nuevas
 					positionSamples = [];
 					return;
-				} else {
-					console.log('✅ Significant movement detected:', 
-						centroidDistance.toFixed(1), '>', centroidThreshold.toFixed(1));
 				}
 			}
 			
@@ -927,21 +1356,17 @@ const EventMap = () => {
 					lastFiltered.current
 				);
 				if (jump > MAX_JUMP_DISTANCE) {
-					console.log('❌ Best sample rejected by extreme jump filter:', jump, '>', MAX_JUMP_DISTANCE);
 					// Limpiar muestras y esperar nuevas
 					positionSamples = [];
 					return;
 				}
 			}
 			
-			console.log('✅ Sample accepted, applying Kalman filter');
-			
 			// Aplicar el procesamiento como antes
 			const { lat, lng, heading } = bestSample;
 			
 			// Inicializar filtros de Kalman si es la primera vez
 			if (!kalmanLat.current || !kalmanLng.current) {
-				console.log('🔧 Initializing Kalman filters with best GPS sample');
 				kalmanLat.current = new KalmanFilter({ R: KALMAN_R, Q: KALMAN_Q });
 				kalmanLng.current = new KalmanFilter({ R: KALMAN_R, Q: KALMAN_Q });
 				
@@ -951,7 +1376,6 @@ const EventMap = () => {
 				
 				lastFiltered.current = { lat: filteredLat, lng: filteredLng };
 				lastAccuracy.current = bestSample.accuracy; // Almacenar precisión inicial
-				console.log('📍 First Kalman filtered position:', { lat: filteredLat, lng: filteredLng, accuracy: bestSample.accuracy });
 			} else {
 				// Aplicar filtros de Kalman a las nuevas coordenadas
 				const filteredLat = kalmanLat.current.filter(lat);
@@ -959,42 +1383,27 @@ const EventMap = () => {
 				
 				lastFiltered.current = { lat: filteredLat, lng: filteredLng };
 				lastAccuracy.current = bestSample.accuracy; // Actualizar precisión
-				console.log('📍 Kalman filtered position:', { 
-					original: { lat, lng }, 
-					filtered: { lat: filteredLat, lng: filteredLng },
-					accuracy: bestSample.accuracy 
-				});
 			}
-			
-			console.log('📍 Updating team position to:', lastFiltered.current);
 			
 			const newPosition = { lat: lastFiltered.current.lat, lng: lastFiltered.current.lng };
 			
 			// Obtener dirección - priorizar orientación del dispositivo sobre GPS heading
 			let direction = null;
-			let directionSource = 'none';
 			
 			// 1. Prioridad: Orientación del dispositivo (acelerómetro/brújula) - solo si está habilitada y estable
 			const currentCompassHeading = compassHeadingRef.current;
-			if (useCompass && currentCompassHeading !== null) {
+			const useCompassValue = useCompassRef.current;
+			if (useCompassValue && currentCompassHeading !== null) {
 				// Verificar que la lectura de la brújula sea reciente (menos de 1 segundo)
 				const compassAge = Date.now() - lastCompassUpdate.current;
 				if (compassAge < 1000) {
 					direction = currentCompassHeading;
-					directionSource = 'compass';
-					console.log('🧭 Using device compass heading:', direction.toFixed(1), 'degrees (age:', compassAge, 'ms)');
-				} else {
-					console.log('🧭 Compass data too old (', compassAge, 'ms), falling back');
 				}
-			} else if (!useCompass) {
-				console.log('🧭 Compass disabled by user, skipping');
 			}
 			
 			// 2. Fallback: Heading del GPS si está disponible
 			if (direction === null && heading !== null && heading !== undefined) {
 				direction = heading;
-				directionSource = 'gps';
-				console.log('🧭 Using GPS heading:', direction.toFixed(1), 'degrees');
 			}
 			
 			// 3. Último recurso: Calcular dirección usando movimiento
@@ -1003,34 +1412,36 @@ const EventMap = () => {
 				// Solo calcular dirección si ha habido un movimiento significativo
 				if (distance > 2) {
 					direction = getBearing(previousPosition.current, newPosition);
-					directionSource = 'movement';
-					console.log('🧭 Calculated heading from movement:', direction.toFixed(1), 'degrees, distance:', distance.toFixed(1), 'm');
 				}
 			}
-			
-			console.log('🧭 Direction selected:', {
-				source: directionSource,
-				value: direction ? direction.toFixed(1) + '°' : 'null',
-				compassAvailable: currentCompassHeading !== null,
-				gpsHeadingAvailable: heading !== null && heading !== undefined,
-				movementDistance: previousPosition.current ? getDistance(previousPosition.current, newPosition).toFixed(1) + 'm' : 'no previous position'
-			});
 			
 			// Actualizar la posición anterior para la próxima iteración (para fallback)
 			previousPosition.current = newPosition;
 			
 			// PRIMERO: Actualizar directamente la posición del marcador SIN re-renderizar
-			updateSelectedTeamMarkerPosition(newPosition, direction);
+			const updateMarkerFn = updateSelectedTeamMarkerPositionRef.current;
+			if (updateMarkerFn) {
+				updateMarkerFn(newPosition, direction);
+			}
 			
 			// Si está activo el modo seguimiento, centrar el mapa en la nueva posición
-			if (isFollowMode && mapRef.current) {
+			if (isFollowModeRef.current && mapRef.current) {
 				mapRef.current.panTo(newPosition);
 			}
 			
 			// Verificar proximidad a actividades
-			checkActivityProximityNew(newPosition, bestSample.accuracy);
+			const proximityFn = checkActivityProximityNewRef.current;
+			if (proximityFn) {
+				proximityFn(newPosition, bestSample.accuracy);
+			}
 			// SEGUNDO: Actualizar Firebase con throttling (esto puede causar re-render pero ya hemos actualizado el marcador)
-			throttledFirebaseUpdate(newPosition, currentTeamData, direction);
+			const throttledUpdateFn = throttledFirebaseUpdateRef.current;
+			if (throttledUpdateFn) {
+				const latestTeamData = selectedTeamDataRef.current || currentTeamData;
+				if (latestTeamData) {
+					throttledUpdateFn(newPosition, latestTeamData, direction);
+				}
+			}
 			
 			// Limpiar muestras para el siguiente ciclo
 			positionSamples = [];
@@ -1038,17 +1449,8 @@ const EventMap = () => {
 
 		const watchId = navigator.geolocation.watchPosition(
 			({ coords }) => {
-				console.log('🌍 ✅ Geolocation callback executed!');
-				
 				const { latitude: lat, longitude: lng, accuracy, heading, speed } = coords;
-				console.log('🌍 Geolocation received:', { 
-					lat, 
-					lng, 
-					accuracy,
-					heading: heading !== null ? `${heading.toFixed(1)}°` : 'null',
-					speed: speed !== null ? `${speed.toFixed(1)} m/s` : 'null'
-				});
-				
+			
 				// Agregar muestra al buffer independientemente de la precisión
 				positionSamples.push({
 					lat,
@@ -1059,13 +1461,9 @@ const EventMap = () => {
 					timestamp: Date.now()
 				});
 				
-				console.log('📊 Added sample to buffer. Total samples:', positionSamples.length, 'Accuracy:', accuracy, 'm');
-				
 				// Si es la primera muestra, iniciar la ventana de muestreo
 				if (positionSamples.length === 1) {
-					console.log('📊 Starting sampling window of', SAMPLING_WINDOW_MS, 'ms');
 					samplingWindow = setTimeout(() => {
-						console.log('📊 Sampling window closed, processing samples');
 						processBestSample();
 						samplingWindow = null;
 					}, SAMPLING_WINDOW_MS);
@@ -1074,7 +1472,6 @@ const EventMap = () => {
 				// Si hemos alcanzado el umbral de precisión deseado y tenemos suficientes muestras,
 				// procesar inmediatamente en lugar de esperar
 				if (accuracy <= ACCURACY_THRESHOLD && positionSamples.length >= MIN_SAMPLES) {
-					console.log('📊 Excellent accuracy achieved early, processing immediately');
 					if (samplingWindow) {
 						clearTimeout(samplingWindow);
 						samplingWindow = null;
@@ -1083,24 +1480,25 @@ const EventMap = () => {
 				}
 			},
 			(err) => {
-				console.error("❌ Geolocation error:", err);
-				console.error("Error code:", err.code);
-				console.error("Error message:", err.message);
+				if (isDebugModeRef.current) {
+					console.error("❌ Geolocation error:", err);
+					console.error("Error code:", err.code);
+					console.error("Error message:", err.message);
 				
-				// Mostrar mensajes específicos según el tipo de error
-				switch(err.code) {
-					case 1:
-						console.error("❌ Permission denied by user");
-						break;
-					case 2:
-						console.error("❌ Position unavailable");
-						break;
-					case 3:
-						console.error("❌ Timeout");
-						break;
-					default:
-						console.error("❌ Unknown error");
-						break;
+					switch(err.code) {
+						case 1:
+							console.error("❌ Permission denied by user");
+							break;
+						case 2:
+							console.error("❌ Position unavailable");
+							break;
+						case 3:
+							console.error("❌ Timeout");
+							break;
+						default:
+							console.error("❌ Unknown error");
+							break;
+					}
 				}
 			},
 			{ 
@@ -1110,20 +1508,28 @@ const EventMap = () => {
 			}
 		);
 
-		console.log('🌍 Geolocation watch ID assigned:', watchId);
+		if (isDebugModeRef.current) {
+			console.log('🌍 Geolocation watch ID assigned:', watchId);
+		}
 
 		// Probar una posición única para verificar que funciona
-		console.log('🧪 Testing getCurrentPosition...');
+		if (isDebugModeRef.current) {
+			console.log('🧪 Testing getCurrentPosition...');
+		}
 		navigator.geolocation.getCurrentPosition(
 			(position) => {
-				console.log('🧪 ✅ getCurrentPosition SUCCESS:', {
-					lat: position.coords.latitude,
-					lng: position.coords.longitude,
-					accuracy: position.coords.accuracy
-				});
+				if (isDebugModeRef.current) {
+					console.log('🧪 ✅ getCurrentPosition SUCCESS:', {
+						lat: position.coords.latitude,
+						lng: position.coords.longitude,
+						accuracy: position.coords.accuracy
+					});
+				}
 			},
 			(err) => {
-				console.error('🧪 ❌ getCurrentPosition ERROR:', err);
+				if (isDebugModeRef.current) {
+					console.error('🧪 ❌ getCurrentPosition ERROR:', err);
+				}
 			},
 			{
 				enableHighAccuracy: true,
@@ -1133,56 +1539,286 @@ const EventMap = () => {
 		);
 
 		return () => {
-			console.log('🛑 Clearing geolocation watch ID:', watchId);
+			if (isDebugModeRef.current) {
+				console.log('🛑 Clearing geolocation watch ID:', watchId);
+			}
 			navigator.geolocation.clearWatch(watchId);
 			
 			// Limpiar timeout de ventana de muestreo si existe
 			if (samplingWindow) {
 				clearTimeout(samplingWindow);
-				console.log('🛑 Clearing sampling window timeout');
+				if (isDebugModeRef.current) {
+					console.log('🛑 Clearing sampling window timeout');
+				}
 			}
 		};
-	}, [selectedTeam?.id, initialCenter, checkActivityProximityNew, throttledFirebaseUpdate, updateSelectedTeamMarkerPosition, getSelectedTeamData, isDebugMode, isFollowMode, useCompass]); // Dependencias estables
+	}, [selectedTeam?.id, hasSelectedTeamData, initialCenter, isDebugMode, permissionChecking, permissionOverlayVisible, geolocationPermissionGranted]); // Dependencias reducidas para mantener un único watch
+
+	useEffect(() => {
+		if (!isAdmin || !adminPositionViewEnabled) {
+			return;
+		}
+		if (permissionChecking || permissionOverlayVisible) {
+			return;
+		}
+		if (!geolocationPermissionGranted) {
+			return;
+		}
+		if (!navigator.geolocation) {
+			if (isDebugModeRef.current) {
+				console.error('❌ Geolocation is not supported by this browser (admin)');
+			}
+			return;
+		}
+		if (!initialCenter) {
+			return;
+		}
+
+		const SAMPLING_WINDOW_MS = 4000;
+		const MIN_SAMPLES = 2;
+		let positionSamples = [];
+		let samplingWindow = null;
+
+		const processBestSample = () => {
+			if (positionSamples.length === 0) {
+				return;
+			}
+
+			positionSamples.sort((a, b) => a.accuracy - b.accuracy);
+			let bestSample = positionSamples.find(sample => sample.accuracy <= ACCURACY_THRESHOLD) || positionSamples[0];
+
+			if (adminLastFiltered.current && adminLastAccuracy.current !== null) {
+				const centroidDistance = getDistance(
+					{ lat: bestSample.lat, lng: bestSample.lng },
+					adminLastFiltered.current
+				);
+				const maxAccuracy = Math.max(adminLastAccuracy.current, bestSample.accuracy);
+				const centroidThreshold = CENTROID_MOVEMENT_FACTOR * maxAccuracy;
+				if (centroidDistance <= centroidThreshold) {
+					positionSamples = [];
+					return;
+				}
+			}
+
+			if (adminLastFiltered.current) {
+				const jump = getDistance(
+					{ lat: bestSample.lat, lng: bestSample.lng },
+					adminLastFiltered.current
+				);
+				if (jump > MAX_JUMP_DISTANCE) {
+					positionSamples = [];
+					return;
+				}
+			}
+
+			if (!adminKalmanLat.current || !adminKalmanLng.current) {
+				adminKalmanLat.current = new KalmanFilter({ R: KALMAN_R, Q: KALMAN_Q });
+				adminKalmanLng.current = new KalmanFilter({ R: KALMAN_R, Q: KALMAN_Q });
+			}
+
+			const filteredLat = adminKalmanLat.current.filter(bestSample.lat);
+			const filteredLng = adminKalmanLng.current.filter(bestSample.lng);
+			adminLastFiltered.current = { lat: filteredLat, lng: filteredLng };
+			adminLastAccuracy.current = bestSample.accuracy;
+
+			const newPosition = { lat: filteredLat, lng: filteredLng };
+			let direction = null;
+
+			const currentCompassHeading = compassHeadingRef.current;
+			const useCompassValue = useCompassRef.current;
+			if (useCompassValue && currentCompassHeading !== null) {
+				const compassAge = Date.now() - lastCompassUpdate.current;
+				if (compassAge < 1000) {
+					direction = currentCompassHeading;
+				}
+			}
+
+			if (direction === null && bestSample.heading !== null && bestSample.heading !== undefined) {
+				direction = bestSample.heading;
+			}
+
+			if (direction === null && adminPreviousPosition.current) {
+				const distance = getDistance(adminPreviousPosition.current, newPosition);
+				if (distance > 2) {
+					direction = getBearing(adminPreviousPosition.current, newPosition);
+				}
+			}
+
+			adminPreviousPosition.current = newPosition;
+			const effectiveDirection = typeof direction === 'number'
+				? direction
+				: (typeof adminDirectionRef.current === 'number' ? adminDirectionRef.current : null);
+			adminDirectionRef.current = effectiveDirection;
+
+			const previousLocation = adminLocationRef.current;
+			const payload = {
+				position: newPosition,
+				accuracy: bestSample.accuracy,
+				direction: effectiveDirection,
+			};
+			adminLocationRef.current = payload;
+
+			updateAdminMarkerPosition(newPosition, effectiveDirection);
+
+			let shouldUpdateState = !previousLocation;
+			if (previousLocation) {
+				const distanceMoved = getDistance(previousLocation.position, newPosition);
+				if (distanceMoved > 0.5) {
+					shouldUpdateState = true;
+				}
+				const prevDirection = typeof previousLocation.direction === 'number' ? previousLocation.direction : null;
+				if (!shouldUpdateState && typeof effectiveDirection === 'number' && prevDirection != null) {
+					if (angleDelta(prevDirection, effectiveDirection) > 8) {
+						shouldUpdateState = true;
+					}
+				}
+				if (!shouldUpdateState) {
+					const prevAccuracy = previousLocation.accuracy ?? Infinity;
+					if (Math.abs(prevAccuracy - bestSample.accuracy) > 5) {
+						shouldUpdateState = true;
+					}
+				}
+			}
+
+			if (shouldUpdateState) {
+				setAdminLocation(payload);
+			}
+
+			if (isFollowModeRef.current && mapRef.current) {
+				mapRef.current.panTo(newPosition);
+			}
+
+			positionSamples = [];
+		};
+
+		const watchId = navigator.geolocation.watchPosition(
+			({ coords }) => {
+				const sample = {
+					lat: coords.latitude,
+					lng: coords.longitude,
+					accuracy: coords.accuracy,
+					heading: coords.heading,
+					speed: coords.speed,
+					timestamp: Date.now(),
+				};
+				positionSamples.push(sample);
+
+				if (positionSamples.length === 1) {
+					samplingWindow = setTimeout(() => {
+						processBestSample();
+						samplingWindow = null;
+					}, SAMPLING_WINDOW_MS);
+				}
+
+				if (coords.accuracy <= ACCURACY_THRESHOLD && positionSamples.length >= MIN_SAMPLES) {
+					if (samplingWindow) {
+						clearTimeout(samplingWindow);
+						samplingWindow = null;
+					}
+					processBestSample();
+				}
+			},
+			(err) => {
+				if (isDebugModeRef.current) {
+					console.error('❌ Geolocation error (admin):', err);
+				}
+			},
+			{
+				enableHighAccuracy: true,
+				maximumAge: 0,
+				timeout: 15000,
+			}
+		);
+
+		if (isDebugModeRef.current) {
+			console.log('🌍 Admin geolocation watch ID assigned:', watchId);
+		}
+
+		navigator.geolocation.getCurrentPosition(
+			(position) => {
+				if (isDebugModeRef.current) {
+					console.log('🧪 ✅ Admin getCurrentPosition SUCCESS:', {
+						lat: position.coords.latitude,
+						lng: position.coords.longitude,
+						accuracy: position.coords.accuracy,
+					});
+				}
+			},
+			(err) => {
+				if (isDebugModeRef.current) {
+					console.error('🧪 ❌ Admin getCurrentPosition ERROR:', err);
+				}
+			},
+			{
+				enableHighAccuracy: true,
+				timeout: 10000,
+				maximumAge: 0,
+			}
+		);
+
+		return () => {
+			if (isDebugModeRef.current) {
+				console.log('🛑 Clearing admin geolocation watch ID:', watchId);
+			}
+			navigator.geolocation.clearWatch(watchId);
+			if (samplingWindow) {
+				clearTimeout(samplingWindow);
+			}
+			positionSamples = [];
+		};
+	}, [isAdmin, adminPositionViewEnabled, permissionChecking, permissionOverlayVisible, geolocationPermissionGranted, initialCenter, updateAdminMarkerPosition]);
 
 	// Marcadores renderizados solo cuando sea necesario (evitar re-renders por cambios de posición)
 	const teamMarkers = React.useMemo(() => {
 		// Verificar que Google Maps esté cargado y tengamos datos iniciales
 		if (!isLoaded || !window.google?.maps || !teams || teams.length === 0) {
-			console.log('⏳ Google Maps not loaded yet or no teams, skipping marker creation');
+			if (isDebugMode) {
+				console.log('⏳ Google Maps not loaded yet or no teams, skipping marker creation');
+			}
 			return [];
 		}
 
 		// Solo crear marcadores una vez o cuando cambie la estructura de equipos (no posiciones)
 		if (!markersCreated) {
-			console.log('🎯 Creating initial markers for teams (RENDER ONCE):', teams.length);
+			if (isDebugMode) {
+				console.log('🎯 Creating initial markers for teams (RENDER ONCE):', teams.length);
+			}
 			setMarkersCreated(true);
 		} else {
-			console.log('🎯 Using cached markers - positions updated via direct API calls');
+			if (isDebugMode) {
+				console.log('🎯 Using cached markers - positions updated via direct API calls');
+			}
 		}
 		
 		// Si es admin, mostrar información de posición de todos los equipos
 		if (isAdmin) {
-			console.log('👑 Admin view - Team positions:');
-			teams.forEach(team => {
-				if (team.lat != null && team.lon != null) {
-					console.log(`📍 Team ${team.id} (${team.name || 'Sin nombre'}): lat: ${team.lat.toFixed(6)}, lng: ${team.lon.toFixed(6)}, direction: ${team.direction || 0}°, device: ${team.device || 'No device'}`);
-				} else {
-					console.log(`❌ Team ${team.id} (${team.name || 'Sin nombre'}): No position data, device: ${team.device || 'No device'}`);
-				}
-			});
+			if (isDebugMode) {
+				console.log('👑 Admin view - Team positions:');
+				teams.forEach(team => {
+					if (team.lat != null && team.lon != null) {
+						console.log(`📍 Team ${team.id} (${team.name || 'Sin nombre'}): lat: ${team.lat.toFixed(6)}, lng: ${team.lon.toFixed(6)}, direction: ${team.direction || 0}°, device: ${team.device || 'No device'}`);
+					} else {
+						console.log(`❌ Team ${team.id} (${team.name || 'Sin nombre'}): No position data, device: ${team.device || 'No device'}`);
+					}
+				});
+			}
 		}
 		
 		return teams
 			.filter(team => {
 				// Filtrar equipos que no tienen device asociado
 				if (!team.device || team.device === "") {
-					console.log(`🚫 Team ${team.id} (${team.name || 'Sin nombre'}): No device assigned, not showing on map`);
+					if (isDebugMode) {
+						console.log(`🚫 Team ${team.id} (${team.name || 'Sin nombre'}): No device assigned, not showing on map`);
+					}
 					return false;
 				}
 				return true;
 			})
 			.map((team, index) => {
-				console.log('🎯 Team marker:', team.id, 'lat:', team.lat, 'lon:', team.lon, 'isSelected:', team.id === selectedTeam?.id, 'device:', team.device);
+				if (isDebugMode) {
+					console.log('🎯 Team marker:', team.id, 'lat:', team.lat, 'lon:', team.lon, 'isSelected:', team.id === selectedTeam?.id, 'device:', team.device);
+				}
 				
 				if (team.lat == null || team.lon == null) return null;
 				
@@ -1190,20 +1826,64 @@ const EventMap = () => {
 				const isSelectedTeam = selectedTeam && team.id === selectedTeam.id;
 				
 				if (isSelectedTeam) {
-					// Equipo seleccionado - mantener lógica actual pero sin popup
 					const baseIconUrl = markMe;
 					const teamDirection = team.direction || 0;
 					const iconUrl = createRotatedIconSync(baseIconUrl, teamDirection, ICON_SIZE);
 					const scale = new window.google.maps.Size(ICON_SIZE, ICON_SIZE);
 					const anchor = new window.google.maps.Point(ICON_SIZE / 2, ICON_SIZE / 2);
-					
+					const markerOpacity = ownTeamStatus === 'online' || ownTeamStatus === 'sleep'
+						? 1
+						: ownTeamStatus === 'connecting'
+							? 0.75
+							: 0.45;
+					const markerTitle = (() => {
+						if (!ownTeamStatus) return undefined;
+						switch (ownTeamStatus) {
+							case 'sleep':
+								return t('session.screen_locked', 'Pantalla bloqueada');
+							case 'connecting':
+								return t('session.connecting', 'Conectando…');
+							case 'offline':
+								return t('session.disconnected', 'Desconectado');
+							default:
+								return t('session.connected', 'Conectado');
+						}
+					})();
+					const showOfflineBadge = !isAdmin && ownTeamStatus === 'offline';
+				
 					return (
-						<Marker
-							key={team.id}
-							position={{ lat: team.lat, lng: team.lon }}
-							icon={{ url: iconUrl, scaledSize: scale, anchor }}
-							onLoad={(marker) => { teamMarkersRef.current.set(team.id, marker); }}
-						/>
+						<React.Fragment key={team.id}>
+							<Marker
+								position={{ lat: team.lat, lng: team.lon }}
+								icon={{ url: iconUrl, scaledSize: scale, anchor }}
+								opacity={markerOpacity}
+								title={markerTitle}
+								zIndex={ownTeamStatus === 'offline' ? 200 : 300}
+								onLoad={(marker) => { teamMarkersRef.current.set(team.id, marker); }}
+							/>
+							{showOfflineBadge && (
+								<OverlayView
+									position={{ lat: team.lat, lng: team.lon }}
+									mapPaneName={OverlayView.OVERLAY_LAYER}
+								>
+									<div
+										style={{
+											transform: 'translate(-50%, -130%)',
+											background: 'rgba(220, 38, 38, 0.95)',
+											color: '#fff',
+											padding: '4px 10px',
+											borderRadius: '999px',
+											fontSize: '0.75rem',
+											fontWeight: 600,
+											boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
+											whiteSpace: 'nowrap'
+										}}
+									>
+										{t('session.disconnected', 'Desconectado')}
+									</div>
+								</OverlayView>
+							)}
+						</React.Fragment>
 					);
 				}
 				
@@ -1221,49 +1901,180 @@ const EventMap = () => {
 					/>
 				);
 			});
-	}, [isLoaded, isAdmin, selectedTeam, teams, markersCreated]);
+	}, [isDebugMode, isLoaded, isAdmin, selectedTeam, teams, markersCreated, ownTeamStatus, t]);
 
 	// Renderizar actividades
 	const renderActivities = () => {
 		if (isAdmin) {
-			// Si es admin, mostrar todas las actividades del evento
 			return (event?.activities_data || [])
 				.filter((activity) => isActivityVisible(activity, null, true))
-				.map((activity) => (
-					<ActivityMarker key={`activity-${activity.id}`} activity={activity} />
-				));
-		} else {
-			const currentTeamData = getSelectedTeamData();
-			if (currentTeamData) {
-				console.log('🎯 Rendering activities for team:', currentTeamData?.id, currentTeamData?.activities_data?.length);
-				// Si hay equipo seleccionado, mostrar sus actividades
-				return (currentTeamData.activities_data || [])
-					.filter((activity) => isActivityVisible(activity, currentTeamData, false))
-					.map((activity) => (
-						<ActivityMarker key={`activity-${activity.id}`} activity={activity} />
-					));
-			}
+				.map((activity) => {
+					const completedTeams = teams.filter((team) =>
+						team.activities_data?.some((act) => act.id === activity.id && act.complete && !act.del)
+					);
+					const completedTeamNames = completedTeams.map((team) => team.name).join(", ");
+					const completedCount = completedTeams.length;
+					const adminMessage = completedCount > 0
+						? t(
+							"activity_info.admin_completed",
+							"Equipos que han completado esta actividad ({{count}}): {{teams}}",
+							{
+								count: completedCount,
+								teams: completedTeamNames || t("activity_info.none", "Ninguno"),
+							}
+						  )
+						: t(
+							"activity_info.admin_no_completed",
+							"Ningún equipo ha completado esta actividad aún."
+						  );
+
+					return (
+						<ActivityMarker
+							key={`activity-${activity.id}`}
+							activity={activity}
+							isAdmin
+							isBubbleOpen={openActivityId === activity.id}
+							onMarkerClick={handleActivityMarkerClick}
+							onBubbleClose={handleActivityBubbleClose}
+							adminInfo={{ message: adminMessage }}
+							teamInfo={null}
+							t={t}
+						/>
+					);
+				});
 		}
-		
-		return [];
+
+		const currentTeamData = selectedTeamData;
+		if (!currentTeamData) {
+			return [];
+		}
+
+		if (isDebugMode) {
+			console.log('🎯 Rendering activities for team:', currentTeamData?.id, currentTeamData?.activities_data?.length);
+		}
+
+		const visibleActivities = (currentTeamData.activities_data || [])
+			.filter((activity) => isActivityVisible(activity, currentTeamData, false));
+
+		const teamPosition = currentTeamData.lat != null && currentTeamData.lon != null
+			? { lat: currentTeamData.lat, lng: currentTeamData.lon }
+			: null;
+
+		const accuracyForDisplay = lastAccuracy.current ?? 100;
+
+		if (!teamPosition) {
+			const info = {
+				state: 'no-position',
+				message: t('activity_info.position_unknown', 'No se puede calcular la distancia. Posición del equipo desconocida.'),
+			};
+
+			return visibleActivities.map((activity) => (
+				<ActivityMarker
+					key={`activity-${activity.id}`}
+					activity={activity}
+					isAdmin={false}
+					isBubbleOpen={openActivityId === activity.id}
+					onMarkerClick={handleActivityMarkerClick}
+					onBubbleClose={handleActivityBubbleClose}
+					adminInfo={null}
+					teamInfo={info}
+					t={t}
+				/>
+			));
+		}
+
+		return visibleActivities.map((activity) => {
+			if (typeof activity.lat !== 'number' || typeof activity.lon !== 'number') {
+				const info = {
+					state: 'no-position',
+					message: t('activity_info.position_unknown', 'No se puede calcular la distancia. Posición del equipo desconocida.'),
+				};
+
+				return (
+					<ActivityMarker
+						key={`activity-${activity.id}`}
+						activity={activity}
+						isAdmin={false}
+						isBubbleOpen={openActivityId === activity.id}
+						onMarkerClick={handleActivityMarkerClick}
+						onBubbleClose={handleActivityBubbleClose}
+						adminInfo={null}
+						teamInfo={info}
+						t={t}
+					/>
+				);
+			}
+
+			let proximityInfo = activityProximityCacheRef.current.get(activity.id);
+
+			if (!proximityInfo) {
+				const computedInfo = computeActivityProximityInfo(activity, teamPosition, accuracyForDisplay);
+				const nextCache = new Map(activityProximityCacheRef.current);
+				nextCache.set(activity.id, computedInfo);
+				activityProximityCacheRef.current = nextCache;
+				proximityInfo = computedInfo;
+			}
+
+			const { distanceMessage, canStartByClick, statusMessages } = proximityInfo;
+
+			const teamInfo = {
+				state: 'ready',
+				distanceMessage,
+				canStartByClick,
+				callToActionText: canStartByClick
+					? t('activity_info.click_to_start', 'Pulsa para realizar la actividad')
+					: null,
+				statusText: !canStartByClick && statusMessages.length > 0 ? statusMessages.join(' ') : null,
+				startButtonLabel: t('start_activity', 'Iniciar Actividad'),
+				onStartActivity: () => handleStartActivityByClick(activity),
+			};
+
+			return (
+				<ActivityMarker
+					key={`activity-${activity.id}`}
+					activity={activity}
+					isAdmin={false}
+					isBubbleOpen={openActivityId === activity.id}
+					onMarkerClick={handleActivityMarkerClick}
+					onBubbleClose={handleActivityBubbleClose}
+					adminInfo={null}
+					teamInfo={teamInfo}
+					t={t}
+				/>
+			);
+		});
 	};
 
 	// Función para cerrar popups y bocadillos abiertos
 	const closeOpenPopups = useCallback(() => {
 		// Cerrar cualquier popup del sistema global
 		closePopup();
+		setOpenActivityId(null);
 		
 		// Cerrar InfoWindows de actividades - necesitamos notificar a los ActivityMarkers
 		// Esto se manejará mediante un evento personalizado que los ActivityMarkers escucharán
 		window.dispatchEvent(new CustomEvent('closeActivityBubbles'));
 	}, [closePopup]);
 
+	const handleActivityMarkerClick = useCallback((activityId) => {
+		setOpenActivityId(activityId);
+	}, []);
+
+	const handleActivityBubbleClose = useCallback(() => {
+		setOpenActivityId(null);
+	}, []);
+
+	const handleStartActivityByClick = useCallback((activity) => {
+		dispatch(startActivityWithSuspensionCheck(activity));
+		setOpenActivityId(null);
+	}, [dispatch]);
+
 	// Función para manejar clicks en el mapa
 	const handleMapClick = useCallback((mapEvent) => {
 		// Siempre cerrar popups/bocadillos al hacer clic en el mapa
 		closeOpenPopups();
 
-		const currentTeamData = getSelectedTeamData();
+		const currentTeamData = selectedTeamData;
 		if (!isDebugMode || !currentTeamData || !event) return;
 
 		const clickedLat = mapEvent.latLng.lat();
@@ -1330,15 +2141,22 @@ const EventMap = () => {
 			checkActivityProximityNew(newPosition, 10);
 		}, 1200);
 		
-	}, [isDebugMode, event, dispatch, checkActivityProximityNew, getSelectedTeamData, closeOpenPopups]);
+	}, [isDebugMode, event, dispatch, checkActivityProximityNew, selectedTeamData, closeOpenPopups]);
 
 	// Función para manejar cuando el usuario desplaza el mapa manualmente
 	const handleMapDragEnd = useCallback(() => {
 		if (isFollowMode) {
-			console.log('🗺️ User dragged map, disabling follow mode');
+			if (isDebugModeRef.current) {
+				console.log('🗺️ User dragged map, disabling follow mode');
+			}
 			setIsFollowMode(false);
 		}
-	}, [isFollowMode]);
+		persistMapView();
+	}, [isFollowMode, persistMapView]);
+
+	const handleZoomChanged = useCallback(() => {
+		persistMapView();
+	}, [persistMapView]);
 
 	// Función para alternar el uso de la brújula
 	// eslint-disable-next-line no-unused-vars
@@ -1350,9 +2168,13 @@ const EventMap = () => {
 			// Si se desactiva la brújula, limpiar los valores
 			compassHeadingRef.current = null;
 			deviceOrientationRef.current = null;
-			console.log('🧭 Compass disabled by user');
+			if (isDebugModeRef.current) {
+				console.log('🧭 Compass disabled by user');
+			}
 		} else {
-			console.log('🧭 Compass enabled by user');
+			if (isDebugModeRef.current) {
+				console.log('🧭 Compass enabled by user');
+			}
 		}
 	}, [useCompass]);
 
@@ -1363,20 +2185,79 @@ const EventMap = () => {
 		
 		if (newFollowMode && mapRef.current) {
 			// Si se activa el modo seguimiento, centrar inmediatamente
-			if (isAdmin && event) {
-				// Para admin, centrar en el evento
-				mapRef.current.panTo({ lat: event.lat, lng: event.lon });
+			if (isAdmin) {
+				const adminFocusPosition = adminPositionViewEnabled
+					? adminLocationRef.current?.position || adminLocation?.position
+					: null;
+				if (adminFocusPosition) {
+					mapRef.current.panTo(adminFocusPosition);
+				} else if (event) {
+					mapRef.current.panTo({ lat: event.lat, lng: event.lon });
+				}
 			} else {
-				const currentTeamData = getSelectedTeamData();
+				const currentTeamData = selectedTeamData;
 				if (currentTeamData && currentTeamData.lat != null && currentTeamData.lon != null) {
 					// Para equipo, centrar en la posición del equipo
 					mapRef.current.panTo({ lat: currentTeamData.lat, lng: currentTeamData.lon });
 				}
 			}
 		}
+		persistMapView();
 		
-		console.log('🎯 Follow mode:', newFollowMode ? 'ENABLED' : 'DISABLED');
-	}, [isFollowMode, isAdmin, event, getSelectedTeamData]);
+		if (isDebugModeRef.current) {
+			console.log('🎯 Follow mode:', newFollowMode ? 'ENABLED' : 'DISABLED');
+		}
+	}, [isFollowMode, isAdmin, event, selectedTeamData, adminPositionViewEnabled, adminLocation, persistMapView]);
+
+	const clearCenterButtonLongPress = useCallback(() => {
+		if (centerButtonLongPressTimeoutRef.current) {
+			clearTimeout(centerButtonLongPressTimeoutRef.current);
+			centerButtonLongPressTimeoutRef.current = null;
+		}
+	}, []);
+
+	const handleCenterButtonPointerDown = useCallback(() => {
+		centerButtonLongPressTriggeredRef.current = false;
+		if (!mapRef.current || !event || typeof event.lat !== 'number' || typeof event.lon !== 'number') {
+			return;
+		}
+
+		clearCenterButtonLongPress();
+		centerButtonLongPressTimeoutRef.current = setTimeout(() => {
+			centerButtonLongPressTimeoutRef.current = null;
+			centerButtonLongPressTriggeredRef.current = true;
+			if (mapRef.current) {
+				mapRef.current.panTo({ lat: event.lat, lng: event.lon });
+				persistMapView();
+			}
+		}, CENTER_BUTTON_LONG_PRESS_MS);
+	}, [clearCenterButtonLongPress, event, persistMapView]);
+
+	const handleCenterButtonPointerUp = useCallback(() => {
+		clearCenterButtonLongPress();
+	}, [clearCenterButtonLongPress]);
+
+	const handleCenterButtonPointerLeave = useCallback(() => {
+		clearCenterButtonLongPress();
+		centerButtonLongPressTriggeredRef.current = false;
+	}, [clearCenterButtonLongPress]);
+
+	const handleCenterButtonClick = useCallback((evt) => {
+		if (centerButtonLongPressTriggeredRef.current) {
+			evt.preventDefault();
+			evt.stopPropagation();
+			centerButtonLongPressTriggeredRef.current = false;
+			return;
+		}
+		toggleFollowMode();
+	}, [toggleFollowMode]);
+
+	useEffect(() => () => {
+		if (centerButtonLongPressTimeoutRef.current) {
+			clearTimeout(centerButtonLongPressTimeoutRef.current);
+			centerButtonLongPressTimeoutRef.current = null;
+		}
+	}, []);
 
 	// Efecto para centrar el mapa en la posición del equipo seleccionado cuando cambie
 	// useEffect(() => {
@@ -1399,14 +2280,18 @@ const EventMap = () => {
 
 	const handleLoad = (map) => {
 		mapRef.current = map;
-		map.panTo(initialCenter);
+		if (initialCenter) {
+			map.panTo(initialCenter);
+		}
 		
 		// Calcular zoom inicial respetando los límites configurados
-		const { minZoom, maxZoom } = getZoomLimits();
+		const { minZoom, maxZoom } = zoomLimits;
 		const defaultZoom = 15;
-		const initialZoom = Math.max(minZoom, Math.min(maxZoom, defaultZoom));
+		const desiredZoom = typeof initialZoom === 'number' ? initialZoom : defaultZoom;
+		const clampedZoom = Math.max(minZoom, Math.min(maxZoom, desiredZoom));
 		
-		map.setZoom(initialZoom);
+		map.setZoom(clampedZoom);
+		persistMapView();
 	};
 
 	return (
@@ -1417,21 +2302,79 @@ const EventMap = () => {
 				onLoad={handleLoad}
 				onClick={handleMapClick}
 				onDragEnd={handleMapDragEnd}
-				options={{
-					styles: getMapStyles(),
-					disableDefaultUI: true,
-					gestureHandling: "greedy",
-					clickableIcons: false, // Deshabilitar clicks en POIs de Google Maps
-					...getZoomLimits(), // Añadir límites de zoom
-				}}
+				onZoomChanged={handleZoomChanged}
+				options={mapOptions}
 			>
 				{teamMarkers}
+				{isAdmin && adminPositionViewEnabled && (adminLocation?.position || adminLocationRef.current?.position) && (
+					<Marker
+						position={adminLocation?.position || adminLocationRef.current?.position}
+						zIndex={400}
+						onLoad={(marker) => {
+							adminMarkerRef.current = marker;
+							const direction = typeof adminDirectionRef.current === 'number'
+								? adminDirectionRef.current
+								: (typeof (adminLocation?.direction ?? adminLocationRef.current?.direction) === 'number'
+									? (adminLocation?.direction ?? adminLocationRef.current?.direction)
+									: 0);
+							const googlePosition = marker.getPosition?.();
+							const initialPosition = googlePosition
+								? { lat: googlePosition.lat(), lng: googlePosition.lng() }
+								: (adminLocation?.position || adminLocationRef.current?.position);
+							if (initialPosition) {
+								updateAdminMarkerPosition(initialPosition, direction);
+							}
+						}}
+					/>
+				)}
 				{renderActivities()}
 			</GoogleMap>
+
+			{permissionOverlayVisible && (
+				<div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', zIndex: 20 }}>
+					<div style={{ maxWidth: '420px', width: '100%', background: 'rgba(20,20,20,0.9)', borderRadius: '18px', padding: '1.75rem', color: '#fff', boxShadow: '0 16px 40px rgba(0,0,0,0.45)', textAlign: 'center' }}>
+						<h3 style={{ fontSize: '1.4rem', marginBottom: '1rem' }}>{t('permissions.map_title', 'Necesitamos permisos para continuar')}</h3>
+						<p style={{ fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '1.1rem' }}>
+							{t('permissions.map_description', 'Para mostrar tu posición y orientación, Escultura necesita acceso a la geolocalización y a los sensores de movimiento del dispositivo.')}
+						</p>
+						<ul style={{ listStyle: 'none', padding: 0, margin: '0 0 1.2rem 0', textAlign: 'left', fontSize: '0.9rem', lineHeight: 1.5 }}>
+							<li>📍 {t('permissions.geolocation', 'Geolocalización')}: <strong>{formatPermissionStatus(permissionInfo.geolocation.status)}</strong></li>
+							{permissionInfo.motion.supported && (
+								<li>🧭 {t('permissions.motion', 'Sensores de movimiento')}: <strong>{formatPermissionStatus(permissionInfo.motion.status)}</strong></li>
+							)}
+						</ul>
+						{permissionError && (
+							<div style={{ color: '#ff9b9b', fontSize: '0.85rem', marginBottom: '1rem' }}>
+								{permissionError}
+							</div>
+						)}
+						<div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+							<button
+								onClick={handleRequestPermissions}
+								disabled={permissionRequesting}
+								style={{ padding: '0.8rem 1rem', borderRadius: '999px', border: 'none', background: '#3b82f6', color: '#fff', fontSize: '1rem', fontWeight: 600, cursor: permissionRequesting ? 'wait' : 'pointer', transition: 'transform 0.2s ease' }}
+							>
+								{permissionRequesting ? t('permissions.requesting', 'Solicitando permisos...') : t('permissions.grant_button', 'Conceder permisos')}
+							</button>
+							<button
+								onClick={handleSkipPermissions}
+								style={{ padding: '0.55rem 1rem', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.45)', background: 'transparent', color: '#fff', fontSize: '0.95rem', cursor: 'pointer' }}
+							>
+								{t('permissions.skip', 'Continuar sin activar ahora')}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 			
 			{/* Botón de seguimiento */}
 			<button
-				onClick={toggleFollowMode}
+				type="button"
+				onClick={handleCenterButtonClick}
+				onPointerDown={handleCenterButtonPointerDown}
+				onPointerUp={handleCenterButtonPointerUp}
+				onPointerLeave={handleCenterButtonPointerLeave}
+				onPointerCancel={handleCenterButtonPointerLeave}
 				className={`follow-button ${isFollowMode ? 'active' : ''}`}
 				title={isFollowMode ? 'Desactivar seguimiento' : 'Activar seguimiento'}
 			>

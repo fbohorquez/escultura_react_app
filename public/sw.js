@@ -138,9 +138,9 @@ self.addEventListener('notificationclick', function(event) {
 	const notificationData = event.notification.data || {};
 	
 	// Manejar acciones específicas
-	if (event.action === 'open' || !event.action) {
+	if (event.action === 'open' || event.action === 'view' || !event.action) {
 		// Extraer información de navegación de los datos
-		const { eventId, chatId } = notificationData;
+		const { eventId, chatId, teamId, activityId, type } = notificationData;
 		
 		event.waitUntil(
 			self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
@@ -153,6 +153,9 @@ self.addEventListener('notificationclick', function(event) {
 							payload: {
 								eventId,
 								chatId,
+								teamId,
+								activityId,
+								type,
 								source: 'notification'
 							}
 						});
@@ -162,9 +165,19 @@ self.addEventListener('notificationclick', function(event) {
 				// Si no hay ventana abierta, abrir una nueva con parámetros
 				if (self.clients.openWindow) {
 					const baseUrl = self.location.origin;
-					const urlWithParams = eventId && chatId ? 
-						`${baseUrl}?notification_event=${eventId}&notification_chat=${chatId}` : 
-						baseUrl;
+					let urlWithParams = baseUrl;
+					
+					if (type === 'activity_valuation' && eventId && teamId && activityId) {
+						// Notificación de valoración de actividad
+						urlWithParams = `${baseUrl}?notification_event=${eventId}&notification_team=${teamId}&notification_activity=${activityId}&notification_type=activity_valuation`;
+					} else if (type === 'activity_sent' && eventId) {
+						// Notificación de actividad enviada
+						urlWithParams = `${baseUrl}?notification_event=${eventId}&notification_type=activity_sent`;
+					} else if (eventId && chatId) {
+						// Notificación de chat
+						urlWithParams = `${baseUrl}?notification_event=${eventId}&notification_chat=${chatId}&notification_type=chat`;
+					}
+					
 					return self.clients.openWindow(urlWithParams);
 				}
 			})

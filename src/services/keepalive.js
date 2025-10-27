@@ -155,6 +155,32 @@ class KeepaliveService {
     return 'session_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
   }
 
+  /**
+   * Obtiene la hora del servidor de Firestore escribiendo un documento con serverTimestamp()
+   * y leyéndolo inmediatamente. Si falla, hace fallback a la hora local (solo para no romper flujo).
+   */
+  async getServerTime() {
+    try {
+      // Usar un doc dentro del propio evento para agrupar (si eventId existe)
+      const ref = this.eventId
+        ? doc(this.db, 'events', `event_${this.eventId}`, 'server_time', 'now')
+        : doc(this.db, 'server_time', 'now');
+      // Escribimos el serverTimestamp
+      await setDoc(ref, { now: serverTimestamp() }, { merge: true });
+      // Leemos inmediatamente
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data?.now?.toMillis) {
+          return data.now.toMillis();
+        }
+      }
+    } catch (e) {
+      console.warn('No se pudo obtener hora del servidor, fallback a hora local:', e);
+    }
+    return Date.now();
+  }
+
   setupNetworkListeners() {
     window.addEventListener('online', () => {
       console.log('Network: Online');
@@ -457,39 +483,58 @@ class KeepaliveService {
     this.teamsListenerUnsubscribe = onSnapshot(
       teamsQuery,
       (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-          const teamData = change.doc.data();
-          const teamId = change.doc.id.replace('team_', '');
+        // Obtener hora de servidor antes de procesar cambios para evitar depender del reloj local
+        this.getServerTime().then((serverNow) => {
+          snapshot.docChanges().forEach((change) => {
+            const teamData = change.doc.data();
+            const teamId = change.doc.id.replace('team_', '');
 
-          // Ignorar solo nuestro propio equipo cuando this.teamId esté definido
-          if (this.teamId && teamId === this.teamId.toString()) {
-            return; // Ignorar nuestro propio equipo
-          }
+            // Ignorar solo nuestro propio equipo cuando this.teamId esté definido
+            if (this.teamId && teamId === this.teamId.toString()) {
+              return; // Ignorar nuestro propio equipo
+            }
 
-          if (change.type === 'added' || change.type === 'modified') {
-            // Verificar si el equipo está activo usando la constante de timeout
-            const now = Date.now();
-            const lastSeen = teamData.timestamp || 0;
-            const isActive = (now - lastSeen) < KEEPALIVE_TIMEOUT;
-
-            this.store.dispatch({
-              type: 'keepalive/updateTeamStatus',
-              payload: {
-                teamId,
-                lastSeen: teamData.timestamp,
-                status: isActive ? 'online' : 'offline',
-                // Nuevos campos para el estado de la aplicación
-                appState: teamData.appState,
-                currentActivity: teamData.currentActivity,
-                appStateTimestamp: teamData.appStateTimestamp
+            if (change.type === 'added' || change.type === 'modified') {
+              // lastSeen y sleepTimestamp (ambos serverTimestamp)
+              let lastSeenMillis = 0;
+              if (teamData?.lastSeen?.toMillis) {
+                lastSeenMillis = teamData.lastSeen.toMillis();
               }
-            });
-          } else if (change.type === 'removed') {
-            this.store.dispatch({
-              type: 'keepalive/removeTeam',
-              payload: teamId
-            });
-          }
+              let sleepTimestampMillis = 0;
+              if (teamData?.sleepTimestamp?.toMillis) {
+                sleepTimestampMillis = teamData.sleepTimestamp.toMillis();
+              }
+
+              const withinActiveWindow = (serverNow - lastSeenMillis) < KEEPALIVE_TIMEOUT;
+              const withinSleepWindow = sleepTimestampMillis > 0 && (serverNow - sleepTimestampMillis) < KEEPALIVE_TIMEOUT;
+
+              let computedStatus = 'offline';
+              if (withinActiveWindow) {
+                computedStatus = 'online';
+              } else if (teamData?.status === 'sleep' && withinSleepWindow) {
+                computedStatus = 'sleep';
+              }
+
+              this.store.dispatch({
+                type: 'keepalive/updateTeamStatus',
+                payload: {
+                  teamId,
+                  lastSeen: lastSeenMillis || null,
+                  sleepTimestamp: sleepTimestampMillis || null,
+                  status: computedStatus,
+                  // Nuevos campos para el estado de la aplicación
+                  appState: teamData.appState,
+                  currentActivity: teamData.currentActivity,
+                  appStateTimestamp: teamData.appStateTimestamp
+                }
+              });
+            } else if (change.type === 'removed') {
+              this.store.dispatch({
+                type: 'keepalive/removeTeam',
+                payload: teamId
+              });
+            }
+          });
         });
       },
       (error) => {
@@ -656,13 +701,29 @@ class KeepaliveService {
       }
 
       const teamData = teamDoc.data();
-      const now = Date.now();
-      const lastSeen = teamData.timestamp || 0;
-      const isActive = (now - lastSeen) < KEEPALIVE_TIMEOUT;
-      
+      // Obtener hora de servidor para comparación
+      const serverNow = await this.getServerTime();
+      let lastSeenMillis = 0;
+      if (teamData?.lastSeen?.toMillis) {
+        lastSeenMillis = teamData.lastSeen.toMillis();
+      }
+      let sleepTimestampMillis = 0;
+      if (teamData?.sleepTimestamp?.toMillis) {
+        sleepTimestampMillis = teamData.sleepTimestamp.toMillis();
+      }
+      const withinActiveWindow = (serverNow - lastSeenMillis) < KEEPALIVE_TIMEOUT;
+      const withinSleepWindow = sleepTimestampMillis > 0 && (serverNow - sleepTimestampMillis) < KEEPALIVE_TIMEOUT;
+      let computedStatus = 'offline';
+      if (withinActiveWindow) {
+        computedStatus = 'online';
+      } else if (teamData?.status === 'sleep' && withinSleepWindow) {
+        computedStatus = 'sleep';
+      }
+
       return {
-        status: isActive ? 'online' : 'offline',
-        lastSeen: teamData.timestamp,
+        status: computedStatus,
+        lastSeen: lastSeenMillis || null,
+        sleepTimestamp: sleepTimestampMillis || null,
         sessionId: teamData.sessionId,
         userAgent: teamData.userAgent,
         url: teamData.url,

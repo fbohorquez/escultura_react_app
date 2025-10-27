@@ -118,6 +118,7 @@
   gap: 15px;
   margin-left: 20px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .team-stats .stat-item {

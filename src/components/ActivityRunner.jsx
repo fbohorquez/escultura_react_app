@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useSelector, useDispatch } from "react-redux";
 import { useTranslation } from "react-i18next";
 import { updateActivityTime, restoreActivity, startActivity, completeActivityWithSync, finishActivityWithSync } from "../features/activities/activitiesSlice";
+import { addToQueue } from "../features/popup/popupSlice";
 import PhotoVideoActivity from "./activities/PhotoVideoActivity";
 import QuestionActivity from "./activities/QuestionActivity";
 import ClueActivity from "./activities/ClueActivity";
@@ -9,14 +10,16 @@ import PuzzleActivity from "./activities/PuzzleActivity";
 import PairsActivity from "./activities/PairsActivity";
 import WordRelationsActivity from "./activities/WordRelationsActivity";
 import { requiresManualReview } from "../utils/activityValidation";
+import { shouldShowActivityResult } from "../utils/activityResult";
 import { useDebugMode } from "../hooks/useDebugMode";
 import { useAppStateTracker } from "../hooks/useAppStateTracker";
 import "../styles/ActivityRunner.css";
+import { useActivityIcon } from "../hooks/useActivityIcon";
 
 // Utility function to detect if file is video based on extension
 const isVideoFile = (url) => {
 	if (!url) return false;
-	const videoExtensions = ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.ogg'];
+	const videoExtensions = ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.ogg', '.flv', '.wmv', '.m4v', '.3gp', '.3g2'];
 	const extension = url.toLowerCase().substring(url.lastIndexOf('.'));
 	return videoExtensions.includes(extension);
 };
@@ -39,9 +42,23 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 	const event = useSelector((state) => state.event.event);
 	const activityStartTime = useSelector((state) => state.activities.activityStartTime);
 	const storedTimeLeft = useSelector((state) => state.activities.activityTimeLeft);
-	const activityResults = useSelector((state) => state.activities.activityResults);
 	// Para mostrar estado actual durante desarrollo
 	const { appState, currentActivity } = useSelector((state) => state.keepalive);
+
+
+	let activityTypeIcon = activity.type?.id || 3;
+	if (activity.type?.id === 3) {
+		let activityData = activity.type_data;
+		if (typeof activityData === "string") {
+			activityData = JSON.parse(activityData);
+		}
+		if (Number(activityData.type) !== 0) {
+			activityTypeIcon = 333; // Video
+		}
+	}
+	const iconConfig = useActivityIcon(activity.icon?.icon || "", activityTypeIcon);
+
+	const imageIconUrl = typeof iconConfig === "object" && iconConfig != null ? iconConfig.url : iconConfig;
 	
 	const [timeLeft, setTimeLeft] = useState(() => {
 		if (storedTimeLeft !== null && storedTimeLeft !== undefined) {
@@ -52,6 +69,15 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 	});
 
 	const isVideo = useMemo(() => isVideoFile(activity?.file), [activity?.file]);
+
+	const finalizeActivity = useCallback((result) => {
+		dispatch(finishActivityWithSync());
+		clearActivity();
+
+		if (onComplete && result) {
+			onComplete(result.success, result.media);
+		}
+	}, [dispatch, clearActivity, onComplete]);
 
 	const handleActivityComplete = useCallback((success, media = null) => {
 		// Evitar múltiples ejecuciones
@@ -68,24 +94,92 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 		}
 		
 		const result = { success, media, timeTaken };
-		// Mostrar inmediatamente la pantalla de resultado
-		setActivityResult(result);
-		
+		const showResult = shouldShowActivityResult(activity);
+
+		if (showResult) {
+			// Mostrar inmediatamente la pantalla de resultado
+			setActivityResult(result);
+		}
+
+
 		// Diferir la actualización global para evitar "Cannot update a component while rendering another"
-		setTimeout(() => {
+		setTimeout(async () => {
 			// Actualizar estado a "finalizando prueba"
 			setActivityFinishingState({ id: activity.id, name: activity.name });
 			
-			dispatch(completeActivityWithSync({
-				eventId: event.id,
-				teamId: selectedTeam?.id,
-				activityId: activity.id,
-				success,
-				media,
-				timeTaken
-			}));
+			try {
+				await dispatch(completeActivityWithSync({
+					eventId: event.id,
+					teamId: selectedTeam?.id,
+					activityId: activity.id,
+					success,
+					media,
+					timeTaken
+				})).unwrap();
+
+				if (!showResult) {
+					finalizeActivity(result);
+				}
+			} catch (error) {
+				console.error("Error completando actividad:", error);
+				
+				// Verificar si es un error de actividad única ya completada
+				if (error.message && error.message.startsWith("ACTIVITY_ALREADY_COMPLETED:")) {
+					const completedByTeam = error.message.split(":")[1];
+					
+					// Finalizar la actividad sin completarla
+					dispatch(finishActivityWithSync());
+					clearActivity();
+
+					// Mostrar mensaje específico
+					dispatch(addToQueue({
+						titulo: t("activity_runner.activity_completed_by_other", "Actividad Ya Completada"),
+						texto: t("activity_runner.activity_completed_by_other_message", 
+							`Lo sentimos, esta actividad única ya fue completada por el equipo ${completedByTeam}. Se ha eliminado de tu mapa.`),
+						array_botones: [
+							{
+								titulo: t("activity_runner.back_to_map", "Volver al Mapa"),
+								callback: () => {
+									if (onExit) {
+										onExit();
+									}
+								}
+							}
+						],
+						overlay: true,
+						close_button: false,
+						layout: "center"
+					}));
+				} else {
+					// Error genérico
+					dispatch(addToQueue({
+						titulo: t("error", "Error"),
+						texto: t("activity_runner.completion_error", "Hubo un error al completar la actividad. Por favor, inténtalo de nuevo."),
+						array_botones: [
+							{
+								titulo: t("close", "Cerrar"),
+								callback: null
+							}
+						],
+						overlay: true,
+						close_button: true,
+						layout: "center"
+					}));
+					
+					// Permitir reintentar
+					hasCompletedRef.current = false;
+				}
+			}
 		}, 0);
-	}, [activity.time, activity.id, activity.name, timeLeft, dispatch, event.id, selectedTeam?.id, activityStartTime, setActivityFinishingState]);
+	}, [activity, timeLeft, dispatch, event.id, selectedTeam?.id, activityStartTime, setActivityFinishingState, finalizeActivity, clearActivity, onExit, t]);
+
+	const handleContinue = useCallback(() => {
+		if (!activityResult) {
+			return;
+		}
+
+		finalizeActivity(activityResult);
+	}, [activityResult, finalizeActivity]);
 
 	const formattedTime = useMemo(() => {
 		if (timeLeft === Infinity) {
@@ -142,10 +236,48 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 		}
 	}, [activity, dispatch, activityStartTime, setActivityStartState]);
 
-	// Actualizar estado de la aplicación inmediatamente al montar el componente
-	useEffect(() => {
-		if (activity) {
-			setActivityStartState({ id: activity.id, name: activity.name });
+	// Detectar si la actividad es eliminada (del: true) mientras se está realizando
+        useEffect(() => {
+                if (!activity || !selectedTeam) return;
+
+                // Buscar la actividad actual en el equipo para verificar su estado
+                const currentActivityInTeam = selectedTeam.activities_data?.find(a => a.id === activity.id);
+
+                // Si la actividad fue marcada como eliminada (del: true), redirigir al mapa
+                if (currentActivityInTeam?.del === true) {
+                        console.warn(`⚠️ Actividad ${activity.id} eliminada mientras se realizaba`);
+                        
+                        // Finalizar la actividad sin completarla
+                        dispatch(finishActivityWithSync());
+                        clearActivity();
+
+                        // Mostrar mensaje al usuario
+                        dispatch(addToQueue({
+                                titulo: t("activity_runner.activity_unavailable", "Actividad No Disponible"),
+                                texto: t("activity_runner.activity_unavailable_message", 
+                                        "Esta actividad ya no está disponible. Otro equipo la ha completado primero."),
+                                array_botones: [
+                                        {
+                                                titulo: t("activity_runner.back_to_map", "Volver al Mapa"),
+                                                callback: () => {
+                                                        // Redirigir al mapa
+                                                        if (onExit) {
+                                                                onExit();
+                                                        }
+                                                }
+                                        }
+                                ],
+                                overlay: true,
+                                close_button: false,
+                                layout: "center"
+                        }));
+                }
+        }, [activity, selectedTeam, dispatch, clearActivity, onExit, t]);
+
+        // Actualizar estado de la aplicación inmediatamente al montar el componente
+        useEffect(() => {
+                if (activity) {
+                        setActivityStartState({ id: activity.id, name: activity.name });
 		}
 	}, [activity, setActivityStartState]);
 
@@ -226,17 +358,6 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 		}
 	};
 
-	const handleContinue = () => {
-		dispatch(finishActivityWithSync());
-		
-		// Limpiar actividad y volver al estado de mapa
-		clearActivity();
-		
-		if (onComplete && activityResult) {
-			onComplete(activityResult.success, activityResult.media);
-		}
-	};
-
 	const resetTimer = () => {
 		if (activity) {
 			dispatch(startActivity(activity));
@@ -264,22 +385,10 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 		}
 	};
 
-	const calculateTeamPoints = () => {
-		return activityResults
-			.filter(result => result.success)
-			.reduce((total, result) => {
-				const activity = selectedTeam?.activities_data?.find(a => a.id === result.activityId);
-				return total + (activity?.points || 0);
-			}, 0);
-	};
-
 	const renderActivityResult = () => {
 		const { success } = activityResult;
-		const currentTeamPoints = calculateTeamPoints();
 		
 		const isPendingReview = requiresManualReview(activity, success);
-		
-		const pointsEarned = isPendingReview ? 0 : (success ? activity.points : 0);
 		
 		let resultContent = null;
 		
@@ -331,7 +440,7 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 			<div className="activity-result">
 				{resultContent}
 				
-				{!isPendingReview && (
+				{/* {!isPendingReview && (
 					<div className="result-stats">
 						<div className="stat-item">
 							<span className="stat-label">{t("points_earned")}:</span>
@@ -342,7 +451,7 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 							<span className="stat-value">{currentTeamPoints}</span>
 						</div>
 					</div>
-				)}
+				)} */}
 				
 				<div className="result-actions">
 					<button onClick={handleContinue} className="btn btn-primary">
@@ -436,18 +545,26 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 		<div className="activity-runner">
 			<div className="activity-runner-header">
 				<div className="activity-info">
-					<img src={activity.icon.icon} alt={activity.icon.name} className="activity-icon" />
+					<img
+						src={activity.icon.icon || imageIconUrl}
+						alt={activity.icon.name}
+						className="activity-icon"
+					/>
 					<div className="activity-details">
 						<h2 className="activity-name">{activity.name}</h2>
 					</div>
 				</div>
 				<div className="header-actions">
 					{activity.file && (
-						<button onClick={toggleImageFullscreen} className="btn-image" title={t("view_activity_media")}>
+						<button
+							onClick={toggleImageFullscreen}
+							className="btn-image"
+							title={t("view_activity_media")}
+						>
 							<span>{isVideo ? "🎥" : "🖼️"}</span>
 						</button>
 					)}
-					{import.meta.env.VITE_ACTIVITY_CLOSE_BUTTON !== 'false' && (
+					{import.meta.env.VITE_ACTIVITY_CLOSE_BUTTON !== "false" && (
 						<button onClick={onExit} className="btn-close">
 							<span>&times;</span>
 						</button>
@@ -455,50 +572,58 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 				</div>
 			</div>
 
-			<div className="activity-runner-content">
-				{renderActivityContent()}
-			</div>
+			<div className="activity-runner-content">{renderActivityContent()}</div>
 
 			{!activityResult && (
-			<div className="activity-runner-footer">
-				<div className="team-info">
-					<span className="team-name">{selectedTeam?.name || t("admin")}</span>
-					<span className="event-name">{event?.name}</span>
-				</div>
-				<div className="footer-center">
-					{activity.file && !showImageFullscreen && (
-						<div className="activity-image-thumbnail" onClick={toggleImageFullscreen}>
-							{isVideo ? (
-								<video 
-									src={activity.file} 
-									className="thumbnail-image"
-									title={t("view_activity_media")}
-									muted
-									preload="metadata"
-								/>
-							) : (
-								<img 
-									src={activity.file} 
-									alt={activity.name}
-									className="thumbnail-image"
-									title={t("view_activity_media")}
-								/>
-							)}
+				<div className="activity-runner-footer">
+					<div className="team-info">
+						<span className="team-name">
+							{selectedTeam?.name || t("admin")}
+						</span>
+						<span className="event-name">{event?.name}</span>
+					</div>
+					<div className="footer-center">
+						{activity.file && !showImageFullscreen && (
+							<div
+								className="activity-image-thumbnail"
+								onClick={toggleImageFullscreen}
+							>
+								{isVideo ? (
+									<video
+										src={activity.file}
+										className="thumbnail-image"
+										title={t("view_activity_media")}
+										muted
+										preload="metadata"
+									/>
+								) : (
+									<img
+										src={activity.file}
+										alt={activity.name}
+										className="thumbnail-image"
+										title={t("view_activity_media")}
+									/>
+								)}
+							</div>
+						)}
+					</div>
+					{formattedTime !== "∞" && (
+						<div className="activity-timer">
+							<span className="time-left">{formattedTime}</span>
 						</div>
 					)}
 				</div>
-				<div className="activity-timer">
-					<span className="time-left">{formattedTime}</span>
-				</div>
-			</div>
 			)}
 
 			{showImageFullscreen && activity.file && (
-				<div className="image-fullscreen-overlay" onClick={toggleImageFullscreen}>
+				<div
+					className="image-fullscreen-overlay"
+					onClick={toggleImageFullscreen}
+				>
 					<div className="image-fullscreen-container">
 						{isVideo ? (
-							<video 
-								src={activity.file} 
+							<video
+								src={activity.file}
 								className="image-fullscreen"
 								controls
 								autoPlay
@@ -506,15 +631,15 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 								onClick={(e) => e.stopPropagation()}
 							/>
 						) : (
-							<img 
-								src={activity.file} 
+							<img
+								src={activity.file}
 								alt={activity.name}
 								className="image-fullscreen"
 								onClick={(e) => e.stopPropagation()}
 							/>
 						)}
-						<button 
-							className="btn-close-fullscreen" 
+						<button
+							className="btn-close-fullscreen"
 							onClick={toggleImageFullscreen}
 							title={t("close")}
 						>
@@ -529,18 +654,18 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 					<div className="debug-header">
 						<strong>🔧 {t("debug_panel")}</strong>
 					</div>
-					
+
 					<div className="debug-content">
 						<div className="debug-info">
 							<strong>{t("current_time")}:</strong>
 							<span>{formattedTime}</span>
 						</div>
-						
+
 						<div className="debug-info">
 							<strong>{t("activity_debug")}:</strong>
 							<span>{activity.name}</span>
 						</div>
-						
+
 						{/* Debug info para estado de keepalive */}
 						<div className="debug-info">
 							<strong>App State:</strong>
@@ -548,17 +673,18 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 						</div>
 						<div className="debug-info">
 							<strong>Current Activity:</strong>
-							<span>{currentActivity?.name || 'None'}</span>
+							<span>{currentActivity?.name || "None"}</span>
 						</div>
-						
+
 						<div className="debug-actions">
-							<button 
+							<button
 								onClick={resetTimer}
 								className="debug-btn"
 								title={t("timer_reset")}
 							>
 								{t("reset_timer")}
-							</button><br/>
+							</button>
+							<br />
 							<button
 								onClick={endTimer}
 								className="debug-btn"
@@ -575,4 +701,7 @@ const ActivityRunner = ({ activity, onComplete, onExit }) => {
 };
 
 export default React.memo(ActivityRunner);
+
+
+
 

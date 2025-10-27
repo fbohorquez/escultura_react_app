@@ -233,9 +233,152 @@ async function sendTestNotification(userId, eventId, title = 'Notificación de p
   }
 }
 
+/**
+ * Enviar notificación de valoración de actividad al equipo específico
+ */
+async function sendActivityValuationNotification(eventId, teamId, activityId, activityName, points, isUpdate = false) {
+  try {
+    // Obtener la suscripción específica del equipo
+    const teamSubscription = subscriptionService.getSubscription(teamId, eventId);
+    
+    if (!teamSubscription) {
+      logger.info(`No hay suscripción para el equipo ${teamId} en el evento ${eventId}`);
+      return { sent: 0, total: 0, reason: 'no_subscription' };
+    }
+
+    // Formatear mensaje según sea primera valoración o actualización
+    const title = isUpdate ? 
+      'Actividad Actualizada' : 
+      'Actividad Valorada';
+    
+    const pointsText = points > 0 ? ` (${points} puntos)` : '';
+    const body = isUpdate ?
+      `Se han actualizado los puntos de "${activityName}"${pointsText}` :
+      `¡Tu actividad "${activityName}" ha sido valorada!${pointsText}`;
+
+    // Formatear payload de notificación
+    const payload = {
+      title,
+      body,
+      icon: '/icons/web-app-manifest-192x192.png',
+      badge: '/icons/favicon-96x96.png',
+      tag: `activity-${activityId}`, // Para reemplazar notificaciones de la misma actividad
+      data: {
+        type: 'activity_valuation',
+        eventId,
+        teamId,
+        activityId,
+        points,
+        isUpdate,
+        timestamp: Date.now()
+      },
+      actions: [
+        { 
+          action: 'view', 
+          title: 'Ver Actividad'
+        }
+      ],
+      requireInteraction: true, // Requerir interacción para actividades valoradas
+      silent: false,
+      renotify: true
+    };
+    
+    // Enviar notificación
+    logger.info(`Enviando notificación de valoración de actividad a equipo ${teamId}`);
+    const result = await sendNotificationToSubscription(teamSubscription, payload);
+    
+    if (result.success) {
+      logger.info(`Notificación de valoración enviada exitosamente al equipo ${teamId}`);
+      return { sent: 1, failed: 0, total: 1, results: [result] };
+    } else {
+      logger.error(`Error enviando notificación de valoración al equipo ${teamId}: ${result.error}`);
+      return { sent: 0, failed: 1, total: 1, results: [result] };
+    }
+
+  } catch (error) {
+    logger.error(`Error enviando notificación de valoración: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Enviar notificación de actividad enviada al equipo específico
+ */
+async function sendActivitySentNotification(eventId, teamId, activityId, activityName, isForced = false) {
+  try {
+    // Obtener la suscripción específica del equipo
+    const teamSubscription = subscriptionService.getSubscription(teamId, eventId);
+    
+    if (!teamSubscription) {
+      logger.info(`No hay suscripción para el equipo ${teamId} en el evento ${eventId}`);
+      return { sent: 0, total: 0, reason: 'no_subscription' };
+    }
+
+    // Verificar si el usuario está activo en la aplicación (últimos 5 minutos)
+    if (subscriptionService.isUserActiveInApp(teamId)) {
+      logger.info(`Equipo ${teamId} está activo en la aplicación, omitiendo notificación de actividad`);
+      return { sent: 0, total: 1, reason: 'user_active_in_app' };
+    }
+
+    // Formatear mensaje según sea envío normal o forzado
+    const title = isForced
+			? `${activityName}`
+			: `${activityName}`;
+    
+    const body = isForced ?
+      `` :
+      ``;
+
+    // Formatear payload de notificación
+    const payload = {
+      title,
+      body,
+      icon: '/icons/web-app-manifest-192x192.png',
+      badge: '/icons/favicon-96x96.png',
+      tag: `activity-sent-${activityId}`, // Para reemplazar notificaciones de la misma actividad
+      data: {
+        type: 'activity_sent',
+        eventId,
+        teamId,
+        activityId,
+        isForced,
+        timestamp: Date.now()
+      },
+      actions: [
+        { 
+          action: 'view', 
+          title: 'Ver Evento'
+        }
+      ],
+      requireInteraction: isForced, // Si es forzada, requerir interacción
+      silent: false,
+      renotify: true
+    };
+    
+    // Enviar notificación
+    logger.info(`Enviando notificación de actividad ${isForced ? 'forzada' : 'enviada'} a equipo ${teamId}`);
+    const result = await sendNotificationToSubscription(teamSubscription, payload);
+    
+    if (result.success) {
+      logger.info(`Notificación de actividad enviada exitosamente al equipo ${teamId}`);
+      return { sent: 1, failed: 0, total: 1, results: [result] };
+    } else {
+      logger.error(`Error enviando notificación de actividad al equipo ${teamId}: ${result.error}`);
+      return { sent: 0, failed: 1, total: 1, results: [result] };
+    }
+
+  } catch (error) {
+    logger.error(`Error enviando notificación de actividad: ${error.message}`);
+    throw error;
+  }
+}
+
 module.exports = {
   sendChatMessage,
   sendEventNotification,
   sendTestNotification,
+  sendActivityValuationNotification,
+  sendActivitySentNotification,
   formatChatNotification
 };
+

@@ -1,5 +1,5 @@
 // src/pages/valoratePage.jsx
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -10,6 +10,7 @@ const ValoratePage = () => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const { eventId } = useParams();
+	const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'reviewed'
 
 	const event = useSelector((state) => state.event.event);
 	const teams = useSelector((state) => state.teams.items);
@@ -65,6 +66,44 @@ const ValoratePage = () => {
 		return sortedActivities;
 	}, [teams]);
 
+	// Obtener todas las actividades ya valoradas
+	const reviewedActivities = useMemo(() => {
+		console.log('🔍 [ValoratePage] Calculating reviewed activities...');
+		const activities = [];
+		
+		teams.forEach(team => {
+			if (team.activities_data) {
+				team.activities_data.forEach(activity => {
+					// Solo incluir actividades completadas y valoradas (valorate === 1)
+					if (activity.complete && activity.valorate === 1) {
+						activities.push({
+							...activity,
+							teamId: team.id,
+							teamName: team.name,
+							teamKey: `${team.id}-${activity.id}`
+						});
+					}
+				});
+			}
+		});
+		
+		// Ordenar por tiempo de completado (más recientes primero)
+		const sortedActivities = activities.sort((a, b) => (b.complete_time || 0) - (a.complete_time || 0));
+		
+		console.log('🔍 [ValoratePage] Reviewed activities found:', {
+			count: sortedActivities.length,
+			activities: sortedActivities.map(a => ({
+				team: a.teamName,
+				activity: a.name,
+				complete: a.complete,
+				valorate: a.valorate,
+				awarded_points: a.awarded_points
+			}))
+		});
+		
+		return sortedActivities;
+	}, [teams]);
+
 	// Forzar actualización cuando cambien los equipos específicamente 
 	const teamsDataHash = useMemo(() => {
 		return JSON.stringify(teams.map(t => ({
@@ -103,6 +142,9 @@ const ValoratePage = () => {
 		}
 	};
 
+	// Determinar qué actividades mostrar según la pestaña activa
+	const displayedActivities = activeTab === 'pending' ? pendingActivities : reviewedActivities;
+
 	return (
 		<BackgroundLayout
 			title={t("valorate.title", "Valorar Actividades")}
@@ -111,23 +153,59 @@ const ValoratePage = () => {
 			<BackButton onClick={handleBack} />
 			
 			<div className="valorate-container">
-				{pendingActivities.length === 0 ? (
+				{/* Tabs de navegación */}
+				<div className="ranking-navigation">
+					<button
+						className={`nav-button ${activeTab === 'pending' ? 'active' : ''}`}
+						onClick={() => setActiveTab('pending')}
+					>
+						{t("valorate.tab_pending", "Pendientes")}
+						{pendingActivities.length > 0 && (
+							<span className="tab-badge"  style={{ marginLeft: '4px', fontSize: '10px' }}>{pendingActivities.length}</span>
+						)}
+					</button>
+					<button
+						className={`nav-button ${activeTab === 'reviewed' ? 'active' : ''}`}
+						onClick={() => setActiveTab('reviewed')}
+					>
+						{t("valorate.tab_reviewed", "Valoradas")}
+						{reviewedActivities.length > 0 && (
+							<span className="tab-badge" style={{ marginLeft: '4px', fontSize: '10px' }}>{reviewedActivities.length}</span>
+						)}
+					</button>
+				</div>
+
+				{displayedActivities.length === 0 ? (
 					<div className="no-pending-activities">
 						<div className="empty-icon">📋</div>
-						<h3>{t("valorate.no_pending", "No hay actividades pendientes de valoración")}</h3>
-						<p>{t("valorate.no_pending_desc", "Aún no se han completado actividades que requieran valoración manual, o todas las actividades ya han sido revisadas")}</p>
+						{activeTab === 'pending' ? (
+							<>
+								<h3>{t("valorate.no_pending", "No hay actividades pendientes de valoración")}</h3>
+								<p>{t("valorate.no_pending_desc", "Aún no se han completado actividades que requieran valoración manual, o todas las actividades ya han sido revisadas")}</p>
+							</>
+						) : (
+							<>
+								<h3>{t("valorate.no_reviewed", "No hay actividades valoradas")}</h3>
+								<p>{t("valorate.no_reviewed_desc", "Aún no se ha valorado ninguna actividad")}</p>
+							</>
+						)}
 					</div>
 				) : (
 					<>
 						<div className="valorate-stats">
 							<div className="stat-item">
-								<span className="stat-number">{pendingActivities.length}</span>
-								<span className="stat-label">{t("valorate.pending_count", "Pendientes de valorar")}</span>
+								<span className="stat-number">{displayedActivities.length}</span>
+								<span className="stat-label">
+									{activeTab === 'pending' 
+										? t("valorate.pending_count", "Pendientes de valorar")
+										: t("valorate.reviewed_count", "Actividades valoradas")
+									}
+								</span>
 							</div>
 						</div>
 
 						<div className="activities-list">
-							{pendingActivities.map((activity) => (
+							{displayedActivities.map((activity) => (
 								<div 
 									key={activity.teamKey}
 									className="activity-item"
@@ -141,7 +219,6 @@ const ValoratePage = () => {
 									</div>
 									
 									<div className="activity-team">
-										<span className="team-label">{t("valorate.team", "Equipo")}:</span>
 										<span className="team-name">{activity.teamName}</span>
 									</div>
 									

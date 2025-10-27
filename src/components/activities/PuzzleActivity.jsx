@@ -331,6 +331,35 @@ const PuzzleActivity = ({ activity, onComplete, timeLeft, timeExpired }) => {
 
 	const { rows, columns } = getPuzzleGridDimensions(puzzleData?.pieces || 12);
 
+	useEffect(() => {
+		if (!imageLoaded) {
+			return;
+		}
+
+		const puzzleElement = document.querySelector('.jigsaw-puzzle');
+		if (!puzzleElement) {
+			return;
+		}
+
+		puzzleElement.classList.add('touch-optimized');
+
+		const preventDefaultScroll = (event) => {
+			if (event.cancelable) {
+				event.preventDefault();
+			}
+		};
+
+		const listenerOptions = { passive: false };
+		puzzleElement.addEventListener('touchstart', preventDefaultScroll, listenerOptions);
+		puzzleElement.addEventListener('touchmove', preventDefaultScroll, listenerOptions);
+
+		return () => {
+			puzzleElement.classList.remove('touch-optimized');
+			puzzleElement.removeEventListener('touchstart', preventDefaultScroll, listenerOptions);
+			puzzleElement.removeEventListener('touchmove', preventDefaultScroll, listenerOptions);
+		};
+	}, [imageLoaded, rows, columns]);
+
 	// Log cuando cambian las dimensiones del puzzle
 	useEffect(() => {
 		if (puzzleData) {

@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { updateTeamData } from "../features/teams/teamsSlice";
 import { addToQueue } from "../features/popup/popupSlice";
+import { notifyActivityValoration } from "../services/notificationService";
 import BackgroundLayout from "./backgroundLayout";
 import BackButton from "./backButton";
 import OptimizedImage from "./OptimizedImage";
@@ -156,6 +157,19 @@ const ActivityValorate = () => {
 				layout: "center"
 			}));
 
+			// Enviar notificación push al equipo sobre la valoración sin bloquear la UI
+			notifyActivityValoration(
+				eventId, 
+				teamId, 
+				activity.id, 
+				activity.name, 
+				pointsToAdd, 
+				isAlreadyValued
+			).catch((notificationError) => {
+				console.warn('Error enviando notificación de valoración:', notificationError);
+				// No fallar la valoración por error de notificación
+			});
+
 		} catch (error) {
 			console.error("Error updating activity valoration:", error);
 			
@@ -245,7 +259,7 @@ const ActivityValorate = () => {
 		const isPhoto = activity.data && photoRegex.test(activity.data);
 		
 		//Case is Video
-		const videoRegex = /\.(mp4|webm|ogg)$/i;
+		const videoRegex = /\.(mp4|webm|ogg|mov|quicktime)$/i;
 		const isVideo = activity.data && videoRegex.test(activity.data);
 
 		if (isPhoto) {
@@ -315,39 +329,9 @@ const ActivityValorate = () => {
 	return (
 		<BackgroundLayout
 			title={activity.name}
-			subtitle={`${t("valorate.team", "Equipo")}: ${team.name}`}
+			subtitle={`${team.name}`}
 		>
 			<BackButton onClick={handleBack} />
-			
-			{/* Indicador de color del evento */}
-			{event?.color && (
-				<div style={{
-					position: "fixed",
-					top: "10px",
-					right: "10px",
-					display: "flex",
-					alignItems: "center",
-					gap: "8px",
-					background: "rgba(255, 255, 255, 0.9)",
-					padding: "6px 12px",
-					borderRadius: "20px",
-					fontSize: "0.8rem",
-					fontWeight: "500",
-					color: "#666",
-					zIndex: 1000,
-					boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-				}}>
-					<span>Color del evento:</span>
-					<div style={{
-						width: "16px",
-						height: "16px",
-						borderRadius: "50%",
-						backgroundColor: event.color,
-						border: "1px solid #ccc"
-					}}></div>
-					<span style={{ fontSize: "0.7rem", color: "#999" }}>{event.color}</span>
-				</div>
-			)}
 			
 			<div className="valorate-container">
 				<div className="valorate-content">

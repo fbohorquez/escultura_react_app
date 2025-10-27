@@ -1,0 +1,508 @@
+// src/pages/teamGroupDetailPage.jsx
+import React, { useMemo, useCallback } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { useTranslation } from "react-i18next";
+import { useNavigate, useParams } from "react-router-dom";
+import BackgroundLayout from "../components/backgroundLayout";
+import BackButton from "../components/backButton";
+import { addToQueue } from "../features/popup/popupSlice";
+import { updateTeamData } from "../features/teams/teamsSlice";
+import { notifyActivitySent } from "../services/notificationService";
+import "../styles/teamActivities.css";
+import { requiresManualReview } from "../utils/activityValidation";
+
+const TeamGroupDetailPage = () => {
+	const { t } = useTranslation();
+	const navigate = useNavigate();
+	const dispatch = useDispatch();
+	const { eventId, teamGroupName } = useParams();
+
+	const event = useSelector((state) => state.event.event);
+	const teams = useSelector((state) => state.teams.items);
+
+	const handleBack = () => {
+		navigate(`/admin/team-activities/${eventId}`);
+	};
+
+	// Decodificar el nombre del grupo
+	const decodedTeamGroupName = decodeURIComponent(teamGroupName);
+
+	// Encontrar todos los equipos (grupos) que pertenecen a este equipo base
+	const teamGroups = useMemo(() => {
+		return teams.filter(team => {
+			const baseName = team.name.includes('#') 
+				? team.name.split('#')[0].trim() 
+				: team.name;
+			return baseName === decodedTeamGroupName;
+		});
+	}, [teams, decodedTeamGroupName]);
+
+	// Función para determinar el estado de una actividad
+	const getActivityStatus = useCallback((activity) => {
+		if (!activity.complete) {
+			return "not_started";
+		}
+		if (activity.valorate === 0) {
+			return "pending_review";
+		}
+		return "reviewed";
+	}, []);
+
+	// Mergear todas las actividades de todos los grupos
+	const mergedActivities = useMemo(() => {
+		const activitiesMap = new Map();
+
+		teamGroups.forEach(team => {
+			(team.activities_data || []).forEach(activity => {
+				if (activity.del === true) return; // Ignorar actividades eliminadas
+
+				const activityId = activity.id;
+				
+				if (!activitiesMap.has(activityId)) {
+					// Primera vez que vemos esta actividad
+					activitiesMap.set(activityId, {
+						...activity,
+						statusKey: getActivityStatus(activity),
+						teams: [{ id: team.id, name: team.name }],
+						totalComplete: activity.complete ? 1 : 0,
+						totalGroups: 1
+					});
+				} else {
+					// Actividad ya existe, actualizar contadores
+					const existing = activitiesMap.get(activityId);
+					existing.teams.push({ id: team.id, name: team.name });
+					existing.totalGroups += 1;
+					if (activity.complete) {
+						existing.totalComplete += 1;
+					}
+					// Actualizar estado si hay alguna pendiente de valorar
+					if (activity.valorate === 0) {
+						existing.statusKey = "pending_review";
+					}
+				}
+			});
+		});
+
+		return Array.from(activitiesMap.values());
+	}, [teamGroups, getActivityStatus]);
+
+	// Separar actividades por tipo (en ruta / sin ruta)
+	const { inRouteActivities, withoutRouteActivities, hasBothTypes } = useMemo(() => {
+		const inRoute = mergedActivities.filter(a => !a.without_route);
+		const withoutRoute = mergedActivities.filter(a => a.without_route === true);
+		
+		return {
+			inRouteActivities: inRoute,
+			withoutRouteActivities: withoutRoute,
+			hasBothTypes: inRoute.length > 0 && withoutRoute.length > 0
+		};
+	}, [mergedActivities]);
+
+	const getActivityStatusText = (statusKey) => {
+		const statusMap = {
+			not_started: t("team_activities.activity_status.not_started", "Sin comenzar"),
+			completed: t("team_activities.activity_status.completed", "Completada"),
+			pending_review: t("team_activities.activity_status.pending_review", "Pendiente de valorar"),
+			reviewed: t("team_activities.activity_status.reviewed", "Valorada")
+		};
+		return statusMap[statusKey] || statusKey;
+	};
+
+	const getActivityStatusClass = (statusKey) => {
+		const classMap = {
+			not_started: "status-not-started",
+			completed: "status-completed",
+			pending_review: "status-pending",
+			reviewed: "status-reviewed"
+		};
+		return classMap[statusKey] || "";
+	};
+
+	const getActivityTypeText = (typeId) => {
+		switch (typeId) {
+			case 1: return t("valorate.type_question", "Pregunta");
+			case 2: return t("valorate.type_clue", "Pista");
+			case 3: return t("valorate.type_media", "Foto/Video");
+			case 4: return t("valorate.type_puzzle", "Puzzle");
+			case 5: return t("valorate.type_pairs", "Parejas");
+			default: return t("valorate.type_unknown", "Desconocido");
+		}
+	};
+
+	const formatCompletedTime = (timestamp) => {
+		if (!timestamp) return "--";
+		const date = new Date(timestamp * 1000);
+		return date.toLocaleString();
+	};
+
+	const renderActivityPoints = useCallback((activity) => {
+		const manual = requiresManualReview(activity);
+		if (manual) {
+			if (activity.valorate === 1 && activity.awarded_points !== undefined) {
+				return `${activity.awarded_points} (${t("photo_management.awarded", "otorgados")})`;
+			}
+			return t("team_activities.activity_status.pending_review", "Pendiente de valorar");
+		}
+		const base = activity.points || 0;
+		const achieved = activity.complete && activity.valorate === 1 ? base : 0;
+		return `${base} • ${t("points_earned", "Puntos ganados")}: ${achieved}`;
+	}, [t]);
+
+	// Función para renderizar una lista de actividades
+	const renderActivitiesList = (activitiesList) => (
+		activitiesList.map((activity) => (
+			<div
+				key={activity.id}
+				className="activity-item"
+			>
+				<div className="activity-header">
+					<h4 className="activity-name">{activity.name}</h4>
+					<div className="activity-actions">
+						<span
+							className={`activity-status ${getActivityStatusClass(
+								activity.statusKey
+							)}`}
+						>
+							{getActivityStatusText(activity.statusKey)}
+						</span>
+						<span className="activity-type">
+							{getActivityTypeText(activity.type?.id)}
+						</span>
+					</div>
+				</div>
+
+				<div className="activity-details">
+					<div className="detail-item">
+						<span className="detail-label">
+							{t("team_activities.points", "Puntos")}:
+						</span>
+						<span className="detail-value">
+							{renderActivityPoints(activity)}
+						</span>
+					</div>
+					<div className="detail-item">
+						<span className="detail-label">
+							{t("team_activities.completion_status", "Estado")}:
+						</span>
+						<span className="detail-value">
+							{activity.totalComplete}/{activity.totalGroups} {t("team_activities.groups_completed", "grupos completados")}
+						</span>
+					</div>
+					<div className="detail-item">
+						<span className="detail-label">
+							{t("valorate.completed", "Completada")}:
+						</span>
+						<span className="detail-value">
+							{formatCompletedTime(activity.complete_time)}
+						</span>
+					</div>
+				</div>
+
+				<div className="activity-bottom">
+					<div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+						<button
+							className="send-activity-btn"
+							onClick={async (e) => {
+								e.stopPropagation();
+								await handleSendActivity(activity);
+							}}
+							title={t(
+								"team_activities.send_activity",
+								"Enviar Actividad"
+							)}
+						>
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								xmlns="http://www.w3.org/2000/svg"
+								width="16"
+								height="16"
+							>
+								<g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+								<g
+									id="SVGRepo_tracerCarrier"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								></g>
+								<g id="SVGRepo_iconCarrier">
+									<path
+										d="M10.3009 13.6949L20.102 3.89742M10.5795 14.1355L12.8019 18.5804C13.339 19.6545 13.6075 20.1916 13.9458 20.3356C14.2394 20.4606 14.575 20.4379 14.8492 20.2747C15.1651 20.0866 15.3591 19.5183 15.7472 18.3818L19.9463 6.08434C20.2845 5.09409 20.4535 4.59896 20.3378 4.27142C20.2371 3.98648 20.013 3.76234 19.7281 3.66167C19.4005 3.54595 18.9054 3.71502 17.9151 4.05315L5.61763 8.2523C4.48114 8.64037 3.91289 8.83441 3.72478 9.15032C3.56153 9.42447 3.53891 9.76007 3.66389 10.0536C3.80791 10.3919 4.34498 10.6605 5.41912 11.1975L9.86397 13.42C10.041 13.5085 10.1295 13.5527 10.2061 13.6118C10.2742 13.6643 10.3352 13.7253 10.3876 13.7933C10.4468 13.87 10.491 13.9585 10.5795 14.1355Z"
+										stroke="#FFFFFF"
+										strokeWidth="2"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									></path>
+								</g>
+							</svg>
+							{t("team_activities.send_to_all", "Enviar a todos")}
+						</button>
+					</div>
+				</div>
+			</div>
+		))
+	);
+
+	const handleSendActivity = async (activity) => {
+		// Enviar actividad a todos los grupos del equipo
+		dispatch(addToQueue({
+			titulo: t("team_activities.send_confirm_title", "Enviar Actividad"),
+			texto: t("team_activities.send_to_team_message", "¿Cómo quieres enviar la actividad \"{{activityName}}\" a todos los grupos de \"{{teamName}}\" ({{count}} grupos)?", {
+				activityName: activity.name,
+				teamName: decodedTeamGroupName,
+				count: teamGroups.length
+			}) + "\n\n" + 
+			t("team_activities.send_options_desc", "• Enviar: El equipo puede aceptar o rechazar la actividad\n• Forzar: El equipo debe realizar la actividad obligatoriamente"),
+			array_botones: [
+				{
+					titulo: t("team_activities.cancel_button", "Cancelar"),
+					callback: () => {
+						console.log('🚫 Envío de actividad cancelado');
+					}
+				},
+				{
+					titulo: t("team_activities.send_button", "Enviar"),
+					callback: async () => {
+						try {
+							// Enviar a todos los grupos
+							for (const team of teamGroups) {
+								await dispatch(updateTeamData({
+									eventId: event.id,
+									teamId: team.id,
+									changes: {
+										send: activity.id
+									}
+								})).unwrap();
+
+								// Enviar notificación
+								try {
+									await notifyActivitySent(
+										event.id, 
+										team.id, 
+										activity.id, 
+										activity.name, 
+										false
+									);
+								} catch (notificationError) {
+									console.warn('Error enviando notificación:', notificationError);
+								}
+							}
+
+							dispatch(addToQueue({
+								titulo: t("team_activities.activity_sent", "Actividad Enviada"),
+								texto: t("team_activities.activity_sent_all_message", "La actividad \"{{activityName}}\" ha sido enviada a todos los grupos de \"{{teamName}}\".", {
+									activityName: activity.name,
+									teamName: decodedTeamGroupName
+								}),
+								array_botones: [
+									{
+										titulo: t("close", "Cerrar"),
+										callback: null
+									}
+								],
+								overlay: true,
+								close_button: true,
+								layout: "center"
+							}));
+						} catch (error) {
+							console.error("Error sending activity:", error);
+							dispatch(addToQueue({
+								titulo: t("error", "Error"),
+								texto: t("team_activities.send_error", "Error al enviar la actividad"),
+								array_botones: [
+									{
+										titulo: t("close", "Cerrar"),
+										callback: null
+									}
+								],
+								overlay: true,
+								close_button: true,
+								layout: "center"
+							}));
+						}
+					}
+				},
+				{
+					titulo: t("team_activities.force_button", "Forzar"),
+					callback: async () => {
+						try {
+							const forcedId = 100000000 + activity.id;
+							
+							// Forzar a todos los grupos
+							for (const team of teamGroups) {
+								await dispatch(updateTeamData({
+									eventId: event.id,
+									teamId: team.id,
+									changes: {
+										send: forcedId
+									}
+								})).unwrap();
+
+								// Enviar notificación
+								try {
+									await notifyActivitySent(
+										event.id, 
+										team.id, 
+										activity.id, 
+										activity.name, 
+										true
+									);
+								} catch (notificationError) {
+									console.warn('Error enviando notificación:', notificationError);
+								}
+							}
+
+							dispatch(addToQueue({
+								titulo: t("team_activities.activity_forced", "Actividad Forzada"),
+								texto: t("team_activities.activity_forced_all_message", "La actividad \"{{activityName}}\" ha sido forzada a todos los grupos de \"{{teamName}}\".", {
+									activityName: activity.name,
+									teamName: decodedTeamGroupName
+								}),
+								array_botones: [
+									{
+										titulo: t("close", "Cerrar"),
+										callback: null
+									}
+								],
+								overlay: true,
+								close_button: true,
+								layout: "center"
+							}));
+						} catch (error) {
+							console.error("Error forcing activity:", error);
+							dispatch(addToQueue({
+								titulo: t("error", "Error"),
+								texto: t("team_activities.force_error", "Error al forzar la actividad"),
+								array_botones: [
+									{
+										titulo: t("close", "Cerrar"),
+										callback: null
+									}
+								],
+								overlay: true,
+								close_button: true,
+								layout: "center"
+							}));
+						}
+					}
+				}
+			],
+			overlay: true,
+			close_button: false,
+			layout: "center",
+			claseCss: "popup-send-activity-options"
+		}));
+	};
+
+	if (teamGroups.length === 0) {
+		return (
+			<BackgroundLayout
+				title={t("team_activities.title", "Actividades por Equipos")}
+				subtitle={event?.name}
+			>
+				<BackButton onClick={handleBack} />
+				<div className="error-container">
+					<div className="error-content">
+						<h2>{t("valorate.not_found", "Equipo no encontrado")}</h2>
+						<p>{t("valorate.not_found_desc", "No se pudo encontrar el equipo solicitado")}</p>
+					</div>
+				</div>
+			</BackgroundLayout>
+		);
+	}
+
+	const totalPoints = teamGroups.reduce((sum, team) => sum + (team.points || 0), 0);
+
+	return (
+		<BackgroundLayout
+			title={`${decodedTeamGroupName}`}
+			subtitle={event?.name}
+		>
+			<BackButton onClick={handleBack} />
+
+			<div className="team-activities-container">
+				<div className="team-activities-stats">
+					<div className="stat-item">
+						<span className="stat-number">{teamGroups.length}</span>
+						<span className="stat-label">
+							{t("team_activities.groups_count", "Grupos")}
+						</span>
+					</div>
+					<div className="stat-item">
+						<span className="stat-number">{mergedActivities.length}</span>
+						<span className="stat-label">
+							{t("team_activities.activities_count", "Actividades")}
+						</span>
+					</div>
+					<div className="stat-item">
+						<span className="stat-number">
+							{mergedActivities.filter((a) => a.totalComplete === a.totalGroups).length}
+						</span>
+						<span className="stat-label">
+							{t("team_activities.completed", "Completadas")}
+						</span>
+					</div>
+					<div className="stat-item">
+						<span className="stat-number">
+							{mergedActivities.filter((a) => a.totalComplete < a.totalGroups).length}
+						</span>
+						<span className="stat-label">
+							{t("team_activities.pending", "Pendientes")}
+						</span>
+					</div>
+					<div className="stat-item">
+						<span className="stat-number">{totalPoints}</span>
+						<span className="stat-label">
+							{t("team_activities.points", "Puntos")}
+						</span>
+					</div>
+				</div>
+
+
+			{mergedActivities.length === 0 ? (
+				<div className="no-activities">
+					<div className="empty-icon">📋</div>
+					<h3>{t("valorate.no_pending", "No hay actividades")}</h3>
+					<p>
+						{t(
+							"valorate.no_pending_desc",
+							"Este equipo no tiene actividades asignadas"
+						)}
+					</p>
+				</div>
+			) : hasBothTypes ? (
+				<>
+					{/* Sección de Actividades en Ruta */}
+					{inRouteActivities.length > 0 && (
+						<>
+							<h3 className="activities-section-title">
+								{t("team_activities.in_route_activities", "Actividades en ruta")}
+							</h3>
+							<div className="activities-list">
+								{renderActivitiesList(inRouteActivities)}
+							</div>
+						</>
+					)}
+
+					{/* Sección de Actividades sin Ruta */}
+					{withoutRouteActivities.length > 0 && (
+						<>
+							<h3 className="activities-section-title">
+								{t("team_activities.without_route_activities", "Actividades sin ruta")}
+							</h3>
+							<div className="activities-list">
+								{renderActivitiesList(withoutRouteActivities)}
+							</div>
+						</>
+					)}
+				</>
+			) : (
+				<div className="activities-list">
+					{renderActivitiesList(mergedActivities)}
+				</div>
+			)}
+		</div>
+		</BackgroundLayout>
+	);
+};
+
+export default TeamGroupDetailPage;

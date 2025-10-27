@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import defaultQuestionIcon from "../assets/icon_query@2x.png";
 import defaultTrackIcon from "../assets/icon_track@2x.png";
 import defaultPhotoIcon from "../assets/icon_foto@2x.png";
+import defaultVideoIcon from "../assets/icon_video@2x.png";
 import defaultPuzzleIcon from "../assets/icon_puzzle@2x.png";
 import defaultMemoryIcon from "../assets/icon_memory@2x.png";
 
@@ -16,8 +17,10 @@ const getDefaultIconByType = (activityType) => {
 			return defaultQuestionIcon;
 		case 2: // Pista/Tracking
 			return defaultTrackIcon;
-		case 3: // Foto/Video
+		case 3: // Foto
 			return defaultPhotoIcon;
+		case 333: // Video
+			return defaultVideoIcon;
 		case 4: // Puzzle
 			return defaultPuzzleIcon;
 		case 5: // Parejas/Memory

@@ -1,134 +1,104 @@
-.notification-banner {
-  position: relative;
-  background: linear-gradient(135deg, var(--primary-color) 0%, black 100%);
-  color: white;
-  padding: 1rem;
-  margin: 1rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  animation: slideIn 0.3s ease-out;
-  z-index: 1099;
-}
-
-.notification-banner-content {
+.notification-permission-overlay {
+  position: fixed;
+  inset: 0;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  justify-content: center;
+  padding: 2rem;
+  z-index: 2000;
 }
 
-.notification-banner-icon {
-  font-size: 2rem;
-  flex-shrink: 0;
+.notification-permission-card {
+  max-width: 420px;
+  width: 100%;
+  background: rgba(20, 20, 20, 0.9);
+  border-radius: 18px;
+  padding: 1.75rem;
+  color: #fff;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  text-align: center;
 }
 
-.notification-banner-text {
-  flex: 1;
+.notification-permission-icon {
+  font-size: 2.6rem;
+  margin-bottom: 1rem;
 }
 
-.notification-banner-text h4 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.1rem;
+.notification-permission-title {
+  margin: 0 0 1rem;
+  font-size: 1.4rem;
   font-weight: 600;
 }
 
-.notification-banner-text p {
-  margin: 0;
-  font-size: 0.9rem;
-  opacity: 0.9;
-  line-height: 1.4;
+.notification-permission-description {
+  margin: 0 0 1.2rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
 }
 
-.notification-banner-actions {
+.notification-permission-actions {
   display: flex;
-  gap: 0.5rem;
-  flex-shrink: 0;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.btn-enable-notifications {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-weight: 500;
+.notification-permission-primary {
+  padding: 0.8rem 1rem;
+  border-radius: 999px;
+  border: none;
+  background: #3b82f6;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, background 0.2s ease;
 }
 
-.btn-enable-notifications:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.3);
+.notification-permission-primary:hover:not(:disabled) {
+  background: #4c8ffc;
   transform: translateY(-1px);
 }
 
-.btn-enable-notifications:disabled {
+.notification-permission-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.btn-dismiss {
+.notification-permission-secondary {
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
   background: transparent;
-  color: rgba(255, 255, 255, 0.8);
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
+  color: #fff;
+  font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-.btn-dismiss:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
+.notification-permission-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
 }
 
-.notification-banner-close {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.7);
-  border: none;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
+.notification-permission-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.notification-banner-close:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Responsive */
 @media (max-width: 768px) {
-  .notification-banner-content {
-    flex-direction: column;
-    text-align: center;
-    gap: 0.75rem;
+  .notification-permission-overlay {
+    padding: 1.5rem;
   }
-  
-  .notification-banner-actions {
-    width: 100%;
-    justify-content: center;
+
+  .notification-permission-card {
+    padding: 1.5rem 1.25rem;
   }
-  
-  .btn-enable-notifications,
-  .btn-dismiss {
-    flex: 1;
-    max-width: 120px;
+
+  .notification-permission-title {
+    font-size: 1.25rem;
+  }
+
+  .notification-permission-description {
+    font-size: 0.92rem;
   }
 }

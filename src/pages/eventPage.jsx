@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import EventHeader from "../components/eventHeader";
 import EventMap from "../components/eventMap";
 import ActivityRunner from "../components/ActivityRunner";
@@ -14,6 +15,7 @@ import { useAppStateTracker } from "../hooks/useAppStateTracker";
 const EventPage = () => {
 	const { t } = useTranslation();
 	const dispatch = useDispatch();
+	const navigate = useNavigate();
 	const { setMapState, clearActivity } = useAppStateTracker();
 
 	const event = useSelector((state) => state.event.event);
@@ -51,6 +53,10 @@ const EventPage = () => {
 		clearActivity();
 	};
 
+	const handleSystemStatusClick = () => {
+		navigate('/system-status');
+	};
+
 	// Actualizar estado a "mapa" cuando no hay actividad activa
 	useEffect(() => {
 		if (!isActivityActive) {
@@ -78,8 +84,19 @@ const EventPage = () => {
 			)}
 			<div className="map-container">
 				<EventMap />
+				
+				{/* Botón flotante del sistema de estado */}
+				{isAdmin && (
+					<button
+						onClick={handleSystemStatusClick}
+						className="btn-status fixed bottom-20 right-4 z-50 bg-gray-800 hover:bg-gray-700 text-white p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+						title="Sistema de Estado"
+					>
+						<svg fill="#000000" version="1.1" id="Icon" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M12,0C5.38,0,0,5.38,0,12s5.38,12,12,12s12-5.38,12-12S18.62,0,12,0z M12,22C6.49,22,2,17.51,2,12S6.49,2,12,2 s10,4.49,10,10S17.51,22,12,22z M10.5,10h3v8h-3V10z M10.5,5h3v3h-3V5z"></path> </g></svg>
+					</button>
+				)}
 			</div>
-			<DebugPanel />
+			{/* <DebugPanel /> */}
 			{/* Footer flotante con controles */}
 			<EventFooter eventId={event.id} collapsed={collapsed} />
 

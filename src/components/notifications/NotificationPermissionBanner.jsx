@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSelector } from 'react-redux';
 import { useNotifications } from '../../hooks/useNotifications';
 import './NotificationPermissionBanner.css';
 import { useTranslation } from "react-i18next";
@@ -12,8 +13,6 @@ export default function NotificationPermissionBanner() {
     isSupported,
     permission,
     isSubscribed,
-    canEnableNotifications,
-    statusMessage,
     requestPermissionAndSubscribe,
     isLoading
   } = useNotifications();
@@ -21,17 +20,20 @@ export default function NotificationPermissionBanner() {
   const { t } = useTranslation();
 
   const [isDismissed, setIsDismissed] = useState(false);
+  const selectedTeam = useSelector((state) => state.session.selectedTeam);
 
   // Mostrar el banner si:
   // - Las notificaciones están soportadas
   // - No está ya suscrito
   // - Los permisos están en 'default' (nunca se preguntó) o 'granted' (permitido pero no suscrito)
   // - No fue cerrado manualmente
+  // - Existe un equipo seleccionado
   const shouldShow = (
     isSupported && 
     !isSubscribed && 
     (permission === 'default' || permission === 'granted') &&
-    !isDismissed
+    !isDismissed &&
+    !!selectedTeam
   );
 
   if (!shouldShow) {
@@ -51,45 +53,35 @@ export default function NotificationPermissionBanner() {
   };
 
   return (
-    <div className="notification-banner">
-      <div className="notification-banner-content">
-        <div className="notification-banner-icon">
-          🔔
-        </div>
-        
-        <div className="notification-banner-text">
-          <h4>{t("¿Quieres recibir notificaciones?")}</h4>
-          <p>
-            {t("Recibirás notificaciones relacionadas con el evento y las actividades.")}
-          </p>
-        </div>
-        
-        <div className="notification-banner-actions">
+    <div className="notification-permission-overlay">
+      <div className="notification-permission-card">
+        <div className="notification-permission-icon" aria-hidden="true">🔔</div>
+        <h3 className="notification-permission-title">
+          {t("notifications.permission_title", "Necesitamos activar las notificaciones")}
+        </h3>
+        <p className="notification-permission-description">
+          {t(
+            "notifications.permission_description",
+            "Recibirás avisos importantes del evento, recordatorios y mensajes del equipo organizador."
+          )}
+        </p>
+        <div className="notification-permission-actions">
           <button
-            className="btn-enable-notifications"
+            className="notification-permission-primary"
             onClick={handleEnableNotifications}
             disabled={isLoading}
           >
-            {isLoading ? 'Habilitando...' : 'Habilitar'}
+            {isLoading ? t("notifications.permission_enabling", "Habilitando...") : t("notifications.permission_enable", "Activar notificaciones")}
           </button>
-          
           <button
-            className="btn-dismiss"
+            className="notification-permission-secondary"
             onClick={handleDismiss}
             disabled={isLoading}
           >
-            Ahora no
+            {t("notifications.permission_later", "Ahora no")}
           </button>
         </div>
       </div>
-      
-      <button
-        className="notification-banner-close"
-        onClick={handleDismiss}
-        aria-label="Cerrar"
-      >
-        ✕
-      </button>
     </div>
   );
 }

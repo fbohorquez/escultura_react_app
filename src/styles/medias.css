@@ -4,8 +4,6 @@
   }
 
   .logo-container {
-    width: 8rem;
-    height: 8rem;
     display: flex;
     flex-direction: column;
     align-items: center;

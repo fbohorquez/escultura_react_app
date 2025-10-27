@@ -1,45 +1,51 @@
 import { initializeApp } from "firebase/app";
 import {
-	getFirestore,
-	doc,
-	getDoc,
-	updateDoc,
-	setDoc,
-	onSnapshot,
-	collection,
-	arrayUnion,
+        doc,
+        getDoc,
+        updateDoc,
+        setDoc,
+        onSnapshot,
+        collection,
+        arrayUnion,
+        initializeFirestore,
+        CACHE_SIZE_UNLIMITED,
 } from "firebase/firestore";
 
 import { createListenerMiddleware } from "@reduxjs/toolkit";
+import i18n from "../i18n";
 import {
-	setEvent, // de eventSlice
-	setSuspendEvent, // de eventSlice
+        setEvent, // de eventSlice
+        setSuspendEvent, // de eventSlice
 } from "../features/event/eventSlice";
 
 import {
-	setAdmin, // de adminSlice
+        setAdmin, // de adminSlice
 } from "../features/admin/adminSlice";
 
 import {
-	updateTeamData, // thunk de teamsSlice
+        updateTeamData, // thunk de teamsSlice
 } from "../features/teams/teamsSlice";
 
 // Configuración de Firebase desde variables de entorno
 const firebaseConfig = {
-	apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-	authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-	projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-	storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-	messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-	appId: import.meta.env.VITE_FIREBASE_APP_ID,
-	// Si usas otras variables opcionales puedes añadirlas aquí
+        apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+        storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+        appId: import.meta.env.VITE_FIREBASE_APP_ID,
+        // Si usas otras variables opcionales puedes añadirlas aquí
 };
 
-// Inicializa Firebase y Firestore
+// Inicializa Firebase
 const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp);
 
-// Variables para el monitoreo de conexiones
+// Inicializa Firestore con configuración explícita para evitar problemas de CORS
+const db = initializeFirestore(firebaseApp, {
+        cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+        experimentalForceLongPolling: false, // Usa WebChannel (mejor para CORS)
+        experimentalAutoDetectLongPolling: true, // Detecta automáticamente si necesita long polling
+});// Variables para el monitoreo de conexiones
 let connectionListeners = new Map(); // Para almacenar listeners activos
 let reconnectionAttempts = new Map(); // Para contar intentos de reconexión
 let lastHeartbeat = new Map(); // Para trackear última actividad
@@ -458,6 +464,7 @@ export const subscribeToChat = (eventId, chatId, callback) => {
  */
 export const getChatRooms = async (eventId, teamId, isAdmin, teams = []) => {
 	const rooms = [];
+	const translate = (key, options) => i18n.t(key, options);
 	
 	console.log('getChatRooms called with:', { eventId, teamId, isAdmin, teams });
 	
@@ -468,9 +475,9 @@ export const getChatRooms = async (eventId, teamId, isAdmin, teams = []) => {
 		// Agregar sala de grupo
 		rooms.push({
 			id: "group",
-			name: "Grupo",
+			name: translate("chatRooms.group.name"),
 			type: "group",
-			description: "Chat grupal del evento"
+			description: translate("chatRooms.group.description")
 		});
 		
 		// Agregar salas admin con cada equipo que tenga device asignado
@@ -480,7 +487,7 @@ export const getChatRooms = async (eventId, teamId, isAdmin, teams = []) => {
 					id: `admin_${team.id}`,
 					name: team.name,
 					type: "admin",
-					description: `Chat privado con ${team.name}`
+					description: translate("chatRooms.admin.descriptionWithTeam", { teamName: team.name })
 				});
 			}
 		});
@@ -491,17 +498,17 @@ export const getChatRooms = async (eventId, teamId, isAdmin, teams = []) => {
 		// Agregar sala de grupo
 		rooms.push({
 			id: "group",
-			name: "Grupo",
+			name: translate("chatRooms.group.name"),
 			type: "group",
-			description: "Chat grupal del evento"
+			description: translate("chatRooms.group.description")
 		});
 		
 		// Agregar chat con administrador
 		rooms.push({
 			id: `admin_${teamId}`,
-			name: "Organizador",
+			name: translate("chatRooms.admin.name"),
 			type: "admin",
-			description: "Chat privado con el organizador"
+			description: translate("chatRooms.admin.description")
 		});
 		
 		// Filtrar otros equipos que tengan device asignado y no sean el equipo actual
@@ -523,7 +530,7 @@ export const getChatRooms = async (eventId, teamId, isAdmin, teams = []) => {
 				id: chatId,
 				name: team.name,
 				type: "team",
-				description: `Chat con ${team.name}`
+				description: translate("chatRooms.team.description", { teamName: team.name })
 			});
 		});
 	}

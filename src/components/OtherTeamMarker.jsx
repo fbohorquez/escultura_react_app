@@ -3,7 +3,7 @@ import { Marker } from "@react-google-maps/api";
 import { useSelector } from "react-redux";
 import { usePopup } from "../hooks/usePopup";
 import { useTranslation } from "react-i18next";
-import { isTeamActive, formatLastSeen } from "../utils/keepaliveUtils";
+import { isTeamActive } from "../utils/keepaliveUtils";
 import { getPreferredVersionUrl } from "../services/uploadQueue";
 import defaultTeamPhoto from "../assets/icono_equpo@2x.png";
 
@@ -27,7 +27,8 @@ const OtherTeamMarker = ({ team, index, onMarkerLoad }) => {
   // Estado de conexión vía keepalive
   const keepaliveTeams = useSelector((state) => state.keepalive?.teams || {});
   const lastSeen = keepaliveTeams?.[team.id]?.lastSeen;
-  const online = isTeamActive(lastSeen);
+  const statusRaw = keepaliveTeams?.[team.id]?.status;
+  const online = isTeamActive(lastSeen) || statusRaw === 'sleep';
 
   // Datos del evento para contar actividades totales
   const totalActivities = useSelector((state) => state.event.event?.activities_data?.length || 0);
@@ -55,7 +56,7 @@ const OtherTeamMarker = ({ team, index, onMarkerLoad }) => {
     };
   }, [team.name, index]);
 
-  const opacity = online ? 1 : 0.5;
+  const opacity = online || keepaliveTeams?.[team.id]?.status === "sleep" ? 1 : 0.5;
 
   // Foto del equipo (o placeholder)
   const photoUrl = useMemo(() => {
@@ -77,8 +78,14 @@ const OtherTeamMarker = ({ team, index, onMarkerLoad }) => {
 
   const handleClick = () => {
     const completedActivities = (team.activities_data || []).filter(a => a.complete && !a.del).length;
-    const statusText = online ? t("session.connected", "Conectado") : t("session.disconnected", "Desconectado");
-    const lastSeenText = lastSeen ? formatLastSeen(lastSeen) : t("never", "Nunca");
+    let statusText;
+    if (statusRaw === 'sleep') {
+      statusText = t("session.screen_locked", "Pantalla bloqueada");
+    } else if (online) {
+      statusText = t("session.connected", "Conectado");
+    } else {
+      statusText = t("session.disconnected", "Desconectado");
+    }
 
     openPopup({
       titulo: team.name,

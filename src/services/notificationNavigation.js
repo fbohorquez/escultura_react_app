@@ -50,18 +50,24 @@ class NotificationNavigationService {
     const urlParams = new URLSearchParams(window.location.search);
     const eventId = urlParams.get('notification_event');
     const chatId = urlParams.get('notification_chat');
+    const teamId = urlParams.get('notification_team');
+    const activityId = urlParams.get('notification_activity');
+    const type = urlParams.get('notification_type');
 
-    if (eventId && chatId) {
-      console.log('Opening app from notification:', { eventId, chatId });
+    if (eventId && (chatId || (teamId && activityId) || type === 'activity_sent')) {
+      console.log('Opening app from notification:', { eventId, chatId, teamId, activityId, type });
       
       // Limpiar los parámetros de la URL
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
       
-      // Navegar al chat
+      // Navegar según el tipo
       this.handleNavigation({
         eventId,
         chatId,
+        teamId,
+        activityId,
+        type: type || (chatId ? 'chat' : teamId && activityId ? 'activity_valuation' : 'activity_sent'),
         source: 'notification_url'
       });
     }
@@ -79,24 +85,44 @@ class NotificationNavigationService {
       return;
     }
 
-    const { eventId, chatId } = payload;
-
-    if (!eventId || !chatId) {
-      console.warn('Invalid navigation payload:', payload);
-      return;
-    }
+    const { eventId, chatId, teamId, activityId, type } = payload;
 
     try {
-      // Construir la ruta interna para MemoryRouter
-      const route = this.buildChatRoute(eventId, chatId);
-      
-      console.log('Navigating to:', route);
+      let route;
+
+      // Construir la ruta según el tipo de notificación
+      if (type === 'activity_valuation' && eventId && teamId && activityId) {
+        // Notificación de valoración de actividad
+        route = `/team/activity/${eventId}/${teamId}/${activityId}`;
+        console.log('Navigating to activity:', route);
+      } else if (type === 'activity_sent' && eventId) {
+        // Notificación de actividad enviada - llevar a la página del evento
+        route = `/event/${eventId}`;
+        console.log('Navigating to event:', route);
+      } else if (eventId && chatId) {
+        // Notificación de chat
+        route = this.buildChatRoute(eventId, chatId);
+        console.log('Navigating to chat:', route);
+      } else {
+        console.warn('Invalid navigation payload:', payload);
+        return;
+      }
+
       this.navigate(route);
 
-      // Opcional: Almacenar en sessionStorage para que otros componentes sepan que venimos de notificación
+      // Almacenar en sessionStorage para que otros componentes sepan que venimos de notificación
       sessionStorage.setItem('navigationSource', 'notification');
+      sessionStorage.setItem('notificationType', type || 'chat');
       sessionStorage.setItem('notificationEventId', eventId);
-      sessionStorage.setItem('notificationChatId', chatId);
+      
+      if (chatId) {
+        sessionStorage.setItem('notificationChatId', chatId);
+      }
+      
+      if (teamId && activityId) {
+        sessionStorage.setItem('notificationTeamId', teamId);
+        sessionStorage.setItem('notificationActivityId', activityId);
+      }
 
     } catch (error) {
       console.error('Error navigating from notification:', error);

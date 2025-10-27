@@ -3,6 +3,7 @@ import React, { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
+import { usePopup } from "../hooks/usePopup";
 import {
 	setShowTeamSelector,
 	sendGadgetAction,
@@ -10,13 +11,12 @@ import {
 	setSelectedGadget,
 	setShowGadgetSelector,
 } from "../features/gadgets/gadgetsSlice";
-import { useNotification } from "../hooks/useNotification";
 
 const TeamSelector = () => {
 	const { t } = useTranslation();
 	const dispatch = useDispatch();
 	const { eventId } = useParams();
-	const { showNotification } = useNotification();
+	const { openPopup } = usePopup();
 	
 	const { selectedGadget, showTeamSelector, availableGadgets, status, cooldownInfo, isDirectFlow } = useSelector((state) => state.gadgets);
 	const teams = useSelector((state) => state.teams.items || []);
@@ -75,11 +75,18 @@ const TeamSelector = () => {
 		
 		// Verificar si el equipo puede recibir gadgets
 		if (!teamStatus.canReceive) {
-			showNotification({
-				type: "warning",
-				title: t("gadgets.cannot_send", "No se puede enviar"),
-				message: teamStatus.reasons.join(', '),
-				duration: 4000
+			openPopup({
+				titulo: t("gadgets.cannot_send", "No se puede enviar"),
+				texto: teamStatus.reasons.join(', '),
+				array_botones: [
+					{
+						titulo: t("close", "Cerrar"),
+						callback: () => {}
+					}
+				],
+				layout: "center",
+				overlay: true,
+				close_button: true
 			});
 			return;
 		}
@@ -94,24 +101,38 @@ const TeamSelector = () => {
 
 			const gadgetInfo = availableGadgets[selectedGadget];
 			
-			showNotification({
-				type: "success",
-				title: t("gadgets.sent_success", "Gadget Enviado"),
-				message: t("gadgets.sent_message", "{{gadget}} enviado a {{team}}", {
+			openPopup({
+				titulo: t("gadgets.sent_success", "Gadget Enviado"),
+				texto: t("gadgets.sent_message", "{{gadget}} enviado a {{team}}", {
 					gadget: gadgetInfo.name,
 					team: targetTeam.name
 				}),
-				duration: 3000
+				array_botones: [
+					{
+						titulo: t("close", "Cerrar"),
+						callback: () => {}
+					}
+				],
+				layout: "center",
+				overlay: true,
+				close_button: true
 			});
 
 			dispatch(resetGadgetFlow());
 			
 		} catch (error) {
-			showNotification({
-				type: "error", 
-				title: t("gadgets.send_error", "Error al Enviar"),
-				message: error.message || t("gadgets.send_error_message", "No se pudo enviar el gadget"),
-				duration: 5000
+			openPopup({
+				titulo: t("gadgets.send_error", "Error al Enviar"),
+				texto: error.message || t("gadgets.send_error_message", "No se pudo enviar el gadget"),
+				array_botones: [
+					{
+						titulo: t("close", "Cerrar"),
+						callback: () => {}
+					}
+				],
+				layout: "center",
+				overlay: true,
+				close_button: true
 			});
 		}
 	};

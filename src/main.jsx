@@ -13,6 +13,7 @@ import { initNotificationSystem, promptNotificationPermission } from "./services
 import { validateEventToken, getEventParamFromURL, clearEventParamFromURL, validateTeamToken, getTeamParamFromURL, clearTeamParamFromURL } from "./utils/eventToken";
 import { overrideNative } from "./utils/overrideNative";
 import { startConnectionMonitor } from "./services/firebase";
+import { initializeDynamicConfig } from "./utils/configInitializer.js";
 import "./services/firebase-diagnostics"; // Inicializar herramientas de diagnóstico
 import "./services/test-firebase-monitoring"; // Inicializar tests de monitoreo (solo en desarrollo)
 
@@ -26,6 +27,12 @@ const getInitialRoute = async () => {
 	const action = urlParams.get("action");
 	const eventParam = getEventParamFromURL();
 	const teamParam = getTeamParamFromURL();
+
+	// Si la ruta actual es /init, no procesar los parámetros, solo mantenerlos
+	if (window.location.pathname === '/init') {
+		console.log("Init route detected, preserving URL parameters without processing");
+		return `/init${window.location.search}`;
+	}
 
 	// Verificar si se requieren tokens obligatorios
 	const requireTokens = import.meta.env.VITE_REQUIRE_EVENT_TEAM_TOKENS === "true";
@@ -206,6 +213,9 @@ const getInitialRoute = async () => {
 };
 
 getInitialRoute().then(initialRoute => {
+	// Inicializar configuración dinámica desde URL
+	initializeDynamicConfig();
+	
 	initUploadQueue();
 	initAssetCaching();
 	

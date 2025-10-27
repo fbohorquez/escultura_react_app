@@ -136,29 +136,55 @@
 	opacity: 0.7;
 }
 
+.team-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+}
+
+.btn-refresh-team {
+        background: linear-gradient(135deg, #2196F3, #1976D2);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px rgba(33, 150, 243, 0.3);
+}
+
+.btn-refresh-team:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(33, 150, 243, 0.5);
+}
+
+.btn-refresh-team:active {
+        transform: translateY(0);
+}
+
 .btn-disassociate {
-	background: linear-gradient(135deg, var(--primary-color-alpha-8), var(--primary-color));
-	color: white;
-	border: none;
-	padding: 8px 16px;
-	border-radius: 6px;
-	font-size: 0.9rem;
-	font-weight: bold;
-	cursor: pointer;
-	transition: all 0.3s ease;
-	box-shadow: 0 2px 10px var(--primary-color-alpha-3);
+        background: linear-gradient(135deg, var(--primary-color-alpha-8), var(--primary-color));
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px var(--primary-color-alpha-3);
 }
 
 .btn-disassociate:hover {
-	transform: translateY(-1px);
-	box-shadow: 0 4px 15px var(--primary-color-alpha-5);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px var(--primary-color-alpha-5);
 }
 
 .btn-disassociate:active {
-	transform: translateY(0);
-}
-
-.no-teams {
+        transform: translateY(0);
+}.no-teams {
 	text-align: center;
 	font-style: italic;
 	opacity: 0.7;
@@ -167,17 +193,17 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-	.session-control-page {
-		padding: 15px;
-	}
-	
-	.team-item {
-		flex-direction: column;
-		align-items: stretch;
-		gap: 10px;
-	}
-	
-	.btn-disassociate {
-		align-self: flex-start;
-	}
+        .session-control-page {
+                padding: 15px;
+        }
+
+        .team-item {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+        }
+
+        .team-actions {
+                align-self: flex-start;
+        }
 }

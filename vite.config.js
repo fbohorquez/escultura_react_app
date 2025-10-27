@@ -13,5 +13,8 @@ export default defineConfig({
       'escultura.dev2bit.com',
       'dev2bit.com'
     ]
+  },
+  build: {
+    minify: false
   }
 })

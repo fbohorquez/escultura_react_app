@@ -12,8 +12,23 @@ import {
 export const initEventRoot = createAsyncThunk(
 	"event/init",
 	async ({ eventId }, { dispatch, rejectWithValue }) => {
+		let firebaseId = eventId;
+
 		try {
-			const firebaseId = await initEvent(eventId);
+			const apiEventId = await initEvent(eventId);
+			if (apiEventId) {
+				firebaseId = apiEventId;
+			}
+		} catch (apiError) {
+			if (import.meta.env.DEV) {
+				console.warn(
+					"initEventRoot: error contacting API, using token eventId as fallback",
+					apiError
+				);
+			}
+		}
+
+		try {
 			dispatch(setEventId(firebaseId));
 
 			const initialData = await fetchInitialEvent(firebaseId);

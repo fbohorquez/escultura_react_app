@@ -36,6 +36,11 @@ export async function prefetchAssetsFromJson(jsonData) {
 	const urls = Array.from(extractUrlsFromObject(jsonData));
 	const cache = await caches.open(CACHE_NAME);
 	for (const raw of urls) {
+		const allowExtensions = [".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".mp4", ".webm", ".ogg", ".mp3", ".wav", ".ttf", ".woff", ".woff2"];
+		if (!allowExtensions.some(ext => raw.toLowerCase().endsWith(ext))) {
+			// Sólo cachear extensiones permitidas
+			continue;
+		}
 		try {
 			const u = new URL(raw, window.location.origin);
 			const sameOrigin = u.origin === window.location.origin;

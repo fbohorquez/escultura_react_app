@@ -6,6 +6,7 @@ import { useSelector } from "react-redux";
 import brandIcon from "../assets/escultura_brand.png";
 import defaultLogoTeam from "../assets/icono_equpo@2x.png";
 import adminIcon from "../assets/Icono_Organizacion@2x.png";
+import useDynamicConfig from "../hooks/useDynamicConfig";
 
 const SWIPE_THRESHOLD = 30; // px
 
@@ -21,6 +22,7 @@ const EventHeader = ({
 	const touchEndY = useRef(0);
 
 	const isAdmin = useSelector((state) => state.session.isAdmin);
+	const config = useDynamicConfig();
 
 	const handleTouchStart = (e) => {
 		touchStartY.current = e.touches[0].clientY;
@@ -57,7 +59,9 @@ const EventHeader = ({
 					</div>
 				)}
 				<div className="titles">
-					<img src={brandIcon} alt="logo escultura" className="brand-icon" />
+					{config.header.showEsculturaLogo && (
+						<img src={brandIcon} alt="logo escultura" className="brand-icon" />
+					)}
 					<h1 className="event-title">{eventName}</h1>
 					<h2 className="team-name">{teamName}</h2>
 				</div>

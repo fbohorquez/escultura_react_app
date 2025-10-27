@@ -1,26 +1,230 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      // Script para aplicar configuración dinámica antes de cargar la aplicación React
+      (function() {
+        try {
+          // Función para extraer configuración de URL
+          function getUrlConfig() {
+            try {
+              const urlParams = new URLSearchParams(window.location.search);
+              let configParam = urlParams.get('config');
+              
+              if (!configParam) return null;
+
+              // Log para debugging
+              console.log('Parámetro config detectado, longitud:', configParam.length);
+
+              // Decodificar desde base64
+              const decodedConfig = atob(configParam);
+              if (!decodedConfig) return null;
+
+              // Parsear como JSON
+              let config = JSON.parse(decodedConfig);
+              
+              // Verificar si es formato compacto y expandir
+              if (config.h || config.a) {
+                console.log('Configuración compacta detectada, expandiendo...');
+                config = expandCompactConfig(config);
+              }
+              
+              console.log('Configuración decodificada exitosamente:', config);
+              
+              return config;
+            } catch (error) {
+              console.warn('Error al decodificar configuración de URL:', error);
+              console.warn('Parámetro config:', new URLSearchParams(window.location.search).get('config'));
+              return null;
+            }
+          }
+
+          // Función para obtener configuración desde localStorage
+          function getStoredConfig() {
+            try {
+              const stored = localStorage.getItem('dynamic_config');
+              return stored ? JSON.parse(stored) : null;
+            } catch (error) {
+              console.warn('Error al leer configuración de localStorage:', error);
+              return null;
+            }
+          }
+
+          // Configuración por defecto
+          const DEFAULT_CONFIG = {
+            app: {
+              title: 'Escultura Eventos',
+              iconUrl: '/icons/favicon.svg',
+              manifestUrl: '/site.webmanifest'
+            }
+          };
+
+          // Función para aplicar configuración (por defecto o personalizada)
+          function applyConfig(config) {
+            // Aplicar título
+            if (config.app && config.app.title) {
+              document.title = config.app.title;
+            }
+
+            // Aplicar iconos
+            if (config.app && config.app.iconUrl) {
+              // Crear o actualizar favicon SVG
+              let svgIcon = document.querySelector('link[rel="icon"][type="image/svg+xml"]');
+              if (!svgIcon) {
+                svgIcon = document.createElement('link');
+                svgIcon.rel = 'icon';
+                svgIcon.type = 'image/svg+xml';
+                document.head.appendChild(svgIcon);
+              }
+              svgIcon.href = config.app.iconUrl;
+
+              // Crear o actualizar shortcut icon
+              let shortcutIcon = document.querySelector('link[rel="shortcut icon"]');
+              if (!shortcutIcon) {
+                shortcutIcon = document.createElement('link');
+                shortcutIcon.rel = 'shortcut icon';
+                document.head.appendChild(shortcutIcon);
+              }
+              shortcutIcon.href = config.app.iconUrl;
+
+              // Crear o actualizar favicon PNG
+              let pngIcon = document.querySelector('link[rel="icon"][type="image/png"]');
+              if (!pngIcon) {
+                pngIcon = document.createElement('link');
+                pngIcon.rel = 'icon';
+                pngIcon.type = 'image/png';
+                pngIcon.sizes = '96x96';
+                document.head.appendChild(pngIcon);
+              }
+              pngIcon.href = config.app.iconUrl;
+
+              // Crear o actualizar apple-touch-icon
+              let appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
+              if (!appleIcon) {
+                appleIcon = document.createElement('link');
+                appleIcon.rel = 'apple-touch-icon';
+                appleIcon.sizes = '180x180';
+                document.head.appendChild(appleIcon);
+              }
+              appleIcon.href = config.app.iconUrl;
+            }
+
+            // Aplicar manifest
+            if (config.app && config.app.manifestBlob) {
+              // Manifest personalizado como blob
+              try {
+                const manifestBlob = new Blob([JSON.stringify(config.app.manifestBlob)], {
+                  type: 'application/json'
+                });
+                const manifestUrl = URL.createObjectURL(manifestBlob);
+                
+                let manifestLink = document.querySelector('link[rel="manifest"]');
+                if (!manifestLink) {
+                  manifestLink = document.createElement('link');
+                  manifestLink.rel = 'manifest';
+                  document.head.appendChild(manifestLink);
+                }
+                manifestLink.href = manifestUrl;
+                
+                console.log('Manifest dinámico aplicado:', manifestUrl);
+              } catch (error) {
+                console.warn('Error al crear manifest dinámico:', error);
+              }
+            } else if (config.app && config.app.manifestUrl) {
+              // Manifest por defecto como URL
+              let manifestLink = document.querySelector('link[rel="manifest"]');
+              if (!manifestLink) {
+                manifestLink = document.createElement('link');
+                manifestLink.rel = 'manifest';
+                document.head.appendChild(manifestLink);
+              }
+              manifestLink.href = config.app.manifestUrl;
+            }
+          }
+
+          // Procesar configuración de URL si existe
+          const urlConfig = getUrlConfig();
+          
+          if (urlConfig && Object.keys(urlConfig).length > 0) {
+            // Guardar en localStorage
+            localStorage.setItem('dynamic_config', JSON.stringify(urlConfig));
+            console.log('Configuración guardada en localStorage');
+          } else {
+            console.log('No se encontró configuración válida en URL');
+          }
+
+          // Obtener configuración final (URL o localStorage o por defecto)
+          const storedConfig = getStoredConfig();
+          const finalConfig = urlConfig || storedConfig || DEFAULT_CONFIG;
+          
+          // Fusionar con valores por defecto
+          const mergedConfig = {
+            ...DEFAULT_CONFIG,
+            ...finalConfig,
+            app: {
+              ...DEFAULT_CONFIG.app,
+              ...(finalConfig.app || {})
+            }
+          };
+
+          // Aplicar configuración final
+          applyConfig(mergedConfig);
+          console.log('Configuración aplicada:', mergedConfig);
+        } catch (error) {
+          console.error('Error en configuración dinámica:', error);
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="google" content="notranslate" />
     <meta name="translate" content="no" />
   
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="/icons/favicon-96x96.png" sizes="96x96" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- <link rel="icon" type="image/png" href="/icons/favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
     <link rel="shortcut icon" href="/icons/favicon.ico" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
-    <link rel="manifest" href="/site.webmanifest" /><link rel="icon" type="image/png" href="/icons/favicon-96x96.png" sizes="96x96" />
-    <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
-    <link rel="shortcut icon" href="/icons/favicon.ico" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
-    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="manifest" href="/site.webmanifest" /> -->
 
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"/>
     
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      /* Prevenir zoom en dispositivos móviles */
+      * {
+        touch-action: manipulation;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+      
+      /* Permitir selección de texto en inputs y elementos específicos */
+      input, textarea, [contenteditable] {
+        -webkit-user-select: text;
+        -khtml-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+      }
+      
+      /* Prevenir el zoom por doble tap */
+      body {
+        -webkit-text-size-adjust: none;
+        -moz-text-size-adjust: none;
+        -ms-text-size-adjust: none;
+        text-size-adjust: none;
+      }
+    </style>
     
-    <title>Escultura Eventos</title>
+    <!-- Título e iconos se generan dinámicamente -->
+
+    
 
   </head>
   <body>

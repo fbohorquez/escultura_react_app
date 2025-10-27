@@ -17,6 +17,7 @@ export const updateKeepalive = createAsyncThunk(
 const initialState = {
   isOnline: navigator.onLine,
   lastHeartbeat: null,
+  heartbeatCount: 0,
   teamId: null,
   sessionId: null,
   connectionStatus: 'disconnected', // 'connecting', 'connected', 'disconnected', 'error'
@@ -50,6 +51,7 @@ const keepaliveSlice = createSlice({
     },
     updateLastHeartbeat: (state, action) => {
       state.lastHeartbeat = action.payload || Date.now();
+  state.heartbeatCount += 1;
     },
     incrementReconnectAttempts: (state) => {
       state.reconnectAttempts += 1;
@@ -58,13 +60,14 @@ const keepaliveSlice = createSlice({
       state.reconnectAttempts = 0;
     },
     updateTeamStatus: (state, action) => {
-      const { teamId, lastSeen, status, appState, currentActivity, appStateTimestamp } = action.payload;
-      state.teams[teamId] = { 
-        lastSeen, 
-        status, 
-        appState, 
-        currentActivity, 
-        appStateTimestamp 
+      const { teamId, lastSeen, sleepTimestamp, status, appState, currentActivity, appStateTimestamp } = action.payload;
+      state.teams[teamId] = {
+        lastSeen,
+        sleepTimestamp,
+        status,
+        appState,
+        currentActivity,
+        appStateTimestamp
       };
     },
     removeTeam: (state, action) => {

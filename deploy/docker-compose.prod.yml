@@ -6,26 +6,24 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.app.ssl
     ports:
-      - "5173:5173"
+      # - "5173:5173"
+      - "3089:3089"
     env_file:
       - .env
     environment:
       - NODE_ENV=production
+      - VIRTUAL_HOST=escultura.app.dev2bit.com
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /srv/proxy-web/certs:/etc/nginx/certs:ro
     depends_on:
       - notification-server
-    networks:
-      - escultura-network
     restart: unless-stopped
 
   notification-server:
     build:
       context: ../notification-server
       dockerfile: Dockerfile
-    ports:
-      - "3089:3089"
     environment:
       - NODE_ENV=production
       - PORT=3089
@@ -34,10 +32,10 @@ services:
     volumes:
       - ../notification-server/backup:/app/backup
       - /srv/escultura/notification-server/backup:/app/backup
-    networks:
-      - escultura-network
     restart: unless-stopped
 
 networks:
-  escultura-network:
-    driver: bridge
+  default:
+    external:
+      name: "proxy-web_frontend"
+

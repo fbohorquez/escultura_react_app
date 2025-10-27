@@ -5,12 +5,13 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.app
-    ports:
-      - "5173:5173"
+    # ports:
+      # - "5173:5173"
     env_file:
       - .env
     environment:
       - NODE_ENV=development
+      - VIRTUAL_HOST=escultura.app.dev2bit.com
     volumes:
       - ../src:/app/src
       - ../public:/app/public
@@ -19,7 +20,7 @@ services:
       - signaling-server
       - notification-server
     networks:
-      - escultura-network
+      - proxy-web_frontend
 
   signaling-server:
     build:
@@ -31,7 +32,7 @@ services:
       - NODE_ENV=production
       - PORT=3088
     networks:
-      - escultura-network
+      - proxy-web_frontend
 
   notification-server:
     build:
@@ -47,9 +48,11 @@ services:
     volumes:
       - ../notification-server/backup:/app/backup
     networks:
-      - escultura-network
+      - proxy-web_frontend
     restart: unless-stopped
 
 networks:
-  escultura-network:
-    driver: bridge
+  default:
+    external:
+      name: "proxy-web_frontend"
+

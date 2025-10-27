@@ -3,6 +3,8 @@ import { useSelector } from 'react-redux';
 import { getTeamConnectionStatus } from '../services/firebase';
 import './TeamConnectionStatus.css';
 
+import { getI18n } from "react-i18next";
+
 /**
  * Componente que muestra el estado de conexión de un equipo específico
  * @param {Object} props - Propiedades del componente
@@ -67,16 +69,25 @@ const TeamConnectionStatus = ({
 
   const getStatusColor = () => {
     if (loading) return 'loading';
-    return teamStatus.status === 'online' ? 'online' : 'offline';
+    return teamStatus.status === 'online' ? 'online' : (teamStatus.status === 'sleep' ? 'online' : 'offline');
   };
-
   const getStatusText = () => {
-    if (loading) return 'Cargando...';
+    
+    if (loading) return getI18n().t('loading', 'Cargando...');
     
     if (teamStatus.isCurrent) {
-      return teamStatus.status === 'online' ? 'Conectado (tú)' : 'Desconectado (tú)';
+      return teamStatus.status === 'online' ? getI18n().t('status.online_you', 'Conectado (tú)') : getI18n().t('status.offline_you', 'Desconectado (tú)');
     }
-    return teamStatus.status === 'online' ? 'Conectado' : 'Desconectado';
+
+    return (
+      teamStatus.status === 'online' 
+      ? getI18n().t('status.online', 'Conectado') 
+      : (
+        teamStatus.status === 'sleep' ? 
+        getI18n().t('status.screen_locked', 'Pantalla bloqueada') 
+        : getI18n().t('status.offline', 'Desconectado')
+      )
+    );
   };
 
   const formatLastSeen = () => {
@@ -122,3 +133,4 @@ const TeamConnectionStatus = ({
 };
 
 export default TeamConnectionStatus;
+

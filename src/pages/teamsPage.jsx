@@ -1,5 +1,5 @@
 // src/pages/teamsPage.jsx
-import React, {useEffect} from "react";
+import React, {useEffect, useMemo} from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useTranslation } from "react-i18next";
 
@@ -8,6 +8,7 @@ import BackButton from "../components/backButton";
 import iconTeam from "../assets/icono_equipo.png";
 import iconAdmin from "../assets/icon_admin.png";
 import { initEventRoot } from "../features/event/eventSlice";
+import { getSameTeamBehavior, SAME_TEAM_BEHAVIORS } from "../services/sameTeamBehavior";
 
 import { setIsAdmin } from "../features/session/sessionSlice";
 
@@ -24,6 +25,9 @@ const TeamsPage = () => {
 	const token = useSelector((state) => state.session.token);
 
 	const teams = teamsState.items;
+	const sameTeamBehavior = useMemo(() => getSameTeamBehavior(), []);
+	const allowAssignedSelection = sameTeamBehavior !== SAME_TEAM_BEHAVIORS.NOT;
+	const isTakeBehavior = sameTeamBehavior === SAME_TEAM_BEHAVIORS.TAKE;
 	
 	// Verificar si estamos en proceso de auto-selección de equipo
 	const isAutoSelectingTeam = sessionStorage.getItem('autoSelectTeamId') !== null;
@@ -74,7 +78,11 @@ const TeamsPage = () => {
 				const targetTeam = teams.find(team => Number(team.id) === teamId);
 				
 				if (targetTeam) {
-					if (targetTeam.device === "" || targetTeam.device === token) {
+					const canNavigate =
+						targetTeam.device === "" ||
+						targetTeam.device === token ||
+						allowAssignedSelection;
+					if (canNavigate) {
 						// Equipo disponible, navegar automáticamente
 						console.log('Auto-selecting team:', teamId);
 						sessionStorage.removeItem('autoSelectTeamId');
@@ -93,7 +101,7 @@ const TeamsPage = () => {
 				}
 			}
 		}
-	}, [eventState.event?.id, teams, navigate, token, dispatch]);
+	}, [eventState.event?.id, teams, navigate, token, dispatch, allowAssignedSelection]);
 
 	return (
 		<div>
@@ -122,7 +130,7 @@ const TeamsPage = () => {
 						if (teams.length > 0) {
 							const targetTeam = teams.find(team => Number(team.id) === teamId);
 							
-							if (targetTeam && targetTeam.device !== "") {
+							if (targetTeam && targetTeam.device !== "" && !allowAssignedSelection) {
 								// Equipo ya está asignado, mostrar cuadro informativo
 								return (
 									<BackgroundLayout
@@ -174,24 +182,27 @@ const TeamsPage = () => {
 						</div>
 						{teams
 							.filter((team) => {
-								return team.device == "";
+								return allowAssignedSelection || team.device == ""; 
 							})
-							.map((team) => (
-								<div
-									key={team.id}
-									className="grid-item"
-									onClick={() => handleTeamClick(team.id)}
-								>
-									<img
-										src={iconTeam}
-										alt={team.name}
-										className="grid-item-img"
-									/>
-									<div className="grid-item-details">
-										<h3 className="grid-item-name">{team.name}</h3>
+							.map((team) => {
+								const isAssigned = team.device !== "";
+								return (
+									<div
+										key={team.id}
+										className="grid-item"
+										onClick={() => handleTeamClick(team.id)}
+									>
+										<img
+											src={iconTeam}
+											alt={team.name}
+											className="grid-item-img"
+										/>
+										<div className="grid-item-details">
+											<h3 className="grid-item-name">{team.name}</h3>
+										</div>
 									</div>
-								</div>
-							))}
+								);
+							})}
 					</div>
 				</BackgroundLayout>
 			)}
