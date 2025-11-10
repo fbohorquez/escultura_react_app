@@ -19,6 +19,9 @@ import KalmanFilter from "kalmanjs";
 import "../styles/followButton.css";
 import OtherTeamMarker from "./OtherTeamMarker";
 
+// Constante para las librerías de Google Maps (debe estar fuera del componente)
+const GOOGLE_MAPS_LIBRARIES = ["geometry"];
+
 const ZONES = [
 	// {
 	// 	id: "zone1",
@@ -190,7 +193,7 @@ const ACCURACY_THRESHOLD = 300; // Filtro de precisión GPS
 const MAX_JUMP_DISTANCE = 200; // Filtro de saltos grandes (mantenido como fallback)
 const CENTROID_MOVEMENT_FACTOR = 0.8; // Factor k para filtro de centroide (k≈0.7–1.0)
 const ICON_SIZE = 80;
-const UPDATE_THROTTLE_MS = 500; // Throttle para actualizaciones de Firebase (500ms)
+const UPDATE_THROTTLE_MS = 10000; // Throttle para actualizaciones de Firebase (500ms)
 const MAP_VIEW_PERSIST_THROTTLE_MS = 400;
 const MIN_FORCED_UPDATE_INTERVAL_MS = 500; // Reintento para evitar quedar congelados por el filtro de centroide
 const TEAM_MARKERS_UPDATE_THROTTLE_MS = 30000; // Throttle para actualizar marcadores de otros equipos (30 segundos)
@@ -664,7 +667,7 @@ const EventMap = ({ isActive = true }) => {
 	const { isLoaded, loadError } = useJsApiLoader({
 		id: `event-map-script-${scriptLoaderKey}`,
 		googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-		libraries: ["geometry"],
+		libraries: GOOGLE_MAPS_LIBRARIES,
 	});
 
 	// Centro rápido (bbox); suficiente para zonas urbanas
@@ -1488,19 +1491,25 @@ const EventMap = ({ isActive = true }) => {
 				
 				if (positionChanged || directionChanged) {
 					// ✅ OPTIMIZACIÓN: Throttle de 30 segundos para otros equipos (excepto el propio)
+					// ⚠️ Admin NO tiene throttle para poder ver actualizaciones de todos los equipos en tiempo real
 					const isOwnTeam = selectedTeam && team.id === selectedTeam.id;
 					const lastUpdateTime = lastTeamMarkersUpdateTime.current[team.id] || 0;
 					const timeSinceLastUpdate = now - lastUpdateTime;
 					
-					// Siempre actualizar el equipo propio inmediatamente
-					// Para otros equipos, aplicar throttle de 30 segundos
-					if (isOwnTeam || timeSinceLastUpdate >= TEAM_MARKERS_UPDATE_THROTTLE_MS) {
+					// Siempre actualizar si:
+					// 1. Es el equipo propio (isOwnTeam)
+					// 2. Es admin (no hay selectedTeam)
+					// 3. Han pasado 30 segundos desde la última actualización
+					const shouldUpdate = isAdmin || isOwnTeam || timeSinceLastUpdate >= TEAM_MARKERS_UPDATE_THROTTLE_MS;
+					
+					if (shouldUpdate) {
 						if (isDebugMode) {
 							console.log('🔄 Firebase update detected for team:', team.id, { 
 								positionChanged, 
 								directionChanged,
 								isOwnTeam,
-								throttled: !isOwnTeam && timeSinceLastUpdate < TEAM_MARKERS_UPDATE_THROTTLE_MS
+								isAdmin,
+								throttled: !shouldUpdate && timeSinceLastUpdate < TEAM_MARKERS_UPDATE_THROTTLE_MS
 							});
 						}
 						updateTeamMarkerFromFirebase(team.id, team);
@@ -1516,7 +1525,7 @@ const EventMap = ({ isActive = true }) => {
 		});
 
 		initialTeamsRef.current = [...teams];
-	}, [isDebugMode, teams, updateTeamMarkerFromFirebase, isFollowMode, selectedTeam, shouldShowTeam]);
+	}, [isDebugMode, teams, updateTeamMarkerFromFirebase, isFollowMode, selectedTeam, shouldShowTeam, isAdmin]);
 
 	// Limpiar notificaciones cuando cambie el equipo seleccionado
 	useEffect(() => {
@@ -2559,6 +2568,96 @@ const EventMap = ({ isActive = true }) => {
 		toggleFollowMode();
 	}, [toggleFollowMode]);
 
+	// 🔄 Función para refrescar las posiciones de los marcadores de equipos
+	const handleRefreshTeamPositions = useCallback(() => {
+		if (!window.google?.maps) {
+			console.warn('⚠️ Google Maps no disponible para actualizar posiciones');
+			return;
+		}
+
+		const markers = teamMarkersRef.current;
+		let updatedCount = 0;
+
+		teams.forEach((team, teamIndex) => {
+			// Solo actualizar equipos que tengan posición y marcador
+			if (team.lat != null && team.lon != null && markers.has(team.id)) {
+				const marker = markers.get(team.id);
+				if (marker && marker.setPosition) {
+					const newPosition = { lat: team.lat, lng: team.lon };
+					marker.setPosition(newPosition);
+					
+					// Determinar si es el equipo seleccionado
+					const isSelectedTeam = selectedTeam && team.id === selectedTeam.id;
+					
+					// Si tiene dirección, actualizar el icono con rotación
+					if (team.direction != null && marker.setIcon) {
+						let baseIconUrl;
+						let size;
+						let anchorPoint;
+						
+						if (isSelectedTeam) {
+							// Equipo propio: usar icono de dirección (markMe)
+							baseIconUrl = markMe;
+							size = ICON_SIZE;
+							anchorPoint = new window.google.maps.Point(size / 2, size / 2);
+						} else {
+							// Otros equipos: usar icono numerado pequeño (NO rotado)
+							// Extraer número del nombre del equipo
+							const teamNumberMatch = team.name?.match(/(\d+)/);
+							let teamNumber = teamNumberMatch ? parseInt(teamNumberMatch[1], 10) : null;
+							
+							let iconIndex;
+							if (teamNumber && teamNumber >= 1 && teamNumber <= 30) {
+								iconIndex = teamNumber - 1; // Equipo 1 -> Equipo_0.png
+							} else {
+								iconIndex = teamIndex % 30; // Fallback
+							}
+							
+							baseIconUrl = teamAssets[iconIndex] || "/icons/marker-team.png";
+							size = 20; // Tamaño pequeño para otros equipos
+							anchorPoint = new window.google.maps.Point(10, 10);
+							
+							// Para otros equipos, NO aplicar rotación
+							marker.setIcon({
+								url: baseIconUrl,
+								scaledSize: new window.google.maps.Size(size, size),
+								anchor: anchorPoint,
+							});
+							
+							updatedCount++;
+							return; // Salir temprano para otros equipos
+						}
+						
+						// Solo aplicar rotación para el equipo seleccionado
+						const rotatedIconUrl = createRotatedIconSync(baseIconUrl, toViewHeading(team.direction), size);
+						
+						marker.setIcon({
+							url: rotatedIconUrl,
+							scaledSize: new window.google.maps.Size(size, size),
+							anchor: anchorPoint,
+						});
+					}
+					
+					updatedCount++;
+				}
+			}
+		});
+
+		console.log(`🔄 Posiciones actualizadas: ${updatedCount} equipos`);
+		
+		// Mostrar feedback visual al usuario
+		if (updatedCount > 0) {
+			// Opcional: mostrar un mensaje temporal de confirmación
+			const refreshBtn = document.querySelector('.refresh-positions-button');
+			if (refreshBtn) {
+				refreshBtn.style.transform = 'rotate(360deg)';
+				setTimeout(() => {
+					refreshBtn.style.transform = 'rotate(0deg)';
+				}, 400);
+			}
+		}
+	}, [teams, selectedTeam]);
+
 	useEffect(() => () => {
 		if (centerButtonLongPressTimeoutRef.current) {
 			clearTimeout(centerButtonLongPressTimeoutRef.current);
@@ -2914,6 +3013,20 @@ const EventMap = ({ isActive = true }) => {
 					<path d="M301.793,297.745c-12.594-6.73-27.314-11.873-43.309-15.277v-34.559c2.06,1.344,4.516,2.132,7.156,2.132 c7.236,0,13.098-5.868,13.098-13.1v-10.622c0.89-1.908,1.383-4.036,1.383-6.279v-96.897c0-7.137-5.038-13.285-12.031-14.684 l-26.83-5.368c-1.357-1.551-3.025-2.799-4.883-3.676c2.111-2.36,3.9-4.744,5.264-6.717c3.279-4.761,6.012-9.887,7.904-14.833 c0.935-2.086,1.723-4.182,2.371-6.238c2.541-2.133,4.039-5.321,4.039-8.664v-8.19c0-2.354-0.734-4.649-2.094-6.557V36.684 C253.86,16.455,237.403,0,217.175,0h-11.892C185.058,0,168.6,16.455,168.6,36.684v11.533c-1.355,1.907-2.097,4.204-2.097,6.556v8.19 c0,3.343,1.496,6.525,4.042,8.663c0.647,2.052,1.438,4.152,2.372,6.242c1.891,4.943,4.623,10.07,7.908,14.827 c1.363,1.98,3.153,4.366,5.273,6.733c-1.852,0.878-3.508,2.125-4.862,3.668l-26.428,5.354c-6.979,1.414-11.997,7.548-11.997,14.675 v96.915c0,2.243,0.495,4.372,1.378,6.279v10.622c0,7.231,5.863,13.1,13.1,13.1c2.638,0,5.097-0.788,7.149-2.132v34.561 c-15.991,3.404-30.709,8.547-43.299,15.275c-25.584,13.672-39.674,32.335-39.674,52.547c0,20.212,14.09,38.875,39.674,52.549 c24.24,12.955,56.317,20.091,90.326,20.091c34.01,0,66.086-7.136,90.327-20.091c25.584-13.674,39.673-32.337,39.673-52.549 C341.466,330.08,327.377,311.417,301.793,297.745z M216.981,120.51c-0.068-0.66,0.145-1.318,0.59-1.815 c0.244-0.273,0.549-0.478,0.889-0.614v-5.86c0-1.138,0.818-2.115,1.939-2.316c1.859-0.329,3.779-1.011,5.704-2.029 c0.733-0.382,1.608-0.36,2.312,0.063c0.71,0.428,1.139,1.19,1.139,2.018v14.049c0,0.51-0.164,1.007-0.473,1.413l-6.596,8.758 c-0.453,0.598-1.152,0.94-1.877,0.94c-0.211,0-0.426-0.031-0.637-0.087c-0.93-0.259-1.607-1.063-1.705-2.025L216.981,120.51z M182.552,65.912l-0.131-0.974l-2.28-1.482c-0.669-0.435-1.071-1.173-1.071-1.973v-3.867c0-1.3,1.054-2.353,2.352-2.353h0.957 v-4.194c0-0.893,0.506-1.705,1.303-2.104c3.238-1.612,9.662-4.328,16.314-4.328c5.304,0,9.704,1.768,13.077,5.249 c4.197,4.344,9.044,6.544,14.387,6.544c3.035,0,6.159-0.715,9.305-2.125c0.727-0.326,1.568-0.263,2.24,0.171 c0.314,0.203,0.564,0.472,0.752,0.787h1.281c1.299,0,2.355,1.053,2.355,2.353v3.868c0,0.799-0.406,1.537-1.072,1.972l-2.279,1.482 l-0.131,0.974c-0.744,5.618-3.9,12.9-8.439,19.482c-5.749,8.34-11.133,12.073-13.928,12.073h-12.631 c-2.791,0-8.181-3.734-13.931-12.073C186.447,78.813,183.291,71.532,182.552,65.912z M204.888,118.695 c0.446,0.496,0.662,1.154,0.593,1.815l-1.289,12.502c-0.1,0.958-0.775,1.762-1.708,2.02c-0.209,0.061-0.419,0.087-0.63,0.087 c-0.728,0-1.429-0.336-1.875-0.934l-6.61-8.767c-0.307-0.407-0.474-0.905-0.474-1.417l0.007-14.047 c0.002-0.825,0.434-1.588,1.141-2.018c0.704-0.425,1.582-0.446,2.313-0.063c1.921,1.02,3.844,1.702,5.708,2.031 c1.119,0.201,1.937,1.179,1.937,2.316v5.86C204.338,118.218,204.642,118.422,204.888,118.695z M211.466,392.714 c-55.367,0-102.143-23.412-102.143-51.124c0-19.29,22.667-36.494,55.115-45.171v51.816c0,12.988,10.53,23.515,23.518,23.515 c12.981,0,23.509-10.526,23.509-23.515c0,12.988,10.523,23.515,23.515,23.515c12.982,0,23.504-10.526,23.504-23.515v-51.819 c32.454,8.677,55.125,25.882,55.125,45.174C313.608,369.302,266.833,392.714,211.466,392.714z" />
 				</svg>
 			</button>
+
+			{/* Botón de actualizar posiciones (solo para organizadores) */}
+			{/* {isAdmin && (
+				<button
+					type="button"
+					onClick={handleRefreshTeamPositions}
+					className="refresh-positions-button"
+					title={t("map.refresh_positions", "Actualizar posiciones de equipos")}
+				>
+					<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+						<path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+					</svg>
+				</button>
+			)} */}
 		</div>
 	);
 };

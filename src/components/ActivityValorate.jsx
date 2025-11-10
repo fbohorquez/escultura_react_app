@@ -106,32 +106,19 @@ const ActivityValorate = () => {
 				pointsDifference = pointsToAdd - activity.awarded_points;
 			}
 
-			// Actualizar activities_data del equipo
-			const updatedActivitiesData = team.activities_data.map(activityItem => {
-				if (activityItem.id === activity.id) {
-					return {
-						...activityItem,
-						valorate: 1, // Marcar como valorada
-						awarded_points: pointsToAdd // Almacenar los puntos otorgados
-					};
-				}
-				return activityItem;
-			});
-
-			// Preparar cambios para Firebase
-			const changes = {
-				activities_data: updatedActivitiesData
+			// Preparar actualizaciones para la actividad específica
+			const activityUpdates = {
+				valorate: 1, // Marcar como valorada
+				awarded_points: pointsToAdd // Almacenar los puntos otorgados
 			};
 
-			// Actualizar los puntos del equipo con la diferencia
-			if (pointsDifference !== 0) {
-				const currentPoints = team.points || 0;
-				changes.points = currentPoints + pointsDifference;
-				console.log(`✅ ${isAlreadyValued ? 'Ajustando' : 'Sumando'} ${pointsDifference} puntos al equipo ${team.name}. Total: ${changes.points}`);
-			}
+			console.log(`✅ ${isAlreadyValued ? 'Ajustando' : 'Sumando'} ${pointsDifference} puntos al equipo ${team.name}`);
 
-			// Actualizar Firebase usando el thunk de teams para asegurar sincronización
-			await dispatch(updateTeamData({ eventId, teamId, changes })).unwrap();
+			// Actualizar Firebase de forma atómica
+			const { updateTeamActivity } = await import('../services/firebase');
+			await updateTeamActivity(eventId, teamId, activity.id, activityUpdates, {
+				pointsToAdd: pointsDifference
+			});
 
 			// Mostrar mensaje de éxito - NO redirigir, quedarse en la página de la actividad
 			dispatch(addToQueue({

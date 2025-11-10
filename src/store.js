@@ -49,12 +49,10 @@ const persistConfig = {
   key: 'root',
   storage,
   whitelist: [
-		'event', 
-		'teams', 
-		'team', 
-		'admin',
-		'session',
-		'activities',
+		'session',        // ✅ Persistir sesión (token, selectedTeam, isAdmin, etc.)
+		'notifications',  // ✅ Persistir estado de notificaciones push (suscripción)
+		// ❌ NO persistir datos de Firebase (event, teams, admin, activities)
+		// Firebase es la fuente de verdad y mantiene su propia persistencia
 	]
 };
 const persistedReducer = persistReducer(persistConfig, rootReducer);

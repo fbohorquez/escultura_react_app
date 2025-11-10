@@ -15,6 +15,7 @@ import NotificationPermissionBanner from "./components/notifications/Notificatio
 import NotificationNavigationManager from "./components/NotificationNavigationManager";
 import UserActivityTracker from "./components/UserActivityTracker";
 import DebugModeIndicator from "./components/DebugModeIndicator";
+import ClearCacheButton from "./components/ClearCacheButton";
 import URLHandler from "./components/URLHandler";
 import { useEventSuspensionCheck } from "./hooks/useEventSuspensionCheck";
 import { useTheme } from "./hooks/useTheme";
@@ -168,6 +169,7 @@ function App() {
 			<NotificationNavigationManager />
 			<UserActivityTracker />
 			<DebugModeIndicator />
+			{/* <ClearCacheButton /> */}
 			<KeepaliveManager />
 			<Routes>
 				<Route path="/" element={<WelcomePage />} />

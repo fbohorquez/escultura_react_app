@@ -125,6 +125,46 @@
   background-color: rgba(76, 175, 80, 1);
 }
 
+/* Estilos para el botón de actualizar posiciones (organizador) */
+.refresh-positions-button {
+  position: absolute;
+  bottom: 100px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: all 0.4s ease;
+  backdrop-filter: blur(4px);
+  color: #3b82f6;
+}
+
+.refresh-positions-button:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  transform: translateY(-2px);
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.refresh-positions-button:active {
+  transform: translateY(0) scale(0.95);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.refresh-positions-button svg {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.4s ease;
+}
+
 /* Responsive: ajustar tamaño en pantallas pequeñas */
 @media (max-width: 768px) {
   .follow-button {
@@ -153,5 +193,17 @@
     top: 125px;
     right: 15px;
     font-size: 14px;
+  }
+  
+  .refresh-positions-button {
+    width: 45px;
+    height: 45px;
+    bottom: 90px;
+    right: 15px;
+  }
+  
+  .refresh-positions-button svg {
+    width: 22px;
+    height: 22px;
   }
 }

@@ -6,7 +6,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import BackgroundLayout from "../components/backgroundLayout";
 import BackButton from "../components/backButton";
 import { addToQueue } from "../features/popup/popupSlice";
-import { updateTeamData } from "../features/teams/teamsSlice";
+import { updateTeamData, updateTeamActivityLocal } from "../features/teams/teamsSlice";
+import { updateSelectedTeamActivityLocal } from "../features/session/sessionSlice";
 import { notifyActivitySent } from "../services/notificationService";
 import "../styles/teamActivities.css";
 import { requiresManualReview } from "../utils/activityValidation";
@@ -19,6 +20,7 @@ const TeamActivityDetailPage = () => {
 
 	const event = useSelector((state) => state.event.event);
 	const teams = useSelector((state) => state.teams.items);
+	const selectedTeam = useSelector((state) => state.session.selectedTeam);
 
 	const handleBack = () => {
 		navigate(`/event/${eventId}/admin/team-activities`);
@@ -136,31 +138,30 @@ const TeamActivityDetailPage = () => {
 				eventId: event.id
 			});
 			
-			// Actualizar el array activities_data marcando la actividad específica como eliminada
-			const updatedActivitiesData = team.activities_data.map(activityItem => {
-				if (activityItem.id === activity.id) {
-					return {
-						...activityItem,
-						del: true // Marcar esta actividad como eliminada
-					};
-				}
-				return activityItem;
-			});
-			
-			console.log("handleDeleteActivity - Updated activities_data:", updatedActivitiesData);
-			
 			// Convertir IDs a números para asegurar consistencia
 			const teamIdNumber = parseInt(team.id);
 			const eventIdNumber = parseInt(event.id);
 			
-			// Actualizar el array completo en Firebase
-			await dispatch(updateTeamData({
-				eventId: eventIdNumber,
+			// Actualizar estado local primero (optimistic update)
+			dispatch(updateTeamActivityLocal({
 				teamId: teamIdNumber,
-				changes: {
-					activities_data: updatedActivitiesData
-				}
-			})).unwrap();
+				activityId: activity.id,
+				updates: { del: true }
+			}));
+			
+			// Si es el equipo seleccionado, actualizarlo también
+			if (selectedTeam && selectedTeam.id === teamIdNumber) {
+				dispatch(updateSelectedTeamActivityLocal({
+					activityId: activity.id,
+					updates: { del: true }
+				}));
+			}
+			
+			// Actualizar solo esta actividad de forma atómica en Firebase
+			const { updateTeamActivity } = await import('../services/firebase');
+			await updateTeamActivity(eventIdNumber, teamIdNumber, activity.id, {
+				del: true // Marcar esta actividad como eliminada
+			});
 			
 			console.log("Activity deleted successfully");
 
@@ -219,29 +220,30 @@ const TeamActivityDetailPage = () => {
 				eventId: event.id
 			});
 			
-			// Actualizar el array activities_data removiendo la marca de eliminada de la actividad específica
-			const updatedActivitiesData = team.activities_data.map(activityItem => {
-				if (activityItem.id === activity.id) {
-					const { del: _del, ...activityWithoutDel } = activityItem;
-					return activityWithoutDel; // Remover la clave 'del' de la actividad
-				}
-				return activityItem;
-			});
-			
-			console.log("handleRestoreActivity - Updated activities_data:", updatedActivitiesData);
-			
 			// Convertir IDs a números para asegurar consistencia
 			const teamIdNumber = parseInt(team.id);
 			const eventIdNumber = parseInt(event.id);
 			
-			// Actualizar el array completo en Firebase
-			await dispatch(updateTeamData({
-				eventId: eventIdNumber,
+			// Actualizar estado local primero (optimistic update)
+			dispatch(updateTeamActivityLocal({
 				teamId: teamIdNumber,
-				changes: {
-					activities_data: updatedActivitiesData
-				}
-			})).unwrap();
+				activityId: activity.id,
+				updates: { del: false }
+			}));
+			
+			// Si es el equipo seleccionado, actualizarlo también
+			if (selectedTeam && selectedTeam.id === teamIdNumber) {
+				dispatch(updateSelectedTeamActivityLocal({
+					activityId: activity.id,
+					updates: { del: false }
+				}));
+			}
+			
+			// Actualizar solo esta actividad de forma atómica en Firebase, poniendo del a false
+			const { updateTeamActivity } = await import('../services/firebase');
+			await updateTeamActivity(eventIdNumber, teamIdNumber, activity.id, {
+				del: false
+			});
 			
 			console.log("Activity restored successfully");
 

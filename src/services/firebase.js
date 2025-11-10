@@ -9,6 +9,7 @@ import {
         arrayUnion,
         initializeFirestore,
         CACHE_SIZE_UNLIMITED,
+        runTransaction,
 } from "firebase/firestore";
 
 import { createListenerMiddleware } from "@reduxjs/toolkit";
@@ -323,6 +324,90 @@ export const updateTeam = async (eventId, teamId, partial) => {
 	});
 	await updateDoc(ref, partial);
 	console.log("Firebase updateTeam completed successfully");
+};
+
+/**
+ * Actualiza una actividad específica dentro del array activities_data de forma atómica.
+ * Usa una transacción para evitar race conditions y desync.
+ * @param {string|number} eventId 
+ * @param {string|number} teamId 
+ * @param {string|number} activityId 
+ * @param {object} activityUpdates - Campos a actualizar en la actividad (complete, complete_time, data, etc.)
+ * @param {object} options - Opciones adicionales
+ * @param {object} options.teamUpdates - Campos adicionales del equipo a actualizar/sobrescribir
+ * @param {number} options.pointsToAdd - Puntos a SUMAR (no sobrescribir) al total actual
+ * @param {string[]} options.fieldsToDelete - Campos a ELIMINAR de la actividad (ej: ['del'])
+ * @returns {Promise<void>}
+ */
+export const updateTeamActivity = async (eventId, teamId, activityId, activityUpdates, options = {}) => {
+	const ref = doc(db, "events", `event_${eventId}`, "teams", `team_${teamId}`);
+	const { teamUpdates = {}, pointsToAdd = 0, fieldsToDelete = [] } = options;
+	
+	console.log("🔄 Firebase updateTeamActivity (atomic) called:", {
+		eventId,
+		teamId,
+		activityId,
+		activityUpdates,
+		teamUpdates,
+		pointsToAdd,
+		fieldsToDelete
+	});
+	
+	try {
+		await runTransaction(db, async (transaction) => {
+			// 1. Leer el documento actual
+			const teamDoc = await transaction.get(ref);
+			
+			if (!teamDoc.exists()) {
+				throw new Error(`Team ${teamId} not found`);
+			}
+			
+			const teamData = teamDoc.data();
+			const activitiesData = teamData.activities_data || [];
+			
+			// 2. Encontrar y actualizar la actividad específica
+			const activityIndex = activitiesData.findIndex(act => act.id === activityId);
+			
+			if (activityIndex === -1) {
+				throw new Error(`Activity ${activityId} not found in team ${teamId}`);
+			}
+			
+			// 3. Crear nuevo array con la actividad actualizada
+			const updatedActivitiesData = [...activitiesData];
+			const updatedActivity = {
+				...activitiesData[activityIndex],
+				...activityUpdates
+			};
+			
+			// 4. Eliminar campos si se especificaron
+			fieldsToDelete.forEach(fieldName => {
+				delete updatedActivity[fieldName];
+			});
+			
+			updatedActivitiesData[activityIndex] = updatedActivity;
+			
+			// 5. Preparar cambios
+			const changes = {
+				activities_data: updatedActivitiesData,
+				...teamUpdates
+			};
+			
+			// 6. Si hay puntos que sumar, calcular nuevo total de forma atómica
+			if (pointsToAdd !== 0) {
+				const currentPoints = teamData.points || 0;
+				changes.points = currentPoints + pointsToAdd;
+				console.log(`   📊 Points: ${currentPoints} + ${pointsToAdd} = ${changes.points}`);
+			}
+			
+			// 7. Escribir cambios de forma atómica
+			transaction.update(ref, changes);
+			
+			console.log("✅ Firebase updateTeamActivity transaction completed");
+		});
+	} catch (error) {
+		console.error("❌ Firebase updateTeamActivity transaction failed:", error);
+		throw error;
+	}
 };
 
 /**

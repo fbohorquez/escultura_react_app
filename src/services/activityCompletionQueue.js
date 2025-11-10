@@ -262,7 +262,7 @@ async function updateRetryCount(id, retryCount) {
  * @param {object} item - Item de la cola con todos los datos necesarios
  */
 async function syncActivityCompletion(item) {
-	const { updateTeam } = await import("../services/firebase");
+	const { updateTeamActivity } = await import("../services/firebase");
 	const { getValorateValue } = await import("../utils/activityValidation");
 	
 	const { eventId, teamId, activityId, activity, success, media } = item;
@@ -278,49 +278,25 @@ async function syncActivityCompletion(item) {
 		pointsToAdd = activity.points || 0;
 	}
 	
-	// Obtener datos actuales del equipo desde Redux store
-	const { default: store } = await import("../store");
-	const state = store.getState();
-	const team = state.teams.items.find(t => t.id === teamId);
-	
-	if (!team) {
-		throw new Error(`Team ${teamId} not found in store`);
-	}
-	
-	// Actualizar activities_data del equipo
-	const updatedActivitiesData = team.activities_data.map(activityItem => {
-		if (activityItem.id === activityId) {
-			return {
-				...activityItem,
-				complete: true,
-				complete_time: Math.floor(Date.now() / 1000),
-				data: media?.data || activityItem.data || null,
-				valorate: valorateValue,
-				awarded_points: valorateValue === 1 ? (success ? (activity.points || 0) : 0) : 0
-			};
-		}
-		return activityItem;
-	});
-	
-	// Preparar cambios para Firebase
-	const changes = {
-		activities_data: updatedActivitiesData
+	// Preparar actualizaciones para la actividad específica
+	const activityUpdates = {
+		complete: true,
+		complete_time: Math.floor(Date.now() / 1000),
+		data: media?.data || null,
+		valorate: valorateValue,
+		awarded_points: valorateValue === 1 ? (success ? (activity.points || 0) : 0) : 0
 	};
 	
-	// Si hay puntos que sumar, actualizar también los puntos del equipo
-	if (pointsToAdd > 0) {
-		const currentPoints = team.points || 0;
-		changes.points = currentPoints + pointsToAdd;
-		console.log(`✅ Sumando ${pointsToAdd} puntos al equipo ${team.name}. Total: ${changes.points}`);
-	}
-	
-	// Sincronizar con Firebase
-	await updateTeam(eventId, teamId, changes);
+	// Sincronizar con Firebase de forma atómica
+	// La transacción calculará el nuevo total de puntos de forma atómica
+	await updateTeamActivity(eventId, teamId, activityId, activityUpdates, {
+		pointsToAdd: pointsToAdd
+	});
 	
 	// Marcar como sincronizada
 	await markActivityAsSynced(eventId, teamId, activityId);
 	
-	console.log(`✅ Actividad ${activityId} sincronizada con Firebase`);
+	console.log(`✅ Actividad ${activityId} sincronizada con Firebase (atomic)`);
 }
 
 /**

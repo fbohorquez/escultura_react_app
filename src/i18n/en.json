@@ -476,6 +476,9 @@
 	"meeting_point": {
 		"title": "Meeting Point"
 	},
+	"map": {
+		"refresh_positions": "Refresh team positions"
+	},
 	"status": {
 		"online": "Online",
 		"online_you": "You are online",
