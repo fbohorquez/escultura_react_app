@@ -48,6 +48,34 @@ export function useOptimizedImage(baseImageUrl, preferredVersion = 'compressed',
 
     const loadImage = async () => {
       try {
+        if (preferredVersion == 'original') {
+          // Cargar imagen original directamente
+          const success = await attemptImageLoad(baseImageUrl, retryCount);
+          
+          if (isCancelled) return;
+          
+          if (success) {
+            setImageState({
+              src: baseImageUrl,
+              isLoading: false,
+              isError: false,
+              version: 'original',
+              fallbackSrc: null
+            });
+            onLoad && onLoad(baseImageUrl, 'original');
+          } else {
+            setImageState({
+              src: null,
+              isLoading: false,
+              isError: true,
+              version: null,
+              fallbackSrc: null
+            });
+            onError && onError(new Error('Failed to load original image'));
+          }
+          return;
+        }
+
         // Obtener URL de la versión preferida
         const { url: preferredUrl, version, fallbackUrl } = getPreferredVersionUrl(
           baseImageUrl, 

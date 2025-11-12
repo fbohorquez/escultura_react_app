@@ -12,7 +12,7 @@ import { endActivity } from "../features/activities/activitiesSlice";
 import { useKeepalive } from "../hooks/useKeepalive";
 import { useAppStateTracker } from "../hooks/useAppStateTracker";
 
-const EventPage = () => {
+const EventPage = ({ isVisible = true }) => {
 	const { t } = useTranslation();
 	const dispatch = useDispatch();
 	const navigate = useNavigate();
@@ -54,7 +54,9 @@ const EventPage = () => {
 	};
 
 	const handleSystemStatusClick = () => {
-		navigate('/system-status');
+		if (event?.id) {
+			navigate(`/event/${event.id}/system-status`);
+		}
 	};
 
 	// Actualizar estado a "mapa" cuando no hay actividad activa
@@ -68,7 +70,11 @@ const EventPage = () => {
 	useKeepalive(event.id, selectedTeam?.id);
 
 	return (
-		<div className="event-page">
+		<div
+			className="event-page"
+			style={{ display: isVisible ? undefined : "none" }}
+			aria-hidden={isVisible ? undefined : true}
+		>
 			<EventHeader
 				eventName={event.name}
 				teamName={selectedTeam?.name || t("admin")}
@@ -83,7 +89,7 @@ const EventPage = () => {
 				</div>
 			)}
 			<div className="map-container">
-				<EventMap />
+				<EventMap isActive={isVisible} />
 				
 				{/* Botón flotante del sistema de estado */}
 				{isAdmin && (

@@ -127,11 +127,12 @@ const TeamActivitiesPage = () => {
 	}, [teams, getActivityStatus, keepaliveTeams]);
 
 	const handleTeamClick = (team) => {
+		if (!eventId) return;
 		// Si es un equipo agrupado (vista Equipos), navegar a una página especial
 		if (currentView === 'teams' && team.groups) {
-			navigate(`/admin/team-activities/${eventId}/team-group/${encodeURIComponent(team.name)}`);
+			navigate(`/event/${eventId}/admin/team-activities/team-group/${encodeURIComponent(team.name)}`);
 		} else {
-			navigate(`/admin/team-activities/${eventId}/team/${team.id}`);
+			navigate(`/event/${eventId}/admin/team-activities/team/${team.id}`);
 		}
 	};
 

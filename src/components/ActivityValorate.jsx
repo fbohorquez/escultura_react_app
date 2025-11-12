@@ -64,11 +64,11 @@ const ActivityValorate = () => {
 		const fallbackFromPhotos = !location.state && window.location.pathname.includes('/admin/photos/');
 		
 		if (fromPhotos || fallbackFromPhotos) {
-			navigate(`/admin/photos/${eventId}`);
+			navigate(`/event/${eventId}/admin/photos`);
 		} else if (fromTeamActivities) {
-			navigate(`/admin/team-activities/${eventId}/team/${teamId}`);
+			navigate(`/event/${eventId}/admin/team-activities/team/${teamId}`);
 		} else {
-			navigate(`/admin/valorate/${eventId}`);
+			navigate(`/event/${eventId}/admin/valorate`);
 		}
 	};
 

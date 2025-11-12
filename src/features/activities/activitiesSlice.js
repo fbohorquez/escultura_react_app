@@ -5,6 +5,10 @@ import { getValorateValue } from "../../utils/activityValidation";
 import { addToQueue } from "../popup/popupSlice";
 import { updateTeamActivityStatus } from "../../services/firebase";
 import { completeUniqueActivityWithTransaction } from "../../services/uniqueActivityService";
+import { 
+	enqueueActivityCompletion, 
+	markActivityAsLocallyCompleted 
+} from "../../services/activityCompletionQueue";
 
 // Thunk para actualizar estado de actividad en Firebase
 export const syncActivityStatus = createAsyncThunk(
@@ -70,6 +74,24 @@ export const completeActivityWithSync = createAsyncThunk(
                         pointsToAdd = activity.points || 0;
                 }
 
+                // ========== MARCAR LOCALMENTE COMO COMPLETADA ==========
+                // IMPORTANTE: Marcar primero localmente para que prevalezca sobre Firebase
+                try {
+                        await markActivityAsLocallyCompleted({
+                                eventId,
+                                teamId,
+                                activityId,
+                                completedAt: Date.now()
+                        });
+                        console.log(`✅ Actividad ${activityId} marcada localmente como completada`);
+                } catch (error) {
+                        console.error("Error marcando actividad localmente:", error);
+                        // Continuar de todas formas para no bloquear
+                }
+
+                // Completar actividad localmente en Redux
+                dispatch(completeActivity({ activityId, success, media, timeTaken }));
+
                 // ========== MANEJO DE ACTIVIDADES ÚNICAS ==========
                 // Si la actividad tiene uniq === 1, usar transacción atómica
                 if (activity.uniq === 1) {
@@ -96,9 +118,6 @@ export const completeActivityWithSync = createAsyncThunk(
                                 }
 
                                 console.log(`✅ Actividad única completada exitosamente y eliminada para otros equipos`);
-                                
-                                // Completar actividad localmente
-                                dispatch(completeActivity({ activityId, success, media, timeTaken }));
 
                                 return { 
                                         activityId, 
@@ -114,42 +133,72 @@ export const completeActivityWithSync = createAsyncThunk(
                         }
                 }
 
-                // ========== ACTIVIDADES NORMALES (NO ÚNICAS) ==========
-                // Actualizar activities_data del equipo
-                const updatedActivitiesData = team.activities_data.map(activityItem => {
-                        if (activityItem.id === activityId) {
-                                return {
-                                        ...activityItem,
-                                        complete: true,
-                                        complete_time: Math.floor(Date.now() / 1000),
-                                        data: media?.data || null,
-                                        valorate: valorateValue,
-                                        // Guardar puntos conseguidos en automáticas para mostrar en listados
-                                        awarded_points: valorateValue === 1 ? (success ? (activity.points || 0) : 0) : 0
-                                };
+                // ========== ACTIVIDADES NORMALES (NO ÚNICAS) - USAR COLA ==========
+                console.log(`📝 Encolando actividad ${activityId} para sincronización con Firebase`);
+                
+                try {
+                        // Encolar para sincronización con Firebase
+                        await enqueueActivityCompletion({
+                                eventId,
+                                teamId,
+                                activityId,
+                                activity,
+                                success,
+                                media,
+                                timeTaken,
+                                valorateValue,
+                                pointsToAdd
+                        });
+                        
+                        console.log(`✅ Actividad ${activityId} encolada exitosamente`);
+                        
+                        return { 
+                                activityId, 
+                                success, 
+                                media, 
+                                timeTaken, 
+                                pointsAwarded: pointsToAdd, 
+                                wasUnique: false,
+                                queued: true // Indicar que se encoló
+                        };
+                } catch (error) {
+                        console.error("Error encolando actividad:", error);
+                        
+                        // Si falla encolar, intentar sincronización directa como fallback
+                        console.warn("⚠️ Fallback: intentando sincronización directa con Firebase");
+                        
+                        // Actualizar activities_data del equipo
+                        const updatedActivitiesData = team.activities_data.map(activityItem => {
+                                if (activityItem.id === activityId) {
+                                        return {
+                                                ...activityItem,
+                                                complete: true,
+                                                complete_time: Math.floor(Date.now() / 1000),
+                                                data: media?.data || null,
+                                                valorate: valorateValue,
+                                                awarded_points: valorateValue === 1 ? (success ? (activity.points || 0) : 0) : 0
+                                        };
+                                }
+                                return activityItem;
+                        });
+
+                        // Preparar cambios para Firebase
+                        const changes = {
+                                activities_data: updatedActivitiesData
+                        };
+
+                        // Si hay puntos que sumar, actualizar también los puntos del equipo
+                        if (pointsToAdd > 0) {
+                                const currentPoints = team.points || 0;
+                                changes.points = currentPoints + pointsToAdd;
+                                console.log(`✅ Sumando ${pointsToAdd} puntos al equipo ${team.name}. Total: ${changes.points}`);
                         }
-                        return activityItem;
-                });
 
-                // Preparar cambios para Firebase
-                const changes = {
-                        activities_data: updatedActivitiesData
-                };
+                        // Actualizar Firebase usando el thunk de teams para asegurar sincronización
+                        await dispatch(updateTeamData({ eventId, teamId, changes })).unwrap();
 
-                // Si hay puntos que sumar, actualizar también los puntos del equipo
-                if (pointsToAdd > 0) {
-                        const currentPoints = team.points || 0;
-                        changes.points = currentPoints + pointsToAdd;
-                        console.log(`✅ Sumando ${pointsToAdd} puntos al equipo ${team.name}. Total: ${changes.points}`);
+                        return { activityId, success, media, timeTaken, pointsAwarded: pointsToAdd, wasUnique: false };
                 }
-
-                // Actualizar Firebase usando el thunk de teams para asegurar sincronización
-                await dispatch(updateTeamData({ eventId, teamId, changes })).unwrap();
-
-                // Completar actividad localmente
-                dispatch(completeActivity({ activityId, success, media, timeTaken }));
-
-                return { activityId, success, media, timeTaken, pointsAwarded: pointsToAdd, wasUnique: false };
         }
 );// Thunk para iniciar actividad verificando suspensión del evento
 export const startActivityWithSuspensionCheck = createAsyncThunk(

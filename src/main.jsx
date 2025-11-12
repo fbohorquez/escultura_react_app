@@ -8,7 +8,8 @@ import store, { persistor } from "./store";
 import "./i18n";
 import { PersistGate } from "redux-persist/integration/react";
 import { initUploadQueue } from "./services/uploadQueue";
-import { initAssetCaching } from "./services/assetCache";
+import { initActivityCompletionQueue } from "./services/activityCompletionQueue";
+// import { initAssetCaching } from "./services/assetCache"; // CACHE DESHABILITADA
 import { initNotificationSystem, promptNotificationPermission } from "./services/notificationInit";
 import { validateEventToken, getEventParamFromURL, clearEventParamFromURL, validateTeamToken, getTeamParamFromURL, clearTeamParamFromURL } from "./utils/eventToken";
 import { overrideNative } from "./utils/overrideNative";
@@ -217,7 +218,8 @@ getInitialRoute().then(initialRoute => {
 	initializeDynamicConfig();
 	
 	initUploadQueue();
-	initAssetCaching();
+	initActivityCompletionQueue(); // Inicializar cola de actividades completadas
+	// initAssetCaching(); // CACHE DESHABILITADA - Sistema de cache completamente desactivado
 	
 	// Inicializar sistema de notificaciones push
 	initNotificationSystem();

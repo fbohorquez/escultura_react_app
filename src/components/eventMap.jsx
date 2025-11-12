@@ -1,11 +1,13 @@
 // src/components/EventMap.jsx
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { GoogleMap, useJsApiLoader, Marker, OverlayView } from "@react-google-maps/api";
+import { GoogleMap, useJsApiLoader, Marker, OverlayView, Polygon, InfoWindow } from "@react-google-maps/api";
+
 import { updateTeamData } from "../features/teams/teamsSlice";
 import { selectSelectedTeamData } from "../features/teams/teamsSelectors";
 import ActivityMarker from "./ActivityMarker";
 import markMe from "../assets/mark-me.png";
+import pointMark from "../assets/point_mark.png";
 import { KEEPALIVE_TIMEOUT } from "../utils/keepaliveUtils";
 import { usePopup } from "../hooks/usePopup";
 import { useDebugMode } from "../hooks/useDebugMode";
@@ -16,6 +18,162 @@ import { getPermissionsSnapshot, requestGeolocationAccess, requestMotionAccess }
 import KalmanFilter from "kalmanjs";
 import "../styles/followButton.css";
 import OtherTeamMarker from "./OtherTeamMarker";
+
+const ZONES = [
+	// {
+	// 	id: "zone1",
+	// 	name: "ZONE 1",
+	// 	color: "#0e73b7",
+	// 	path: [
+	// 		{ lat: 37.3856442, lng: -5.9860822 },
+	// 		{ lat: 37.3859298, lng: -5.9867903 },
+	// 		{ lat: 37.3868121, lng: -5.98789 },
+	// 		{ lat: 37.3864277, lng: -5.9884854 },
+	// 		{ lat: 37.3862998, lng: -5.9887241 },
+	// 		{ lat: 37.386059, lng: -5.9893437 },
+	// 		{ lat: 37.3858054, lng: -5.9901269 },
+	// 		{ lat: 37.3856358, lng: -5.9907302 },
+	// 		{ lat: 37.3854312, lng: -5.9909019 },
+	// 		{ lat: 37.3840076, lng: -5.9902183 },
+	// 		{ lat: 37.3830541, lng: -5.9917462 },
+	// 		{ lat: 37.3830093, lng: -5.9929907 },
+	// 		{ lat: 37.380991, lng: -5.993672 },
+	// 		{ lat: 37.3808035, lng: -5.9927064 },
+	// 		{ lat: 37.3800703, lng: -5.9926098 },
+	// 		{ lat: 37.3794138, lng: -5.989992 },
+	// 		{ lat: 37.3797719, lng: -5.9892303 },
+	// 		{ lat: 37.3856442, lng: -5.9860822 },
+	// 	],
+	// },
+	// {
+	// 	id: "zone2",
+	// 	name: "ZONE 2",
+	// 	color: "#e32728",
+	// 	path: [
+	// 		{ lat: 37.3813565, lng: -5.9951932 },
+	// 		{ lat: 37.3830058, lng: -5.9963775 },
+	// 		{ lat: 37.3833, lng: -5.9954709 },
+	// 		{ lat: 37.3847321, lng: -5.9962434 },
+	// 		{ lat: 37.3858915, lng: -5.9970695 },
+	// 		{ lat: 37.3861046, lng: -5.9967101 },
+	// 		{ lat: 37.3862325, lng: -5.9966618 },
+	// 		{ lat: 37.3866673, lng: -5.9982175 },
+	// 		{ lat: 37.3866502, lng: -6.0001755 },
+	// 		{ lat: 37.3865607, lng: -6.0003955 },
+	// 		{ lat: 37.3873705, lng: -6.0014415 },
+	// 		{ lat: 37.3866737, lng: -6.0021121 },
+	// 		{ lat: 37.3851234, lng: -6.0034487 },
+	// 		{ lat: 37.3849433, lng: -6.0030934 },
+	// 		{ lat: 37.3846705, lng: -6.0019776 },
+	// 		{ lat: 37.3845895, lng: -6.0018703 },
+	// 		{ lat: 37.3837072, lng: -6.0009047 },
+	// 		{ lat: 37.3829186, lng: -6.0000678 },
+	// 		{ lat: 37.3822597, lng: -5.9994465 },
+	// 		{ lat: 37.3821074, lng: -5.9992896 },
+	// 		{ lat: 37.3816954, lng: -5.9987901 },
+	// 		{ lat: 37.3816251, lng: -5.9989135 },
+	// 		{ lat: 37.3811349, lng: -5.9986077 },
+	// 		{ lat: 37.3806276, lng: -5.9983529 },
+	// 		{ lat: 37.3809771, lng: -5.9976957 },
+	// 		{ lat: 37.3808237, lng: -5.9975911 },
+	// 		{ lat: 37.3802738, lng: -5.9976984 },
+	// 		{ lat: 37.3801587, lng: -5.9975241 },
+	// 		{ lat: 37.3813565, lng: -5.9951932 },
+	// 	],
+	// },
+	// {
+	// 	id: "zone3",
+	// 	name: "ZONE 3",
+	// 	color: "#06a868",
+	// 	path: [
+	// 		{ lat: 37.3829957, lng: -5.9963368 },
+	// 		{ lat: 37.3809369, lng: -5.9948187 },
+	// 		{ lat: 37.3798116, lng: -5.9941696 },
+	// 		{ lat: 37.3825482, lng: -5.9931933 },
+	// 		{ lat: 37.3830639, lng: -5.9930162 },
+	// 		{ lat: 37.3831023, lng: -5.991761 },
+	// 		{ lat: 37.3840358, lng: -5.9902536 },
+	// 		{ lat: 37.3854275, lng: -5.9909254 },
+	// 		{ lat: 37.3856342, lng: -5.9907484 },
+	// 		{ lat: 37.3857014, lng: -5.9905872 },
+	// 		{ lat: 37.3861156, lng: -5.990832 },
+	// 		{ lat: 37.3860964, lng: -5.9909715 },
+	// 		{ lat: 37.3863351, lng: -5.9910252 },
+	// 		{ lat: 37.38635, lng: -5.991119 },
+	// 		{ lat: 37.386691, lng: -5.9911405 },
+	// 		{ lat: 37.3869361, lng: -5.991449 },
+	// 		{ lat: 37.3875243, lng: -5.9913658 },
+	// 		{ lat: 37.3875307, lng: -5.9916421 },
+	// 		{ lat: 37.3876202, lng: -5.9921329 },
+	// 		{ lat: 37.3874774, lng: -5.9924333 },
+	// 		{ lat: 37.3871492, lng: -5.992892 },
+	// 		{ lat: 37.3869958, lng: -5.9930449 },
+	// 		{ lat: 37.3867448, lng: -5.9930781 },
+	// 		{ lat: 37.386651, lng: -5.9940758 },
+	// 		{ lat: 37.3862759, lng: -5.9959641 },
+	// 		{ lat: 37.3861885, lng: -5.9961921 },
+	// 		{ lat: 37.3862844, lng: -5.996455 },
+	// 		{ lat: 37.3862525, lng: -5.9966427 },
+	// 		{ lat: 37.3861075, lng: -5.9966803 },
+	// 		{ lat: 37.3858816, lng: -5.9970397 },
+	// 		{ lat: 37.3847457, lng: -5.9962243 },
+	// 		{ lat: 37.3832858, lng: -5.9954438 },
+	// 		{ lat: 37.3829957, lng: -5.9963368 },
+	// 	],
+	// },
+	// {
+	// 	id: "zone4",
+	// 	name: "ZONE 4",
+	// 	color: "#f7e928",
+	// 	path: [
+	// 		{ lat: 37.3867583, lng: -5.9931059 },
+	// 		{ lat: 37.3870055, lng: -5.9930629 },
+	// 		{ lat: 37.387193, lng: -5.9928806 },
+	// 		{ lat: 37.387941, lng: -5.992733 },
+	// 		{ lat: 37.3884397, lng: -5.9927733 },
+	// 		{ lat: 37.3886017, lng: -5.9927411 },
+	// 		{ lat: 37.3889043, lng: -5.9926016 },
+	// 		{ lat: 37.3894371, lng: -5.9925453 },
+	// 		{ lat: 37.3897844, lng: -5.9922958 },
+	// 		{ lat: 37.3904813, lng: -5.9923978 },
+	// 		{ lat: 37.3908947, lng: -5.9923951 },
+	// 		{ lat: 37.3910439, lng: -5.9923575 },
+	// 		{ lat: 37.3911078, lng: -5.9922422 },
+	// 		{ lat: 37.3912698, lng: -5.9921483 },
+	// 		{ lat: 37.3923012, lng: -5.9919632 },
+	// 		{ lat: 37.3923119, lng: -5.9922529 },
+	// 		{ lat: 37.3928009, lng: -5.9921939 },
+	// 		{ lat: 37.3928308, lng: -5.9929986 },
+	// 		{ lat: 37.393649, lng: -5.9929771 },
+	// 		{ lat: 37.3936069, lng: -5.9937365 },
+	// 		{ lat: 37.3937252, lng: -5.9938639 },
+	// 		{ lat: 37.3935196, lng: -5.9947356 },
+	// 		{ lat: 37.3939001, lng: -5.9953209 },
+	// 		{ lat: 37.393785, lng: -5.9953263 },
+	// 		{ lat: 37.3934014, lng: -5.9956589 },
+	// 		{ lat: 37.3926961, lng: -5.9956133 },
+	// 		{ lat: 37.3927067, lng: -5.9954121 },
+	// 		{ lat: 37.392564, lng: -5.9954068 },
+	// 		{ lat: 37.3915557, lng: -5.9975288 },
+	// 		{ lat: 37.3914279, lng: -5.9974161 },
+	// 		{ lat: 37.3914002, lng: -5.9974564 },
+	// 		{ lat: 37.3911104, lng: -5.9972042 },
+	// 		{ lat: 37.3907246, lng: -5.9969655 },
+	// 		{ lat: 37.390731, lng: -5.9969092 },
+	// 		{ lat: 37.3895504, lng: -5.9964586 },
+	// 		{ lat: 37.3879009, lng: -5.9962708 },
+	// 		{ lat: 37.3878711, lng: -5.995906 },
+	// 		{ lat: 37.3876836, lng: -5.9956003 },
+	// 		{ lat: 37.3873895, lng: -5.9954662 },
+	// 		{ lat: 37.3870314, lng: -5.9949995 },
+	// 		{ lat: 37.386716, lng: -5.99486 },
+	// 		{ lat: 37.3866691, lng: -5.9947795 },
+	// 		{ lat: 37.3865327, lng: -5.9947098 },
+	// 		{ lat: 37.3866649, lng: -5.9941251 },
+	// 		{ lat: 37.3867583, lng: -5.9931059 },
+	// 	],
+	// },
+];
 
 // Importar assets de equipos (Equipo_0.png a Equipo_29.png)
 const teamAssets = {};
@@ -34,6 +192,10 @@ const CENTROID_MOVEMENT_FACTOR = 0.8; // Factor k para filtro de centroide (k≈
 const ICON_SIZE = 80;
 const UPDATE_THROTTLE_MS = 500; // Throttle para actualizaciones de Firebase (500ms)
 const MAP_VIEW_PERSIST_THROTTLE_MS = 400;
+const MIN_FORCED_UPDATE_INTERVAL_MS = 500; // Reintento para evitar quedar congelados por el filtro de centroide
+const TEAM_MARKERS_UPDATE_THROTTLE_MS = 30000; // Throttle para actualizar marcadores de otros equipos (30 segundos)
+const MAP_ROTATION_DEG = Number(import.meta.env.VITE_MAP_ROTATION_DEG ?? 0);
+
 
 // Configuración del filtro de Kalman
 const KALMAN_R = 0.01; // Ruido de medición (más bajo = confía más en GPS)
@@ -290,7 +452,7 @@ const isActivityVisible = (activity, team, isAdmin) => {
 	return false;
 };
 
-const EventMap = () => {
+const EventMap = ({ isActive = true }) => {
 	
 	const { openPopup, closePopup } = usePopup();
 	const { isDebugMode } = useDebugMode();
@@ -316,6 +478,9 @@ const EventMap = () => {
 		motion: { status: 'unknown', supported: true, canRequest: false }
 	});
 	const [openActivityId, setOpenActivityId] = useState(null);
+	const [meetingPointBubbleOpen, setMeetingPointBubbleOpen] = useState(false);
+	const [scriptLoaderKey, setScriptLoaderKey] = useState(0);
+	const hasRetriedLoaderRef = useRef(false);
 
 	const formatPermissionStatus = (status) => {
 		switch (status) {
@@ -477,38 +642,109 @@ const EventMap = () => {
 		}
 	}, [mapDetailLevel]);
 
-	const mapOptions = React.useMemo(() => ({
-		styles: mapStyles,
-		disableDefaultUI: true,
-		gestureHandling: "greedy",
-		clickableIcons: false,
-		...zoomLimits,
-	}), [mapStyles, zoomLimits]);
+	const mapOptions = React.useMemo(
+		() => ({
+			styles: mapStyles,
+			disableDefaultUI: true,
+			gestureHandling: "greedy",
+			clickableIcons: false,
+			...zoomLimits,
 
-	const { isLoaded } = useJsApiLoader({
+			// IMPORTANTE para habilitar rotación “real”
+			mapId: import.meta.env.VITE_GOOGLE_MAP_ID, // mapa vectorial
+			tilt: 0, // sin perspectiva
+			heading: MAP_ROTATION_DEG, // ángulo deseado
+
+			// Opcional: evita que el usuario cambie el heading con gestos
+			rotateControl: false,
+		}),
+		[mapStyles, zoomLimits]
+	);
+
+	const { isLoaded, loadError } = useJsApiLoader({
+		id: `event-map-script-${scriptLoaderKey}`,
 		googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+		libraries: ["geometry"],
 	});
+
+	// Centro rápido (bbox); suficiente para zonas urbanas
+	const polygonCenter = (path) => {
+		let minLat =  90, maxLat = -90, minLng =  180, maxLng = -180;
+		path.forEach(({lat, lng}) => {
+			minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+			minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
+		});
+		return { lat: (minLat + maxLat)/2, lng: (minLng + maxLng)/2 };
+	};
+
+	const mapsReady = isLoaded || Boolean(window.google?.maps?.Map);
+
+	useEffect(() => {
+		if (!loadError) {
+			hasRetriedLoaderRef.current = false;
+			return;
+		}
+
+		if (typeof navigator !== 'undefined' && navigator.onLine && !hasRetriedLoaderRef.current) {
+			hasRetriedLoaderRef.current = true;
+			setScriptLoaderKey((prev) => prev + 1);
+		}
+	}, [loadError]);
+
+	useEffect(() => {
+		const handleOnline = () => {
+			hasRetriedLoaderRef.current = false;
+			if (!window.google?.maps) {
+				setScriptLoaderKey((prev) => prev + 1);
+			}
+		};
+
+		window.addEventListener('online', handleOnline);
+
+		return () => {
+			window.removeEventListener('online', handleOnline);
+		};
+	}, []);
 
 	const dispatch = useDispatch();
 	const kalmanLat = useRef(null); // Filtro de Kalman para latitud
 	const kalmanLng = useRef(null); // Filtro de Kalman para longitud
 	const lastFiltered = useRef(null); // Última posición filtrada
 	const lastAccuracy = useRef(null); // Última precisión GPS
+	const lastAcceptedUpdateTs = useRef(0); // Timestamp del último update aplicado
 	const previousPosition = useRef(null); // Para calcular la dirección
 	const adminKalmanLat = useRef(null); // Filtro de Kalman para latitud del admin
 	const adminKalmanLng = useRef(null); // Filtro de Kalman para longitud del admin
 	const adminLastFiltered = useRef(null); // Última posición filtrada del admin
 	const adminLastAccuracy = useRef(null); // Precisión más reciente del admin
+	const adminLastAcceptedUpdateTs = useRef(0); // Timestamp del último update aplicado del admin
 	const adminPreviousPosition = useRef(null); // Posición previa del admin
 	const [initialCenter, setInitialCenter] = useState(null);
 	const [initialZoom, setInitialZoom] = useState(null);
 	const [keepaliveTick, setKeepaliveTick] = useState(Date.now());
 	const mapRef = useRef(null);
+	const getMapHeading = useCallback(() => {
+		const map = mapRef.current;
+		if (map?.getHeading) {
+			const h = map.getHeading();
+			return typeof h === 'number' ? norm360(h) : 0;
+		}
+		// Fallback a lo guardado o a env
+		const stored = Number(localStorage.getItem('mapHeading'));
+		if (Number.isFinite(stored)) return norm360(stored);
+		return norm360(MAP_ROTATION_DEG);
+	}, []);
+
+	const toViewHeading = useCallback((worldHeading) => {
+		return norm360((worldHeading ?? 0) - getMapHeading());
+	}, [getMapHeading]);
+
 	const previousEventIdRef = useRef(null);
 	const lastUpdateTime = useRef(0);
 	const updateTimeoutRef = useRef(null);
 	const teamMarkersRef = useRef(new Map()); // Referencias a los marcadores de equipos
 	const initialTeamsRef = useRef(null); // Datos iniciales de equipos para evitar re-renders
+	const lastTeamMarkersUpdateTime = useRef({}); // Timestamp de última actualización por equipo
 	const deviceOrientationRef = useRef(null); // Última orientación del dispositivo
 	const compassHeadingRef = useRef(null); // Dirección del dispositivo
 	const lastCompassUpdate = useRef(0); // Timestamp de la última actualización de brújula
@@ -519,6 +755,8 @@ const EventMap = () => {
 	const [adminLocation, setAdminLocation] = useState(null);
 	const centerButtonLongPressTimeoutRef = useRef(null);
 	const centerButtonLongPressTriggeredRef = useRef(false);
+	const lastVisibleCenterRef = useRef(null);
+	const lastVisibleZoomRef = useRef(null);
 
 	const eventId = useSelector((state) => state.event.id);
 	const event = useSelector((state) => state.event.event);
@@ -551,7 +789,7 @@ const EventMap = () => {
 
 		const interval = setInterval(() => {
 			setKeepaliveTick(Date.now());
-		}, 5000);
+		}, 90000);
 
 		return () => clearInterval(interval);
 	}, [selectedTeam, isAdmin]);
@@ -697,6 +935,21 @@ const EventMap = () => {
 		});
 	}, [skipActivityPopup, openPopup, closePopup, t, dispatch]);
 
+	// Función para determinar si un equipo debe mostrarse en el mapa (OPTIMIZACIÓN)
+	const shouldShowTeam = useCallback((team) => {
+		// Filtrar equipos sin dispositivo asignado
+		if (!team.device || team.device === "") return false;
+		
+		// Siempre mostrar el equipo propio
+		if (selectedTeam && team.id === selectedTeam.id) return true;
+		
+		// Para otros equipos, verificar permisos según el rol
+		const adminCanViewTeams = isAdmin && import.meta.env.VITE_ADMIN_VIEW_TEAMS_POSITION === 'true';
+		const teamsCanViewOthers = !isAdmin && import.meta.env.VITE_TEAMS_VIEW_OTHER_TEAMS === 'true';
+		
+		return adminCanViewTeams || teamsCanViewOthers;
+	}, [isAdmin, selectedTeam]);
+
 	// Función para throttle de actualizaciones de Firebase solamente
 	const throttledFirebaseUpdate = useCallback((newPosition, teamData, direction = null) => {
 		
@@ -766,7 +1019,7 @@ const EventMap = () => {
 				// Si hay dirección, actualizar el icono con rotación
 				if (direction !== null && marker.setIcon) {
 					const size = ICON_SIZE;
-					const rotatedIconUrl = createRotatedIconSync(markMe, direction, size);
+					const rotatedIconUrl = createRotatedIconSync(markMe, toViewHeading(direction), size);
 					marker.setIcon({
 						url: rotatedIconUrl,
 						scaledSize: new window.google.maps.Size(size, size),
@@ -795,7 +1048,7 @@ const EventMap = () => {
 			if (marker && marker.setIcon) {
 				// SIEMPRE usar el icono base (markMe) para evitar acumulación de rotaciones
 				const size = ICON_SIZE;
-				const rotatedIconUrl = createRotatedIconSync(markMe, direction, size);
+				const rotatedIconUrl = createRotatedIconSync(markMe, toViewHeading(direction), size);
 				marker.setIcon({
 					url: rotatedIconUrl,
 					scaledSize: new window.google.maps.Size(size, size),
@@ -825,7 +1078,7 @@ const EventMap = () => {
 
 		if (marker.setIcon) {
 			const size = ICON_SIZE;
-			const rotatedIconUrl = createRotatedIconSync(markMe, directionToUse, size);
+			const rotatedIconUrl = createRotatedIconSync(markMe, toViewHeading(directionToUse), size);
 			marker.setIcon({
 				url: rotatedIconUrl,
 				scaledSize: new window.google.maps.Size(size, size),
@@ -858,7 +1111,7 @@ const EventMap = () => {
 					const size = currentIcon?.scaledSize?.width || ICON_SIZE;
 					const scaledSize = currentIcon?.scaledSize || new window.google.maps.Size(size, size);
 					const anchor = currentIcon?.anchor || new window.google.maps.Point(size / 2, size / 2);
-					const rotatedIconUrl = createRotatedIconSync(markMe, newData.direction, size);
+					const rotatedIconUrl = createRotatedIconSync(markMe, toViewHeading(newData.direction), size);
 
 					marker.setIcon({
 						url: rotatedIconUrl,
@@ -982,6 +1235,7 @@ const EventMap = () => {
 			adminKalmanLng.current = null;
 			adminLastFiltered.current = null;
 			adminLastAccuracy.current = null;
+			adminLastAcceptedUpdateTs.current = 0;
                         adminPreviousPosition.current = null;
                         setAdminLocation(null);
                 }, [isAdmin, adminPositionViewEnabled]);
@@ -1221,29 +1475,48 @@ const EventMap = () => {
 			return;
 		}
 
-		// Actualizar solo los marcadores que han cambiado
-		teams.forEach(team => {
+		// OPTIMIZACIÓN: Filtrar equipos ANTES de procesarlos
+		const teamsToProcess = teams.filter(shouldShowTeam);
+		const now = Date.now();
+
+		// Actualizar solo los marcadores de equipos visibles que han cambiado
+		teamsToProcess.forEach(team => {
 			const previousTeam = initialTeamsRef.current.find(t => t.id === team.id);
 			if (previousTeam) {
 				const positionChanged = previousTeam.lat !== team.lat || previousTeam.lon !== team.lon;
 				const directionChanged = previousTeam.direction !== team.direction;
 				
 				if (positionChanged || directionChanged) {
-					if (isDebugMode) {
-						console.log('🔄 Firebase update detected for team:', team.id, { positionChanged, directionChanged });
-					}
-					updateTeamMarkerFromFirebase(team.id, team);
+					// ✅ OPTIMIZACIÓN: Throttle de 30 segundos para otros equipos (excepto el propio)
+					const isOwnTeam = selectedTeam && team.id === selectedTeam.id;
+					const lastUpdateTime = lastTeamMarkersUpdateTime.current[team.id] || 0;
+					const timeSinceLastUpdate = now - lastUpdateTime;
 					
-					// Si está en modo seguimiento y es el equipo seleccionado, centrar el mapa
-					if (isFollowMode && selectedTeam && team.id === selectedTeam.id && positionChanged && mapRef.current) {
-						mapRef.current.panTo({ lat: team.lat, lng: team.lon });
+					// Siempre actualizar el equipo propio inmediatamente
+					// Para otros equipos, aplicar throttle de 30 segundos
+					if (isOwnTeam || timeSinceLastUpdate >= TEAM_MARKERS_UPDATE_THROTTLE_MS) {
+						if (isDebugMode) {
+							console.log('🔄 Firebase update detected for team:', team.id, { 
+								positionChanged, 
+								directionChanged,
+								isOwnTeam,
+								throttled: !isOwnTeam && timeSinceLastUpdate < TEAM_MARKERS_UPDATE_THROTTLE_MS
+							});
+						}
+						updateTeamMarkerFromFirebase(team.id, team);
+						lastTeamMarkersUpdateTime.current[team.id] = now;
+						
+						// Si está en modo seguimiento y es el equipo seleccionado, centrar el mapa
+						if (isFollowMode && isOwnTeam && positionChanged && mapRef.current) {
+							mapRef.current.panTo({ lat: team.lat, lng: team.lon });
+						}
 					}
 				}
 			}
 		});
 
 		initialTeamsRef.current = [...teams];
-	}, [isDebugMode, teams, updateTeamMarkerFromFirebase, isFollowMode, selectedTeam]);
+	}, [isDebugMode, teams, updateTeamMarkerFromFirebase, isFollowMode, selectedTeam, shouldShowTeam]);
 
 	// Limpiar notificaciones cuando cambie el equipo seleccionado
 	useEffect(() => {
@@ -1258,6 +1531,7 @@ const EventMap = () => {
 			kalmanLng.current = null;
 			lastFiltered.current = null;
 			lastAccuracy.current = null; // Limpiar precisión anterior
+			lastAcceptedUpdateTs.current = 0;
 			activityProximityCacheRef.current = new Map();
 		}
 	}, [isDebugMode, selectedTeam]); // Solo el objeto selectedTeam
@@ -1341,8 +1615,11 @@ const EventMap = () => {
 				// Calcular el umbral dinámico basado en las precisiones
 				const maxAccuracy = Math.max(lastAccuracy.current, bestSample.accuracy);
 				const centroidThreshold = CENTROID_MOVEMENT_FACTOR * maxAccuracy;
+				const now = Date.now();
+				const lastUpdateTs = lastAcceptedUpdateTs.current || 0;
+				const timeSinceLastUpdate = now - lastUpdateTs;
 				
-				if (centroidDistance <= centroidThreshold) {
+				if (centroidDistance <= centroidThreshold && timeSinceLastUpdate < MIN_FORCED_UPDATE_INTERVAL_MS) {
 					// Limpiar muestras y esperar nuevas
 					positionSamples = [];
 					return;
@@ -1364,6 +1641,7 @@ const EventMap = () => {
 			
 			// Aplicar el procesamiento como antes
 			const { lat, lng, heading } = bestSample;
+			const now = Date.now();
 			
 			// Inicializar filtros de Kalman si es la primera vez
 			if (!kalmanLat.current || !kalmanLng.current) {
@@ -1385,40 +1663,43 @@ const EventMap = () => {
 				lastAccuracy.current = bestSample.accuracy; // Actualizar precisión
 			}
 			
-			const newPosition = { lat: lastFiltered.current.lat, lng: lastFiltered.current.lng };
-			
-			// Obtener dirección - priorizar orientación del dispositivo sobre GPS heading
-			let direction = null;
-			
-			// 1. Prioridad: Orientación del dispositivo (acelerómetro/brújula) - solo si está habilitada y estable
-			const currentCompassHeading = compassHeadingRef.current;
-			const useCompassValue = useCompassRef.current;
-			if (useCompassValue && currentCompassHeading !== null) {
-				// Verificar que la lectura de la brújula sea reciente (menos de 1 segundo)
-				const compassAge = Date.now() - lastCompassUpdate.current;
-				if (compassAge < 1000) {
-					direction = currentCompassHeading;
-				}
+		const newPosition = { lat: lastFiltered.current.lat, lng: lastFiltered.current.lng };
+		
+		lastAcceptedUpdateTs.current = now;
+		
+		// Obtener dirección - SOLO usar acelerómetro si está disponible
+		let direction = null;
+		
+		// 1. PRIORIDAD ÚNICA: Orientación del dispositivo (acelerómetro/brújula)
+		const currentCompassHeading = compassHeadingRef.current;
+		const useCompassValue = useCompassRef.current;
+		if (useCompassValue && currentCompassHeading !== null) {
+			// Verificar que la lectura de la brújula sea reciente (menos de 1 segundo)
+			const compassAge = now - lastCompassUpdate.current;
+			if (compassAge < 1000) {
+				direction = currentCompassHeading;
+				// Si tenemos acelerómetro activo, NO usar otros métodos
 			}
-			
+		}
+		
+		// Solo si NO tenemos acelerómetro disponible, usar fallbacks
+		if (direction === null) {
 			// 2. Fallback: Heading del GPS si está disponible
-			if (direction === null && heading !== null && heading !== undefined) {
+			if (heading !== null && heading !== undefined && !isNaN(heading)) {
 				direction = heading;
 			}
-			
 			// 3. Último recurso: Calcular dirección usando movimiento
-			if (direction === null && previousPosition.current) {
+			else if (previousPosition.current) {
 				const distance = getDistance(previousPosition.current, newPosition);
 				// Solo calcular dirección si ha habido un movimiento significativo
 				if (distance > 2) {
 					direction = getBearing(previousPosition.current, newPosition);
 				}
 			}
-			
-			// Actualizar la posición anterior para la próxima iteración (para fallback)
-			previousPosition.current = newPosition;
-			
-			// PRIMERO: Actualizar directamente la posición del marcador SIN re-renderizar
+		}
+		
+		// Actualizar la posición anterior para la próxima iteración (solo para fallback de movimiento)
+		previousPosition.current = newPosition;			// PRIMERO: Actualizar directamente la posición del marcador SIN re-renderizar
 			const updateMarkerFn = updateSelectedTeamMarkerPositionRef.current;
 			if (updateMarkerFn) {
 				updateMarkerFn(newPosition, direction);
@@ -1594,7 +1875,10 @@ const EventMap = () => {
 				);
 				const maxAccuracy = Math.max(adminLastAccuracy.current, bestSample.accuracy);
 				const centroidThreshold = CENTROID_MOVEMENT_FACTOR * maxAccuracy;
-				if (centroidDistance <= centroidThreshold) {
+				const now = Date.now();
+				const lastUpdateTs = adminLastAcceptedUpdateTs.current || 0;
+				const timeSinceLastUpdate = now - lastUpdateTs;
+				if (centroidDistance <= centroidThreshold && timeSinceLastUpdate < MIN_FORCED_UPDATE_INTERVAL_MS) {
 					positionSamples = [];
 					return;
 				}
@@ -1622,25 +1906,32 @@ const EventMap = () => {
 			adminLastAccuracy.current = bestSample.accuracy;
 
 			const newPosition = { lat: filteredLat, lng: filteredLng };
+			const now = Date.now();
 			let direction = null;
 
+			// 1. PRIORIDAD ÚNICA: Orientación del dispositivo (acelerómetro/brújula)
 			const currentCompassHeading = compassHeadingRef.current;
 			const useCompassValue = useCompassRef.current;
 			if (useCompassValue && currentCompassHeading !== null) {
-				const compassAge = Date.now() - lastCompassUpdate.current;
+				const compassAge = now - lastCompassUpdate.current;
 				if (compassAge < 1000) {
 					direction = currentCompassHeading;
+					// Si tenemos acelerómetro activo, NO usar otros métodos
 				}
 			}
 
-			if (direction === null && bestSample.heading !== null && bestSample.heading !== undefined) {
-				direction = bestSample.heading;
-			}
-
-			if (direction === null && adminPreviousPosition.current) {
-				const distance = getDistance(adminPreviousPosition.current, newPosition);
-				if (distance > 2) {
-					direction = getBearing(adminPreviousPosition.current, newPosition);
+			// Solo si NO tenemos acelerómetro disponible, usar fallbacks
+			if (direction === null) {
+				// 2. Fallback: Heading del GPS si está disponible
+				if (bestSample.heading !== null && bestSample.heading !== undefined && !isNaN(bestSample.heading)) {
+					direction = bestSample.heading;
+				}
+				// 3. Último recurso: Calcular dirección usando movimiento
+				else if (adminPreviousPosition.current) {
+					const distance = getDistance(adminPreviousPosition.current, newPosition);
+					if (distance > 2) {
+						direction = getBearing(adminPreviousPosition.current, newPosition);
+					}
 				}
 			}
 
@@ -1649,6 +1940,7 @@ const EventMap = () => {
 				? direction
 				: (typeof adminDirectionRef.current === 'number' ? adminDirectionRef.current : null);
 			adminDirectionRef.current = effectiveDirection;
+			adminLastAcceptedUpdateTs.current = now;
 
 			const previousLocation = adminLocationRef.current;
 			const payload = {
@@ -1771,7 +2063,7 @@ const EventMap = () => {
 	// Marcadores renderizados solo cuando sea necesario (evitar re-renders por cambios de posición)
 	const teamMarkers = React.useMemo(() => {
 		// Verificar que Google Maps esté cargado y tengamos datos iniciales
-		if (!isLoaded || !window.google?.maps || !teams || teams.length === 0) {
+		if (!mapsReady || !window.google?.maps || !teams || teams.length === 0) {
 			if (isDebugMode) {
 				console.log('⏳ Google Maps not loaded yet or no teams, skipping marker creation');
 			}
@@ -1804,18 +2096,14 @@ const EventMap = () => {
 			}
 		}
 		
-		return teams
-			.filter(team => {
-				// Filtrar equipos que no tienen device asociado
-				if (!team.device || team.device === "") {
-					if (isDebugMode) {
-						console.log(`🚫 Team ${team.id} (${team.name || 'Sin nombre'}): No device assigned, not showing on map`);
-					}
-					return false;
-				}
-				return true;
-			})
-			.map((team, index) => {
+		// OPTIMIZACIÓN: Filtrar equipos ANTES de procesarlos
+		const teamsToRender = teams.filter(shouldShowTeam);
+
+		if (isDebugMode) {
+			console.log(`🎯 Teams to render: ${teamsToRender.length} of ${teams.length} total teams`);
+		}
+		
+		return teamsToRender.map((team, index) => {
 				if (isDebugMode) {
 					console.log('🎯 Team marker:', team.id, 'lat:', team.lat, 'lon:', team.lon, 'isSelected:', team.id === selectedTeam?.id, 'device:', team.device);
 				}
@@ -1828,7 +2116,7 @@ const EventMap = () => {
 				if (isSelectedTeam) {
 					const baseIconUrl = markMe;
 					const teamDirection = team.direction || 0;
-					const iconUrl = createRotatedIconSync(baseIconUrl, teamDirection, ICON_SIZE);
+					const iconUrl = createRotatedIconSync(baseIconUrl, toViewHeading(teamDirection), ICON_SIZE);
 					const scale = new window.google.maps.Size(ICON_SIZE, ICON_SIZE);
 					const anchor = new window.google.maps.Point(ICON_SIZE / 2, ICON_SIZE / 2);
 					const markerOpacity = ownTeamStatus === 'online' || ownTeamStatus === 'sleep'
@@ -1887,11 +2175,7 @@ const EventMap = () => {
 					);
 				}
 				
-				// Para otros equipos, respetar flags de visibilidad y usar componente dedicado
-				const adminCanViewTeams = isAdmin && import.meta.env.VITE_ADMIN_VIEW_TEAMS_POSITION === 'true';
-				const teamsCanViewOthers = !isAdmin && import.meta.env.VITE_TEAMS_VIEW_OTHER_TEAMS === 'true';
-				if (!adminCanViewTeams && !teamsCanViewOthers) return null;
-				
+				// Para otros equipos, usar componente dedicado (ya filtrados por shouldShowTeam)
 				return (
 					<OtherTeamMarker
 						key={team.id}
@@ -1901,7 +2185,7 @@ const EventMap = () => {
 					/>
 				);
 			});
-	}, [isDebugMode, isLoaded, isAdmin, selectedTeam, teams, markersCreated, ownTeamStatus, t]);
+	}, [isDebugMode, mapsReady, isAdmin, selectedTeam, teams, markersCreated, ownTeamStatus, t, shouldShowTeam]);
 
 	// Renderizar actividades
 	const renderActivities = () => {
@@ -2050,6 +2334,7 @@ const EventMap = () => {
 		// Cerrar cualquier popup del sistema global
 		closePopup();
 		setOpenActivityId(null);
+		setMeetingPointBubbleOpen(false);
 		
 		// Cerrar InfoWindows de actividades - necesitamos notificar a los ActivityMarkers
 		// Esto se manejará mediante un evento personalizado que los ActivityMarkers escucharán
@@ -2058,6 +2343,13 @@ const EventMap = () => {
 
 	const handleActivityMarkerClick = useCallback((activityId) => {
 		setOpenActivityId(activityId);
+		
+		// Restaurar la rotación del mapa después de un breve delay para evitar que el InfoWindow la resetee
+		setTimeout(() => {
+			if (mapRef.current && typeof mapRef.current.setHeading === "function") {
+				mapRef.current.setHeading(MAP_ROTATION_DEG);
+			}
+		}, 100);
 	}, []);
 
 	const handleActivityBubbleClose = useCallback(() => {
@@ -2068,6 +2360,21 @@ const EventMap = () => {
 		dispatch(startActivityWithSuspensionCheck(activity));
 		setOpenActivityId(null);
 	}, [dispatch]);
+
+	const handleMeetingPointMarkerClick = useCallback(() => {
+		setMeetingPointBubbleOpen(true);
+		
+		// Restaurar la rotación del mapa después de un breve delay
+		setTimeout(() => {
+			if (mapRef.current && typeof mapRef.current.setHeading === "function") {
+				mapRef.current.setHeading(MAP_ROTATION_DEG);
+			}
+		}, 100);
+	}, []);
+
+	const handleMeetingPointBubbleClose = useCallback(() => {
+		setMeetingPointBubbleOpen(false);
+	}, []);
 
 	// Función para manejar clicks en el mapa
 	const handleMapClick = useCallback((mapEvent) => {
@@ -2259,6 +2566,43 @@ const EventMap = () => {
 		}
 	}, []);
 
+	useEffect(() => {
+		const mapInstance = mapRef.current;
+		if (!mapInstance) {
+			return;
+		}
+
+		if (!isActive) {
+			if (typeof mapInstance.getCenter === 'function') {
+				const center = mapInstance.getCenter();
+				if (center) {
+					lastVisibleCenterRef.current = { lat: center.lat(), lng: center.lng() };
+				}
+			}
+			if (typeof mapInstance.getZoom === 'function') {
+				const zoom = mapInstance.getZoom();
+				if (typeof zoom === 'number' && !Number.isNaN(zoom)) {
+					lastVisibleZoomRef.current = zoom;
+				}
+			}
+			return;
+		}
+
+		if (window.google?.maps?.event) {
+			window.google.maps.event.trigger(mapInstance, 'resize');
+		}
+
+		const storedCenter = lastVisibleCenterRef.current;
+		if (storedCenter) {
+			mapInstance.panTo(storedCenter);
+		}
+
+		const storedZoom = lastVisibleZoomRef.current;
+		if (typeof storedZoom === 'number' && !Number.isNaN(storedZoom)) {
+			mapInstance.setZoom(storedZoom);
+		}
+	}, [isActive]);
+
 	// Efecto para centrar el mapa en la posición del equipo seleccionado cuando cambie
 	// useEffect(() => {
 	// 	if (mapRef.current && selectedTeamData && selectedTeamData.lat != null && selectedTeamData.lon != null) {
@@ -2276,7 +2620,7 @@ const EventMap = () => {
 	// 	};
 	// }, []);
 
-	if (!isLoaded || !initialCenter) return null;
+	if (!mapsReady || !initialCenter) return null;
 
 	const handleLoad = (map) => {
 		mapRef.current = map;
@@ -2292,10 +2636,14 @@ const EventMap = () => {
 		
 		map.setZoom(clampedZoom);
 		persistMapView();
+
+		if (typeof map.setHeading === "function") {
+			map.setHeading(MAP_ROTATION_DEG);
+		}
 	};
 
 	return (
-		<div style={{ position: 'relative', width: '100%', height: '100%' }}>
+		<div style={{ position: "relative", width: "100%", height: "100%" }}>
 			<GoogleMap
 				id="event-map"
 				mapContainerStyle={containerStyle}
@@ -2305,68 +2653,252 @@ const EventMap = () => {
 				onZoomChanged={handleZoomChanged}
 				options={mapOptions}
 			>
+				{ZONES.map((z) => (
+					<React.Fragment key={z.id}>
+						<Polygon
+							path={z.path}
+							options={{
+								strokeColor: "#111",
+								strokeOpacity: 1,
+								strokeWeight: 2,
+								fillColor: z.color,
+								fillOpacity: 0.2,
+								clickable: true,
+								zIndex: 80, // sube/baja para que no tape tus markers
+							}}
+							onClick={() => {
+								document.getElementById(`zone-label-${z.id}`).style.display =
+									document.getElementById(`zone-label-${z.id}`).style.display ===
+									"none"
+										? "block"
+										: "none";
+							}}
+							onMouseOver={(e) => (e.domEvent.target.style.cursor = "pointer")}
+							onMouseOut={(e) => (e.domEvent.target.style.cursor = "")}
+						/>
+
+						{/* Etiqueta “ZONE X” al centro */}
+						<OverlayView
+							position={polygonCenter(z.path)}
+							mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+						>
+							<div
+								id={`zone-label-${z.id}`}
+								style={{
+									transform: "translate(-50%, -50%)",
+									padding: "6px 12px",
+									fontWeight: 800,
+									fontSize: 14,
+									background: z.color,
+									color: "#000",
+									border: "2px solid #000",
+									textTransform: "uppercase",
+									boxShadow: "0 6px 18px rgba(0,0,0,.35)",
+									whiteSpace: "nowrap",
+									userSelect: "none",
+									width: "max-content",
+								}}
+							>
+								{z.name}
+							</div>
+						</OverlayView>
+					</React.Fragment>
+				))}
 				{teamMarkers}
-				{isAdmin && adminPositionViewEnabled && (adminLocation?.position || adminLocationRef.current?.position) && (
-					<Marker
-						position={adminLocation?.position || adminLocationRef.current?.position}
-						zIndex={400}
-						onLoad={(marker) => {
-							adminMarkerRef.current = marker;
-							const direction = typeof adminDirectionRef.current === 'number'
-								? adminDirectionRef.current
-								: (typeof (adminLocation?.direction ?? adminLocationRef.current?.direction) === 'number'
-									? (adminLocation?.direction ?? adminLocationRef.current?.direction)
-									: 0);
-							const googlePosition = marker.getPosition?.();
-							const initialPosition = googlePosition
-								? { lat: googlePosition.lat(), lng: googlePosition.lng() }
-								: (adminLocation?.position || adminLocationRef.current?.position);
-							if (initialPosition) {
-								updateAdminMarkerPosition(initialPosition, direction);
+				{isAdmin &&
+					adminPositionViewEnabled &&
+					(adminLocation?.position || adminLocationRef.current?.position) && (
+						<Marker
+							position={
+								adminLocation?.position || adminLocationRef.current?.position
 							}
-						}}
-					/>
-				)}
+							zIndex={400}
+							onLoad={(marker) => {
+								adminMarkerRef.current = marker;
+								const direction =
+									typeof adminDirectionRef.current === "number"
+										? adminDirectionRef.current
+										: typeof (
+												adminLocation?.direction ??
+												adminLocationRef.current?.direction
+										  ) === "number"
+										? adminLocation?.direction ??
+										  adminLocationRef.current?.direction
+										: 0;
+								const googlePosition = marker.getPosition?.();
+								const initialPosition = googlePosition
+									? { lat: googlePosition.lat(), lng: googlePosition.lng() }
+									: adminLocation?.position ||
+									  adminLocationRef.current?.position;
+								if (initialPosition) {
+									updateAdminMarkerPosition(initialPosition, direction);
+								}
+							}}
+						/>
+					)}
 				{renderActivities()}
+				{/* Marcador de punto de encuentro hardcodeado */}
+				{/*<Marker
+					position={{ lat: 37.38597, lng: -5.99227 }}
+					icon={{
+						url: pointMark,
+						scaledSize: new window.google.maps.Size(20, 20),
+						anchor: new window.google.maps.Point(10, 20),
+					}}
+					zIndex={150}
+					title={t('meeting_point.title', 'Punto de encuentro')}
+					onClick={handleMeetingPointMarkerClick}
+				>
+					{meetingPointBubbleOpen && (
+						<InfoWindow
+							onCloseClick={handleMeetingPointBubbleClose}
+							options={{
+								pixelOffset: new window.google.maps.Size(0, -20)
+							}}
+						>
+							<div style={{
+								padding: '8px',
+								minWidth: '150px',
+								textAlign: 'center',
+								paddingTop: '14px'
+							}}>
+								<h3 style={{
+									margin: '0 0 4px 0',
+									fontSize: '16px',
+									fontWeight: 'bold',
+									color: '#333'
+								}}>
+									{t('meeting_point.title', 'Punto de encuentro')}
+								</h3>
+							</div>
+						</InfoWindow>
+					)}
+				</Marker> */}
 			</GoogleMap>
 
 			{permissionOverlayVisible && (
-				<div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', zIndex: 20 }}>
-					<div style={{ maxWidth: '420px', width: '100%', background: 'rgba(20,20,20,0.9)', borderRadius: '18px', padding: '1.75rem', color: '#fff', boxShadow: '0 16px 40px rgba(0,0,0,0.45)', textAlign: 'center' }}>
-						<h3 style={{ fontSize: '1.4rem', marginBottom: '1rem' }}>{t('permissions.map_title', 'Necesitamos permisos para continuar')}</h3>
-						<p style={{ fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '1.1rem' }}>
-							{t('permissions.map_description', 'Para mostrar tu posición y orientación, Escultura necesita acceso a la geolocalización y a los sensores de movimiento del dispositivo.')}
+				<div
+					style={{
+						position: "absolute",
+						inset: 0,
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						padding: "2rem",
+						zIndex: 20,
+					}}
+				>
+					<div
+						style={{
+							maxWidth: "420px",
+							width: "100%",
+							background: "rgba(20,20,20,0.9)",
+							borderRadius: "18px",
+							padding: "1.75rem",
+							color: "#fff",
+							boxShadow: "0 16px 40px rgba(0,0,0,0.45)",
+							textAlign: "center",
+						}}
+					>
+						<h3 style={{ fontSize: "1.4rem", marginBottom: "1rem" }}>
+							{t(
+								"permissions.map_title",
+								"Necesitamos permisos para continuar"
+							)}
+						</h3>
+						<p
+							style={{
+								fontSize: "0.95rem",
+								lineHeight: 1.6,
+								marginBottom: "1.1rem",
+							}}
+						>
+							{t(
+								"permissions.map_description",
+								"Para mostrar tu posición y orientación, Escultura necesita acceso a la geolocalización y a los sensores de movimiento del dispositivo."
+							)}
 						</p>
-						<ul style={{ listStyle: 'none', padding: 0, margin: '0 0 1.2rem 0', textAlign: 'left', fontSize: '0.9rem', lineHeight: 1.5 }}>
-							<li>📍 {t('permissions.geolocation', 'Geolocalización')}: <strong>{formatPermissionStatus(permissionInfo.geolocation.status)}</strong></li>
+						<ul
+							style={{
+								listStyle: "none",
+								padding: 0,
+								margin: "0 0 1.2rem 0",
+								textAlign: "left",
+								fontSize: "0.9rem",
+								lineHeight: 1.5,
+							}}
+						>
+							<li>
+								📍 {t("permissions.geolocation", "Geolocalización")}:{" "}
+								<strong>
+									{formatPermissionStatus(permissionInfo.geolocation.status)}
+								</strong>
+							</li>
 							{permissionInfo.motion.supported && (
-								<li>🧭 {t('permissions.motion', 'Sensores de movimiento')}: <strong>{formatPermissionStatus(permissionInfo.motion.status)}</strong></li>
+								<li>
+									🧭 {t("permissions.motion", "Sensores de movimiento")}:{" "}
+									<strong>
+										{formatPermissionStatus(permissionInfo.motion.status)}
+									</strong>
+								</li>
 							)}
 						</ul>
 						{permissionError && (
-							<div style={{ color: '#ff9b9b', fontSize: '0.85rem', marginBottom: '1rem' }}>
+							<div
+								style={{
+									color: "#ff9b9b",
+									fontSize: "0.85rem",
+									marginBottom: "1rem",
+								}}
+							>
 								{permissionError}
 							</div>
 						)}
-						<div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+						<div
+							style={{
+								display: "flex",
+								flexDirection: "column",
+								gap: "0.75rem",
+							}}
+						>
 							<button
 								onClick={handleRequestPermissions}
 								disabled={permissionRequesting}
-								style={{ padding: '0.8rem 1rem', borderRadius: '999px', border: 'none', background: '#3b82f6', color: '#fff', fontSize: '1rem', fontWeight: 600, cursor: permissionRequesting ? 'wait' : 'pointer', transition: 'transform 0.2s ease' }}
+								style={{
+									padding: "0.8rem 1rem",
+									borderRadius: "999px",
+									border: "none",
+									background: "#3b82f6",
+									color: "#fff",
+									fontSize: "1rem",
+									fontWeight: 600,
+									cursor: permissionRequesting ? "wait" : "pointer",
+									transition: "transform 0.2s ease",
+								}}
 							>
-								{permissionRequesting ? t('permissions.requesting', 'Solicitando permisos...') : t('permissions.grant_button', 'Conceder permisos')}
+								{permissionRequesting
+									? t("permissions.requesting", "Solicitando permisos...")
+									: t("permissions.grant_button", "Conceder permisos")}
 							</button>
 							<button
 								onClick={handleSkipPermissions}
-								style={{ padding: '0.55rem 1rem', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.45)', background: 'transparent', color: '#fff', fontSize: '0.95rem', cursor: 'pointer' }}
+								style={{
+									padding: "0.55rem 1rem",
+									borderRadius: "999px",
+									border: "1px solid rgba(255,255,255,0.45)",
+									background: "transparent",
+									color: "#fff",
+									fontSize: "0.95rem",
+									cursor: "pointer",
+								}}
 							>
-								{t('permissions.skip', 'Continuar sin activar ahora')}
+								{t("permissions.skip", "Continuar sin activar ahora")}
 							</button>
 						</div>
 					</div>
 				</div>
 			)}
-			
+
 			{/* Botón de seguimiento */}
 			<button
 				type="button"
@@ -2375,14 +2907,10 @@ const EventMap = () => {
 				onPointerUp={handleCenterButtonPointerUp}
 				onPointerLeave={handleCenterButtonPointerLeave}
 				onPointerCancel={handleCenterButtonPointerLeave}
-				className={`follow-button ${isFollowMode ? 'active' : ''}`}
-				title={isFollowMode ? 'Desactivar seguimiento' : 'Activar seguimiento'}
+				className={`follow-button ${isFollowMode ? "active" : ""}`}
+				title={isFollowMode ? "Desactivar seguimiento" : "Activar seguimiento"}
 			>
-				<svg 
-					width="30" 
-					height="30" 
-					viewBox="0 0 422.932 422.932"
-				>
+				<svg width="30" height="30" viewBox="0 0 422.932 422.932">
 					<path d="M301.793,297.745c-12.594-6.73-27.314-11.873-43.309-15.277v-34.559c2.06,1.344,4.516,2.132,7.156,2.132 c7.236,0,13.098-5.868,13.098-13.1v-10.622c0.89-1.908,1.383-4.036,1.383-6.279v-96.897c0-7.137-5.038-13.285-12.031-14.684 l-26.83-5.368c-1.357-1.551-3.025-2.799-4.883-3.676c2.111-2.36,3.9-4.744,5.264-6.717c3.279-4.761,6.012-9.887,7.904-14.833 c0.935-2.086,1.723-4.182,2.371-6.238c2.541-2.133,4.039-5.321,4.039-8.664v-8.19c0-2.354-0.734-4.649-2.094-6.557V36.684 C253.86,16.455,237.403,0,217.175,0h-11.892C185.058,0,168.6,16.455,168.6,36.684v11.533c-1.355,1.907-2.097,4.204-2.097,6.556v8.19 c0,3.343,1.496,6.525,4.042,8.663c0.647,2.052,1.438,4.152,2.372,6.242c1.891,4.943,4.623,10.07,7.908,14.827 c1.363,1.98,3.153,4.366,5.273,6.733c-1.852,0.878-3.508,2.125-4.862,3.668l-26.428,5.354c-6.979,1.414-11.997,7.548-11.997,14.675 v96.915c0,2.243,0.495,4.372,1.378,6.279v10.622c0,7.231,5.863,13.1,13.1,13.1c2.638,0,5.097-0.788,7.149-2.132v34.561 c-15.991,3.404-30.709,8.547-43.299,15.275c-25.584,13.672-39.674,32.335-39.674,52.547c0,20.212,14.09,38.875,39.674,52.549 c24.24,12.955,56.317,20.091,90.326,20.091c34.01,0,66.086-7.136,90.327-20.091c25.584-13.674,39.673-32.337,39.673-52.549 C341.466,330.08,327.377,311.417,301.793,297.745z M216.981,120.51c-0.068-0.66,0.145-1.318,0.59-1.815 c0.244-0.273,0.549-0.478,0.889-0.614v-5.86c0-1.138,0.818-2.115,1.939-2.316c1.859-0.329,3.779-1.011,5.704-2.029 c0.733-0.382,1.608-0.36,2.312,0.063c0.71,0.428,1.139,1.19,1.139,2.018v14.049c0,0.51-0.164,1.007-0.473,1.413l-6.596,8.758 c-0.453,0.598-1.152,0.94-1.877,0.94c-0.211,0-0.426-0.031-0.637-0.087c-0.93-0.259-1.607-1.063-1.705-2.025L216.981,120.51z M182.552,65.912l-0.131-0.974l-2.28-1.482c-0.669-0.435-1.071-1.173-1.071-1.973v-3.867c0-1.3,1.054-2.353,2.352-2.353h0.957 v-4.194c0-0.893,0.506-1.705,1.303-2.104c3.238-1.612,9.662-4.328,16.314-4.328c5.304,0,9.704,1.768,13.077,5.249 c4.197,4.344,9.044,6.544,14.387,6.544c3.035,0,6.159-0.715,9.305-2.125c0.727-0.326,1.568-0.263,2.24,0.171 c0.314,0.203,0.564,0.472,0.752,0.787h1.281c1.299,0,2.355,1.053,2.355,2.353v3.868c0,0.799-0.406,1.537-1.072,1.972l-2.279,1.482 l-0.131,0.974c-0.744,5.618-3.9,12.9-8.439,19.482c-5.749,8.34-11.133,12.073-13.928,12.073h-12.631 c-2.791,0-8.181-3.734-13.931-12.073C186.447,78.813,183.291,71.532,182.552,65.912z M204.888,118.695 c0.446,0.496,0.662,1.154,0.593,1.815l-1.289,12.502c-0.1,0.958-0.775,1.762-1.708,2.02c-0.209,0.061-0.419,0.087-0.63,0.087 c-0.728,0-1.429-0.336-1.875-0.934l-6.61-8.767c-0.307-0.407-0.474-0.905-0.474-1.417l0.007-14.047 c0.002-0.825,0.434-1.588,1.141-2.018c0.704-0.425,1.582-0.446,2.313-0.063c1.921,1.02,3.844,1.702,5.708,2.031 c1.119,0.201,1.937,1.179,1.937,2.316v5.86C204.338,118.218,204.642,118.422,204.888,118.695z M211.466,392.714 c-55.367,0-102.143-23.412-102.143-51.124c0-19.29,22.667-36.494,55.115-45.171v51.816c0,12.988,10.53,23.515,23.518,23.515 c12.981,0,23.509-10.526,23.509-23.515c0,12.988,10.523,23.515,23.515,23.515c12.982,0,23.504-10.526,23.504-23.515v-51.819 c32.454,8.677,55.125,25.882,55.125,45.174C313.608,369.302,266.833,392.714,211.466,392.714z" />
 				</svg>
 			</button>
@@ -2392,6 +2920,16 @@ const EventMap = () => {
 
 
 export default React.memo(EventMap);
+
+
+
+
+
+
+
+
+
+
 
 
 

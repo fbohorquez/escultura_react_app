@@ -59,54 +59,24 @@ const persistConfig = {
 };
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 
-// Middleware para restaurar actividades persistentes
+// Middleware para limpiar actividades persistentes al reabrir la app
 const activityRestoreMiddleware = (store) => (next) => (action) => {
 	const result = next(action);
-	
-	// Solo ejecutar una vez cuando se hidrate el store
+
 	if (action.type === 'persist/REHYDRATE') {
-		// Verificar si hay una actividad almacenada en localStorage
 		const stored = localStorage.getItem('currentActivity');
 		if (stored) {
-			try {
-				const data = JSON.parse(stored);
-				const elapsed = Math.floor((Date.now() - data.startTime) / 1000);
-				
-				// Si el tiempo es infinito, no calcular remaining
-				if (data.timeLeft === Infinity || data.activity.time === 0) {
-					store.dispatch({
-						type: 'activities/restoreActivity',
-						payload: {
-							activity: data.activity,
-							startTime: data.startTime,
-							timeLeft: Infinity
-						}
-					});
-				} else {
-					const remaining = Math.max(0, data.timeLeft - elapsed);
-					
-					// Si aún queda tiempo, restaurar la actividad
-					if (remaining > 0) {
-						store.dispatch({
-							type: 'activities/restoreActivity',
-							payload: {
-								activity: data.activity,
-								startTime: data.startTime,
-								timeLeft: remaining
-							}
-						});
-					} else {
-						// Si se agotó el tiempo, limpiar
-						localStorage.removeItem('currentActivity');
-					}
-				}
-			} catch (error) {
-				console.error('Error restoring activity:', error);
-				localStorage.removeItem('currentActivity');
-			}
+			localStorage.removeItem('currentActivity');
 		}
+
+		const state = store.getState();
+		if (state?.activities?.isActivityActive || state?.activities?.currentActivity) {
+			store.dispatch({ type: 'activities/finishActivity' });
+		}
+
+		store.dispatch({ type: 'keepalive/clearCurrentActivity' });
 	}
-	
+
 	return result;
 };
 
@@ -115,9 +85,9 @@ const appStateHeartbeatMiddleware = () => (next) => (action) => {
 	const result = next(action);
 	
 	// Debug: mostrar todas las acciones que pasan por el middleware
-	if (action.type && action.type.includes('keepalive')) {
-		console.log('🔍 Keepalive action:', action.type, action.payload);
-	}
+	// if (action.type && action.type.includes('keepalive')) {
+	// 	console.log('🔍 Keepalive action:', action.type, action.payload);
+	// }
 	
 	// Interceptar acciones que cambian el estado de la app
 	if (action.type === 'keepalive/setAppState' || action.type === 'keepalive/clearCurrentActivity') {

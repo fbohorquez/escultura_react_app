@@ -1,7 +1,7 @@
 // src/components/GadgetDetector.jsx
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useSelector } from "react-redux";
-import { completeGadget, GADGETS } from "../services/firebase";
+import { completeGadget, getGadgets } from "../services/firebase";
 import glassBackground from "../assets/glass-background.png";
 import corazonGif from "../assets/corazon.gif";
 import besoKissGif from "../assets/beso-kiss.gif";
@@ -433,7 +433,8 @@ const GadgetDetector = () => {
 	const executeSingleGadget = useCallback(async (gadgetId) => {
 		console.log(`🎯 Executing gadget: ${gadgetId}`);
 		
-		const gadgetInfo = GADGETS[gadgetId];
+		const gadgets = getGadgets();
+		const gadgetInfo = gadgets[gadgetId];
 		if (!gadgetInfo) {
 			console.error(`Unknown gadget: ${gadgetId}`);
 			return;

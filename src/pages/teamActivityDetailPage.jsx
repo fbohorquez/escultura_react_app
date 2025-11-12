@@ -21,7 +21,7 @@ const TeamActivityDetailPage = () => {
 	const teams = useSelector((state) => state.teams.items);
 
 	const handleBack = () => {
-		navigate(`/admin/team-activities/${eventId}`);
+		navigate(`/event/${eventId}/admin/team-activities`);
 	};
 
 	// Encontrar el equipo
@@ -435,7 +435,7 @@ const TeamActivityDetailPage = () => {
 	const handleActivityClick = (activity) => {
 		// Si la actividad está completada, navegar a la página de valoración
 		if (activity.complete) {
-			navigate(`/admin/valorate/${eventId}/activity/${team.id}/${activity.id}`, {
+				navigate(`/event/${eventId}/admin/valorate/activity/${team.id}/${activity.id}`, {
 				state: { from: 'team-activities' }
 			});
 		}

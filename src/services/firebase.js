@@ -51,7 +51,13 @@ let reconnectionAttempts = new Map(); // Para contar intentos de reconexión
 let lastHeartbeat = new Map(); // Para trackear última actividad
 
 // Configuración de monitoreo
-const HEARTBEAT_INTERVAL = 30000; // 30 segundos
+// HEARTBEAT_INTERVAL: Se usa SOLO para determinar si OTROS equipos están desconectados (via keepalive)
+const HEARTBEAT_INTERVAL = parseInt(import.meta.env.VITE_KEEPALIVE_INTERVAL) || 30000;
+
+// LISTENER_HEALTH_CHECK_INTERVAL: Se usa para monitorear salud de listeners PROPIOS (event, team, admin, chat)
+// Independiente del intervalo de keepalive para no afectar detección de conexión propia
+const LISTENER_HEALTH_CHECK_INTERVAL = parseInt(import.meta.env.VITE_CHECKCONNECTION_INTERVAL) || 60000;
+
 const MAX_RECONNECTION_ATTEMPTS = 5;
 const RECONNECTION_DELAY = 2000; // 2 segundos
 
@@ -108,7 +114,7 @@ const scheduleReconnection = (listenerId, retryCallback) => {
  * @param {Function} onError - Callback para errores (opcional)
  * @returns {Function} Función para cancelar la suscripción
  */
-const createRobustListener = (listenerId, ref, onNext, onError = null) => {
+export const createRobustListener = (listenerId, ref, onNext, onError = null) => {
 	let unsubscribe = null;
 	let isActive = true;
 	
@@ -492,7 +498,7 @@ export const getChatRooms = async (eventId, teamId, isAdmin, teams = []) => {
 			}
 		});
 	} else {
-		// Los equipos ven: grupo, su chat con admin, y chats con otros equipos
+		// Los equipos ven: grupo, su chat con admin, y salas team_X_Y donde aparezca su ID
 		console.log('Team getting chat rooms, teamId:', teamId, 'teams:', teams);
 		
 		// Agregar sala de grupo
@@ -503,7 +509,7 @@ export const getChatRooms = async (eventId, teamId, isAdmin, teams = []) => {
 			description: translate("chatRooms.group.description")
 		});
 		
-		// Agregar chat con administrador
+		// Agregar SOLO chat con administrador
 		rooms.push({
 			id: `admin_${teamId}`,
 			name: translate("chatRooms.admin.name"),
@@ -511,7 +517,8 @@ export const getChatRooms = async (eventId, teamId, isAdmin, teams = []) => {
 			description: translate("chatRooms.admin.description")
 		});
 		
-		// Filtrar otros equipos que tengan device asignado y no sean el equipo actual
+		// ✅ Agregar salas team_X_Y donde aparezca el equipo actual
+		// SOLO se conecta a salas donde su teamId esté presente (como team_X o team_Y)
 		const otherTeams = teams.filter(team => 
 			team.id !== parseInt(teamId) && 
 			team.device && 
@@ -526,6 +533,7 @@ export const getChatRooms = async (eventId, teamId, isAdmin, teams = []) => {
 				? `team_${teamId}_${team.id}` 
 				: `team_${team.id}_${teamId}`;
 			
+			// ✅ SOLO agregar esta sala porque el equipo actual (teamId) aparece en el ID
 			rooms.push({
 				id: chatId,
 				name: team.name,
@@ -643,7 +651,54 @@ export const subscribeToUserReadStatus = (eventId, userId, callback) => {
 // === FUNCIONES DE GADGETS ===
 
 /**
- * Definición de gadgets disponibles en el sistema
+ * Obtiene la definición de gadgets disponibles en el sistema con traducciones
+ * @returns {Object} Objeto con los gadgets disponibles
+ */
+export const getGadgets = () => {
+	const translate = (key, options) => i18n.t(key, options);
+	
+	return {
+		rotate_screen: {
+			id: "rotate_screen",
+			name: translate("gadgets.rotate_screen.name"),
+			description: translate("gadgets.rotate_screen.description"),
+			icon: "🔄",
+			cooldownMinutes: 5
+		},
+		susto: {
+			id: "susto",
+			name: translate("gadgets.susto.name"),
+			description: translate("gadgets.susto.description"),
+			icon: "😱",
+			cooldownMinutes: 10
+		},
+		broken_glass: {
+			id: "broken_glass",
+			name: translate("gadgets.broken_glass.name"),
+			description: translate("gadgets.broken_glass.description"),
+			icon: "🔨",
+			cooldownMinutes: 8
+		},
+		hearts: {
+			id: "hearts",
+			name: translate("gadgets.hearts.name"),
+			description: translate("gadgets.hearts.description"),
+			icon: "💕",
+			cooldownMinutes: 6
+		},
+		kiss: {
+			id: "kiss",
+			name: translate("gadgets.kiss.name"),
+			description: translate("gadgets.kiss.description"),
+			icon: "💋",
+			cooldownMinutes: 5
+		}
+	};
+};
+
+/**
+ * Definición de gadgets (sin traducciones) - Deprecado, usar getGadgets()
+ * @deprecated Usar getGadgets() en su lugar para obtener traducciones
  */
 export const GADGETS = {
 	rotate_screen: {
@@ -1019,15 +1074,24 @@ export const getConnectionInfo = () => {
 		const lastActivity = lastHeartbeat.get(listenerId) || 0;
 		const timeSinceActivity = now - lastActivity;
 		
+		// Determinar timeout según tipo de listener:
+		// - Listeners de keepalive de otros equipos: usan HEARTBEAT_INTERVAL (configurable)
+		// - Listeners propios (event, team, admin, chat): usan LISTENER_HEALTH_CHECK_INTERVAL (fijo/independiente)
+		const isKeepaliveListener = listenerId.startsWith('keepalive_teams_');
+		const staleThreshold = isKeepaliveListener 
+			? HEARTBEAT_INTERVAL * 2 
+			: LISTENER_HEALTH_CHECK_INTERVAL * 2;
+		
 		const info = {
 			id: listenerId,
 			lastActivity: new Date(lastActivity).toISOString(),
 			timeSinceActivity: Math.floor(timeSinceActivity / 1000) + 's',
 			isActive: listener.isActive(),
-			reconnectionAttempts: reconnectionAttempts.get(listenerId) || 0
+			reconnectionAttempts: reconnectionAttempts.get(listenerId) || 0,
+			type: isKeepaliveListener ? 'keepalive' : 'own'
 		};
 		
-		if (timeSinceActivity > HEARTBEAT_INTERVAL * 2) {
+		if (timeSinceActivity > staleThreshold) {
 			staleListeners.push(info);
 		} else {
 			activeListeners.push(info);
@@ -1040,7 +1104,7 @@ export const getConnectionInfo = () => {
 		staleListeners,
 		timestamp: new Date().toISOString()
 	};
-};
+}
 
 /**
  * Fuerza la reconexión de todos los listeners
@@ -1068,9 +1132,15 @@ export const cleanupStaleListeners = () => {
 		const timeSinceActivity = now - lastActivity;
 		const attempts = reconnectionAttempts.get(listenerId) || 0;
 		
+		// Determinar timeout según tipo de listener (igual que en getConnectionInfo)
+		const isKeepaliveListener = listenerId.startsWith('keepalive_teams_');
+		const cleanupThreshold = isKeepaliveListener 
+			? HEARTBEAT_INTERVAL * 10 
+			: LISTENER_HEALTH_CHECK_INTERVAL * 10;
+		
 		// Limpiar si no hay actividad por mucho tiempo o muchos intentos fallidos
-		if (timeSinceActivity > HEARTBEAT_INTERVAL * 10 || attempts >= MAX_RECONNECTION_ATTEMPTS) {
-			console.log(`🗑️ Removing stale listener: ${listenerId}`);
+		if (timeSinceActivity > cleanupThreshold || attempts >= MAX_RECONNECTION_ATTEMPTS) {
+			console.log(`🗑️ Removing stale listener: ${listenerId} (type: ${isKeepaliveListener ? 'keepalive' : 'own'})`);
 			connectionListeners.delete(listenerId);
 			reconnectionAttempts.delete(listenerId);
 			lastHeartbeat.delete(listenerId);
@@ -1080,6 +1150,15 @@ export const cleanupStaleListeners = () => {
 
 /**
  * Inicia un monitor que verifica la salud de las conexiones periódicamente
+ * 
+ * Monitorea dos tipos de listeners con timeouts diferentes:
+ * 1. Listeners propios (event, team, admin, chat): usan LISTENER_HEALTH_CHECK_INTERVAL (VITE_CHECKCONNECTION_INTERVAL)
+ *    - Stale si inactivo > LISTENER_HEALTH_CHECK_INTERVAL * 2
+ *    - Eliminado si inactivo > LISTENER_HEALTH_CHECK_INTERVAL * 10
+ * 
+ * 2. Listeners de keepalive (otros equipos): usan HEARTBEAT_INTERVAL (VITE_KEEPALIVE_INTERVAL)
+ *    - Stale si inactivo > HEARTBEAT_INTERVAL * 2
+ *    - Eliminado si inactivo > HEARTBEAT_INTERVAL * 10
  */
 export const startConnectionMonitor = () => {
 	// Monitor cada 60 segundos
@@ -1093,7 +1172,7 @@ export const startConnectionMonitor = () => {
 			info.staleListeners.forEach(staleInfo => {
 				const listener = connectionListeners.get(staleInfo.id);
 				if (listener && listener.isActive()) {
-					console.log(`🔄 Attempting to restart stale listener: ${staleInfo.id}`);
+					console.log(`🔄 Attempting to restart stale listener: ${staleInfo.id} (type: ${staleInfo.type})`);
 					listener.startListening();
 				}
 			});

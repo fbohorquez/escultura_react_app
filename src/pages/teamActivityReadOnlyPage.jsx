@@ -17,7 +17,9 @@ const TeamActivityReadOnlyPage = () => {
 	const isAdmin = useSelector((state) => state.session.isAdmin);
 
 	const handleBack = () => {
-		navigate(`/ranking/${eventId}`);
+		if (eventId) {
+			navigate(`/event/${eventId}/ranking`);
+		}
 	};
 
 	// Encontrar el equipo y la actividad

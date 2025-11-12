@@ -33,7 +33,7 @@ export const restoreNative = () => {
 export const overrideNative = (options = {}) => {
   const {
     isDevelopment = import.meta.env.DEV,
-    overrideConsole = true,
+    overrideConsole = false,
     overrideAlert = true,
     overrideConfirm = true
   } = options;

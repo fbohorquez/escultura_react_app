@@ -106,6 +106,21 @@ const GadgetsPage = () => {
 
 	const cooldownMinutes = getCooldownDisplay();
 
+	// Si los gadgets no están cargados aún, mostrar loading
+	if (!availableGadgets) {
+		return (
+			<BackgroundLayout
+				title={t("gadgets.title", "Gadgets")}
+				subtitle={event?.name}
+			>
+				<BackButton onClick={handleBack} />
+				<div className="gadgets-container">
+					<p>{t("loading", "Cargando...")}</p>
+				</div>
+			</BackgroundLayout>
+		);
+	}
+
 	return (
 		<BackgroundLayout
 			title={t("gadgets.title", "Gadgets")}

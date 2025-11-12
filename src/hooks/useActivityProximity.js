@@ -61,19 +61,19 @@ export const useActivityProximity = () => {
 		const isNotified = notifiedActivities.has(activityKey);
 		const isAutoActivated = autoActivatedActivities.has(activityKey);
 		
-		console.log('🔍 Activity proximity debug:', {
-			activityId: activity.id,
-			activityName: activity.name,
-			distance: distance.toFixed(1),
-			activityDistance: activity.distance,
-			isWithinRange,
-			accuracy,
-			precisionRequired: PRECISION_REQUIRED,
-			hasPrecision,
-			timeRequired: TIME_REQUIRED,
-			resetMultiplier: RESET_DISTANCE_MULTIPLIER,
-			isAutoActivated
-		});
+		// console.log('🔍 Activity proximity debug:', {
+		// 	activityId: activity.id,
+		// 	activityName: activity.name,
+		// 	distance: distance.toFixed(1),
+		// 	activityDistance: activity.distance,
+		// 	isWithinRange,
+		// 	accuracy,
+		// 	precisionRequired: PRECISION_REQUIRED,
+		// 	hasPrecision,
+		// 	timeRequired: TIME_REQUIRED,
+		// 	resetMultiplier: RESET_DISTANCE_MULTIPLIER,
+		// 	isAutoActivated
+		// });
 		
 		// Si no está dentro del rango de reset, limpiar todo el estado de esta actividad
 		if (!isWithinResetRange) {

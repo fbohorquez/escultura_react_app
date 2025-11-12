@@ -37,23 +37,28 @@ const AdminTaskbar = () => {
 	}, [teams]);
 
 	const handleSessionControl = () => {
-		navigate("/admin/session-control");
+		if (!event?.id) return;
+		navigate(`/event/${event.id}/admin/session-control`);
 	};
 
 	const handleRanking = () => {
-		navigate(`/ranking/${event.id}`);
+		if (!event?.id) return;
+		navigate(`/event/${event.id}/ranking`);
 	};
 
 	const handleValorateActivities = () => {
-		navigate(`/admin/valorate/${event.id}`);
+		if (!event?.id) return;
+		navigate(`/event/${event.id}/admin/valorate`);
 	};
 
 	const handleTeamActivities = () => {
-		navigate(`/admin/team-activities/${event.id}`);
+		if (!event?.id) return;
+		navigate(`/event/${event.id}/admin/team-activities`);
 	};
 
 	const handlePhotoManagement = () => {
-		navigate(`/admin/photos/${event.id}`);
+		if (!event?.id) return;
+		navigate(`/event/${event.id}/admin/photos`);
 	};
 
 	const handleSuspendToggle = () => {

@@ -7,6 +7,7 @@ import CacheEventAssets from "./components/cacheEventAssets";
 import ChatConnectionManager from "./components/ChatConnectionManager";
 import ChatReadStatusManager from "./components/chatReadStatusManager";
 import GadgetDetector from "./components/GadgetDetector";
+import GadgetsInitializer from "./components/GadgetsInitializer";
 import ActivityQueueManager from "./components/ActivityQueueManager";
 import Popup from "./components/popup";
 // import NotificationContainer from "./components/notificationContainer.jsx";
@@ -47,6 +48,8 @@ import NotFoundPage from "./pages/NotFoundPage";
 import DeviceNotAssignedPage from "./pages/deviceNotAssignedPage";
 import InitPage from "./pages/initPage";
 import SystemStatusPage from "./pages/SystemStatusPage";
+import MediaListPage from "./pages/mediaListPage";
+import EventShell from "./pages/EventShell";
 
 import './styles/global.css';
 import './styles/fonts.css';
@@ -56,6 +59,7 @@ import './styles/sessionControl.css';
 import './styles/valorate.css';
 import './styles/gadgets.css';
 import './styles/ranking.css';
+import './styles/mediaList.css';
 import './styles/teamActivityReadOnly.css';
 
 function App() {
@@ -156,6 +160,7 @@ function App() {
 			<ChatConnectionManager />
 			<ChatReadStatusManager />
 			<GadgetDetector />
+			<GadgetsInitializer />
 			<ActivityQueueManager />
 			<Popup />
 			{/* <NotificationContainer /> */}
@@ -170,40 +175,27 @@ function App() {
 				<Route path="/events" element={<EventsPage />} />
 				<Route path="/teams/:eventId" element={<TeamsPage />} />
 				<Route path="/team/:teamId" element={<TeamPage />} />
-				<Route path="/event/:eventId" element={<EventPage />} />
+				<Route path="/event/:eventId" element={<EventShell />}>
+					<Route index element={<></>} />
+					<Route path="chats" element={<ChatsListPage />} />
+					<Route path="chat/:chatId" element={<ChatRoomPage />} />
+					<Route path="media-list" element={<MediaListPage />} />
+					<Route path="ranking" element={<RankingPage />} />
+					<Route path="gadgets" element={<GadgetsPage />} />
+					<Route path="system-status" element={<SystemStatusPage />} />
+					<Route path="admin">
+						<Route path="session-control" element={<SessionControlPage />} />
+						<Route path="photos" element={<PhotoManagementPage />} />
+						<Route path="team-activities" element={<TeamActivitiesPage />} />
+						<Route path="team-activities/team/:teamId" element={<TeamActivityDetailPage />} />
+						<Route path="team-activities/team-group/:teamGroupName" element={<TeamGroupDetailPage />} />
+						<Route path="valorate" element={<ValoratePage />} />
+						<Route path="valorate/activity/:teamId/:activityId" element={<ActivityValorate />} />
+					</Route>
+					<Route path="team/activity/:teamId/:activityId" element={<TeamActivityReadOnlyPage />} />
+				</Route>
 				<Route path="/chat/:eventId" element={<ChatPage />} />
-				<Route path="/event/:eventId/chats" element={<ChatsListPage />} />
-				<Route path="/event/:eventId/chat/:chatId" element={<ChatRoomPage />} />
-				<Route path="/ranking/:eventId" element={<RankingPage />} />
-				<Route path="/gadgets/:eventId" element={<GadgetsPage />} />
-				<Route path="/admin/session-control" element={<SessionControlPage />} />
-				<Route
-					path="/admin/photos/:eventId"
-					element={<PhotoManagementPage />}
-				/>
-				<Route
-					path="/admin/team-activities/:eventId"
-					element={<TeamActivitiesPage />}
-				/>
-				                                <Route
-                                        path="/admin/team-activities/:eventId/team/:teamId"
-                                        element={<TeamActivityDetailPage />}
-                                />
-                                <Route
-                                        path="/admin/team-activities/:eventId/team-group/:teamGroupName"
-                                        element={<TeamGroupDetailPage />}
-                                />
-				<Route path="/admin/valorate/:eventId" element={<ValoratePage />} />
-				<Route
-					path="/admin/valorate/:eventId/activity/:teamId/:activityId"
-					element={<ActivityValorate />}
-				/>
-				<Route
-					path="/team/activity/:eventId/:teamId/:activityId"
-					element={<TeamActivityReadOnlyPage />}
-				/>
 				<Route path="/device-not-assigned" element={<DeviceNotAssignedPage />} />
-				<Route path="/system-status" element={<SystemStatusPage />} />
 				<Route path="/404" element={<NotFoundPage />} />
 			</Routes>
 		</>

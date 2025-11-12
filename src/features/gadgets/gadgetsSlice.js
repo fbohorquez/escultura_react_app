@@ -1,6 +1,6 @@
 // src/features/gadgets/gadgetsSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { sendGadget, getGadgetCooldown, GADGETS } from "../../services/firebase";
+import { sendGadget, getGadgetCooldown } from "../../services/firebase";
 
 // Thunk para verificar si un gadget puede enviarse a un equipo específico
 export const canSendGadgetToTeam = createAsyncThunk(
@@ -68,7 +68,7 @@ export const getCooldownInfo = createAsyncThunk(
 const gadgetsSlice = createSlice({
 	name: "gadgets",
 	initialState: {
-		availableGadgets: GADGETS,
+		availableGadgets: null, // Se cargará dinámicamente con traducciones
 		selectedGadget: null,
 		showGadgetSelector: false,
 		showTeamSelector: false,
@@ -79,6 +79,9 @@ const gadgetsSlice = createSlice({
 	},
 	reducers: {
 		// UI state management
+		setAvailableGadgets: (state, action) => {
+			state.availableGadgets = action.payload;
+		},
 		setSelectedGadget: (state, action) => {
 			state.selectedGadget = action.payload;
 		},
@@ -134,6 +137,7 @@ const gadgetsSlice = createSlice({
 });
 
 export const {
+	setAvailableGadgets,
 	setSelectedGadget,
 	setSelectedGadgetDirect,
 	setShowGadgetSelector,

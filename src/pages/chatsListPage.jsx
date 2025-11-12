@@ -1,5 +1,5 @@
 // src/pages/chatsListPage.jsx
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -8,6 +8,7 @@ import BackgroundLayout from "../components/backgroundLayout";
 import BackButton from "../components/backButton";
 import NotificationBubble from "../components/notificationBubble";
 import useChatReadStatus from "../hooks/useChatReadStatus";
+import { useLocalChatViewed } from "../hooks/useLocalChatViewed";
 import { formatMessageTime } from "../utils/chatUtils";
 
 const ChatsListPage = () => {
@@ -15,8 +16,16 @@ const ChatsListPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   
+  // ✅ Estado local para el ordenamiento - recuperar de localStorage
+  const [sortBy, setSortBy] = useState(() => {
+    const saved = localStorage.getItem('chat_list_sort_by');
+    return saved || 'type'; // 'type' | 'lastMessage'
+  });
+  
   const { rooms, status, error, messages } = useSelector((state) => state.chats);
-  const unreadCounts = useSelector((state) => state.chats.unreadCounts);
+  // ❌ Ya NO usamos unreadCounts de Redux (basado en Firebase)
+  // const unreadCounts = useSelector((state) => state.chats.unreadCounts);
+  
   const { id: eventId } = useSelector((state) => state.event);
   const session = useSelector((state) => state.session);
   const teams = useSelector((state) => state.teams.items);
@@ -26,8 +35,16 @@ const ChatsListPage = () => {
   const currentUserId = isAdmin ? "admin" : teamId;
   const currentUserType = isAdmin ? "admin" : "team";
 
-  // Inicializar estado de lectura
+  // ✅ Hook para control LOCAL de mensajes visualizados
+  const { getLocalUnreadCount } = useLocalChatViewed(eventId, currentUserId);
+
+  // Inicializar estado de lectura en Firebase (mantener compatibilidad)
   useChatReadStatus(eventId, currentUserId, currentUserType);
+
+  // ✅ Persistir preferencia de ordenamiento en localStorage
+  useEffect(() => {
+    localStorage.setItem('chat_list_sort_by', sortBy);
+  }, [sortBy]);
 
   useEffect(() => {
     console.log('Session data:', session);
@@ -163,6 +180,39 @@ const ChatsListPage = () => {
     }
   };
 
+  // ✅ OPTIMIZACIÓN: Calcular orden ANTES de los returns condicionales
+  // Esto evita que los hooks se llamen condicionalmente
+  const sortedRoomsWithOrder = useMemo(() => {
+    if (sortBy === 'type') {
+      // Orden original por tipo (group, admin, team)
+      return rooms.map((room, index) => ({
+        ...room,
+        cssOrder: index
+      }));
+    } else {
+      // Orden por último mensaje (más reciente primero)
+      const roomsWithTimestamp = rooms.map(room => {
+        const chatMessages = messages[room.id];
+        const lastMsg = chatMessages && chatMessages.length > 0 
+          ? chatMessages[chatMessages.length - 1] 
+          : null;
+        return {
+          ...room,
+          lastMessageDate: lastMsg?.date || 0
+        };
+      });
+      
+      // Ordenar por fecha descendente
+      const sorted = [...roomsWithTimestamp].sort((a, b) => b.lastMessageDate - a.lastMessageDate);
+      
+      // Asignar order CSS
+      return sorted.map((room, index) => ({
+        ...room,
+        cssOrder: index
+      }));
+    }
+  }, [rooms, messages, sortBy]);
+
   if (status === "loading") {
     return (
       <BackgroundLayout title={t("chats.title")}>
@@ -196,6 +246,22 @@ const ChatsListPage = () => {
     <BackgroundLayout title={t("chats.title")}>
       <BackButton onClick={() => navigate(`/event/${eventId}`)} />
       
+      {/* ✅ Pestañas de ordenamiento */}
+      <div className="chat-sort-tabs">
+        <button
+          className={`sort-tab ${sortBy === 'type' ? 'active' : ''}`}
+          onClick={() => setSortBy('type')}
+        >
+          {t("chats.sort_by_type")}
+        </button>
+        <button
+          className={`sort-tab ${sortBy === 'lastMessage' ? 'active' : ''}`}
+          onClick={() => setSortBy('lastMessage')}
+        >
+          {t("chats.sort_by_recent")}
+        </button>
+      </div>
+      
       {rooms.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">💬</div>
@@ -203,19 +269,20 @@ const ChatsListPage = () => {
         </div>
       ) : (
         <div className="listing">
-          {rooms.map((room) => {
+          {sortedRoomsWithOrder.map((room) => {
             const lastMessage = getLastMessage(room.id);
             
             return (
 							<div
 								key={room.id}
 								className="listing-item"
+								style={{ order: room.cssOrder }}
 								onClick={() => handleChatSelect(room)}
 							>
 								<div className="chat-icon-container">
 									<span className="chat-icon">{getChatIcon(room.type)}</span>
 									<NotificationBubble
-										count={unreadCounts[room.id]}
+										count={getLocalUnreadCount(room.id)}
 										size="small"
 									/>
 								</div>

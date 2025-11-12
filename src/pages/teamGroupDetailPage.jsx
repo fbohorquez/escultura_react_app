@@ -21,7 +21,7 @@ const TeamGroupDetailPage = () => {
 	const teams = useSelector((state) => state.teams.items);
 
 	const handleBack = () => {
-		navigate(`/admin/team-activities/${eventId}`);
+		navigate(`/event/${eventId}/admin/team-activities`);
 	};
 
 	// Decodificar el nombre del grupo

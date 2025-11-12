@@ -4,8 +4,11 @@
 
 import { getAppStateLabel } from '../constants/appStates';
 
-// Tiempo límite para considerar un equipo como activo (1 minuto)
-export const KEEPALIVE_TIMEOUT = 60000; // 1 minuto en milisegundos
+// Intervalo de heartbeat (30 segundos por defecto, configurable via VITE_KEEPALIVE_INTERVAL)
+export const KEEPALIVE_INTERVAL = parseInt(import.meta.env.VITE_KEEPALIVE_INTERVAL) || 30000;
+
+// Tiempo límite para considerar un equipo como activo (1 minuto por defecto, configurable via VITE_KEEPALIVE_TIMEOUT)
+export const KEEPALIVE_TIMEOUT = parseInt(import.meta.env.VITE_KEEPALIVE_TIMEOUT) || 60000;
 
 /**
  * Verifica si un equipo está activo basado en su último timestamp

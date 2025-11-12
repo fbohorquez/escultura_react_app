@@ -1,5 +1,5 @@
 // src/hooks/useChatReadStatus.js
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchChatReadStatus } from "../features/chats/chatsSlice";
 
@@ -8,22 +8,30 @@ import { fetchChatReadStatus } from "../features/chats/chatsSlice";
  * @param {string} eventId - ID del evento
  * @param {string|number} userId - ID del usuario actual
  * @param {string} userType - Tipo de usuario ("admin" o "team")
+ * 
+ * ✅ OPTIMIZADO: Ya solo carga 2 salas (grupo + admin) en lugar de 3-5
+ * ✅ OPTIMIZADO: Evita recargas innecesarias usando ref
  */
 export const useChatReadStatus = (eventId, userId, userType) => {
   const dispatch = useDispatch();
   const { rooms } = useSelector((state) => state.chats);
+  const loadedRoomsRef = useRef(new Set());
 
   useEffect(() => {
-    if (!eventId || !userId || !userType) return;
+    if (!eventId || !userId || !userType || rooms.length === 0) return;
 
-    // Inicializar el estado de lectura para todas las salas de chat
-    // Se ejecuta para todas las salas, no solo las que tienen mensajes
+    // ✅ OPTIMIZACIÓN: Solo cargar estado de lectura para salas que NO se han cargado antes
     rooms.forEach((room) => {
-      dispatch(fetchChatReadStatus({
-        eventId,
-        chatId: room.id,
-        userId
-      }));
+      const roomKey = `${eventId}_${room.id}_${userId}`;
+      
+      if (!loadedRoomsRef.current.has(roomKey)) {
+        loadedRoomsRef.current.add(roomKey);
+        dispatch(fetchChatReadStatus({
+          eventId,
+          chatId: room.id,
+          userId
+        }));
+      }
     });
   }, [dispatch, eventId, userId, userType, rooms]);
 };

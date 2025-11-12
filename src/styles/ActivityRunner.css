@@ -33,6 +33,7 @@
   border: 1px solid var(--primary-color);
   object-fit: none;
   background: #fff;
+  padding: 2px;
 }
 
 .activity-details h2 {
@@ -472,9 +473,10 @@
 
 .activity-result-content img {
   max-width: 100%;
-  height: auto;
+  height: 70vh;
   border-radius: 8px;
   margin: 1rem 0;
+  object-fit: contain;
 }
 
 .result-icon {

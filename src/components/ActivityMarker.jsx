@@ -142,7 +142,7 @@ const ActivityMarker = ({
 					onCloseClick={onBubbleClose}
 					options={{
 						pixelOffset: new window.google.maps.Size(0, -30),
-						disableAutoPan: false,
+						disableAutoPan: true,
 						maxWidth: 300,
 					}}
 				>

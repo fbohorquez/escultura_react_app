@@ -93,7 +93,7 @@ class NotificationNavigationService {
       // Construir la ruta según el tipo de notificación
       if (type === 'activity_valuation' && eventId && teamId && activityId) {
         // Notificación de valoración de actividad
-        route = `/team/activity/${eventId}/${teamId}/${activityId}`;
+        route = `/event/${eventId}/team/activity/${teamId}/${activityId}`;
         console.log('Navigating to activity:', route);
       } else if (type === 'activity_sent' && eventId) {
         // Notificación de actividad enviada - llevar a la página del evento

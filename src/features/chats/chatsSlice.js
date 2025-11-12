@@ -99,6 +99,14 @@ export const initializeChatConnections = createAsyncThunk(
   }
 );
 
+// ✅ OPTIMIZACIÓN: Helper function para calcular unreadCounts de manera consistente
+const calculateUnreadCount = (messages, readStatus) => {
+  if (!messages || messages.length === 0) return 0;
+  if (!readStatus) return messages.length;
+  
+  return messages.filter((_, index) => !readStatus[index]).length;
+};
+
 // Thunk para marcar un chat como leído
 export const markChatAsReadThunk = createAsyncThunk(
   "chats/markChatAsRead",
@@ -155,9 +163,8 @@ const chatsSlice = createSlice({
         state.readStatus[chatId] = {};
       }
       
-      // Contar mensajes no leídos: todos los mensajes que no están marcados como leídos
-      const unreadCount = messages.filter((_, index) => !state.readStatus[chatId][index]).length;
-      state.unreadCounts[chatId] = unreadCount;
+      // ✅ OPTIMIZACIÓN: Usar helper function para cálculo consistente
+      state.unreadCounts[chatId] = calculateUnreadCount(messages, state.readStatus[chatId]);
     },
     addMessageToChat(state, action) {
       const { chatId, message } = action.payload;
@@ -223,10 +230,9 @@ const chatsSlice = createSlice({
       }
       state.readStatus[chatId][messageIndex] = isRead;
       
-      // Recalcular contador de no leídos
+      // ✅ OPTIMIZACIÓN: Usar helper function para cálculo consistente
       if (state.messages[chatId]) {
-        const unreadCount = state.messages[chatId].filter((_, index) => !state.readStatus[chatId][index]).length;
-        state.unreadCounts[chatId] = unreadCount;
+        state.unreadCounts[chatId] = calculateUnreadCount(state.messages[chatId], state.readStatus[chatId]);
       }
     },
     clearChats(state) {
@@ -261,10 +267,9 @@ const chatsSlice = createSlice({
           }
           state.readStatus[chatId][senderMessageIndex] = true;
           
-          // Recalcular contador de no leídos
+          // ✅ OPTIMIZACIÓN: Usar helper function para cálculo consistente
           if (state.messages[chatId]) {
-            const unreadCount = state.messages[chatId].filter((_, index) => !state.readStatus[chatId][index]).length;
-            state.unreadCounts[chatId] = unreadCount;
+            state.unreadCounts[chatId] = calculateUnreadCount(state.messages[chatId], state.readStatus[chatId]);
           }
         }
       })
@@ -328,9 +333,8 @@ const chatsSlice = createSlice({
             state.readStatus[chatId][index] = index <= lastReadIndex;
           });
           
-          // Recalcular contador de no leídos
-          const unreadCount = state.messages[chatId].filter((_, index) => index > lastReadIndex).length;
-          state.unreadCounts[chatId] = unreadCount;
+          // ✅ OPTIMIZACIÓN: Usar helper function para cálculo consistente
+          state.unreadCounts[chatId] = calculateUnreadCount(state.messages[chatId], state.readStatus[chatId]);
         }
       });
   },
@@ -348,5 +352,61 @@ export const {
   updateMessageReadStatus,
   clearChats 
 } = chatsSlice.actions;
+
+// ✅ OPTIMIZACIÓN: Selectores memoizados con createSelector para evitar re-renders innecesarios
+import { createSelector } from '@reduxjs/toolkit';
+
+/**
+ * Selector base para obtener el estado de chats
+ */
+const selectChatsState = (state) => state.chats;
+
+/**
+ * Selector memoizado para obtener mensajes de una sala específica
+ */
+export const selectChatMessages = createSelector(
+  [selectChatsState, (_, chatId) => chatId],
+  (chatsState, chatId) => chatsState.messages[chatId] || []
+);
+
+/**
+ * Selector memoizado para obtener contador de no leídos de una sala
+ */
+export const selectUnreadCount = createSelector(
+  [selectChatsState, (_, chatId) => chatId],
+  (chatsState, chatId) => chatsState.unreadCounts[chatId] || 0
+);
+
+/**
+ * Selector memoizado para obtener total de mensajes no leídos
+ */
+export const selectTotalUnread = createSelector(
+  [selectChatsState],
+  (chatsState) => Object.values(chatsState.unreadCounts).reduce((sum, count) => sum + count, 0)
+);
+
+/**
+ * Selector memoizado para obtener estado de lectura de una sala
+ */
+export const selectChatReadStatus = createSelector(
+  [selectChatsState, (_, chatId) => chatId],
+  (chatsState, chatId) => chatsState.readStatus[chatId] || {}
+);
+
+/**
+ * Selector memoizado para obtener salas disponibles
+ */
+export const selectChatRooms = createSelector(
+  [selectChatsState],
+  (chatsState) => chatsState.rooms
+);
+
+/**
+ * Selector memoizado para obtener estado de conexiones
+ */
+export const selectConnectionStatus = createSelector(
+  [selectChatsState],
+  (chatsState) => chatsState.connections
+);
 
 export default chatsSlice.reducer;

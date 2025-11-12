@@ -9,6 +9,7 @@ import iconChat from "../assets/icon_chat.png";
 import iconGadgets from "../assets/icon_gadgets.png";
 import BackgroundDecagon from "../assets/decagon.svg";
 import NotificationBubble from "./notificationBubble";
+import { useLocalChatViewed } from "../hooks/useLocalChatViewed";
 
 const EventFooter = ({ eventId, collapsed }) => {
 	const { t } = useTranslation();
@@ -17,12 +18,19 @@ const EventFooter = ({ eventId, collapsed }) => {
 	const teams = useSelector((state) => state.teams.items);
 	const selectedTeam = useSelector((state) => state.session.selectedTeam);
 	const isAdmin = useSelector((state) => state.session.isAdmin);
-	const unreadCounts = useSelector((state) => state.chats.unreadCounts);
 	
-	// Calcular el total de mensajes no leídos
+	// ❌ Ya NO usamos unreadCounts de Redux (basado en Firebase)
+	// const unreadCounts = useSelector((state) => state.chats.unreadCounts);
+	
+	const currentUserId = isAdmin ? "admin" : selectedTeam?.id;
+	
+	// ✅ Hook para control LOCAL de mensajes visualizados
+	const { getTotalLocalUnread } = useLocalChatViewed(eventId, currentUserId);
+	
+	// Calcular el total de mensajes no leídos LOCALMENTE
 	const totalUnreadMessages = useMemo(() => {
-		return Object.values(unreadCounts || {}).reduce((total, count) => total + count, 0);
-	}, [unreadCounts]);
+		return getTotalLocalUnread();
+	}, [getTotalLocalUnread]);
 
 	// Estado y lógica del cronómetro para admin
 	const [seconds, setSeconds] = useState(0);
@@ -106,7 +114,7 @@ const EventFooter = ({ eventId, collapsed }) => {
 	}, [teams, selectedTeam, isAdmin]);
 
 	const handleChatClick = () => {
-		navigate(`/chat/${eventId}`);
+		navigate(`/event/${eventId}/chats`);
 	};
 
 	const handlePositionClick = () => {
@@ -115,12 +123,16 @@ const EventFooter = ({ eventId, collapsed }) => {
 			setSeconds(0);
 			setIsRunning(true);
 		} else {
-			navigate(`/ranking/${eventId}`);
+			if (eventId) {
+				navigate(`/event/${eventId}/ranking`);
+			}
 		}
 	};
 
 	const handleGadgetsClick = () => {
-		navigate(`/gadgets/${eventId}`);
+		if (eventId) {
+			navigate(`/event/${eventId}/gadgets`);
+		}
 	};
 
 	return (

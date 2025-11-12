@@ -153,7 +153,7 @@ const TeamSelector = () => {
 		}
 	};
 
-	if (!showTeamSelector || !selectedGadget) return null;
+	if (!showTeamSelector || !selectedGadget || !availableGadgets) return null;
 
 	const gadgetInfo = availableGadgets[selectedGadget];
 	

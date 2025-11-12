@@ -1,79 +1,29 @@
 // src/services/assetCache.js
 
-const CACHE_NAME = "escultura-assets-v2";
-
-/**
- * Extrae recursivamente todas las URLs encontradas en un objeto o array.
- * @param {any} obj
- * @param {Set<string>} result
- */
-function extractUrlsFromObject(obj, result = new Set()) {
-	if (!obj) return result;
-	if (typeof obj === "string") {
-		try {
-			const url = new URL(obj, window.location.origin);
-			// sólo http(s)
-			if (url.protocol === "http:" || url.protocol === "https:") {
-				result.add(url.href);
-			}
-		} catch {
-			// no es URL válida
-		}
-	} else if (Array.isArray(obj)) {
-		obj.forEach((item) => extractUrlsFromObject(item, result));
-	} else if (typeof obj === "object") {
-		Object.values(obj).forEach((value) => extractUrlsFromObject(value, result));
-	}
-	return result;
-}
+// CACHE DESHABILITADA - Servicios de cache completamente desactivados
 
 /**
  * Prefetch de todos los activos encontrados recursivamente en un JSON.
- * @param {object} jsonData
+ * @param {object} _jsonData
  */
-export async function prefetchAssetsFromJson(jsonData) {
-	if (!("caches" in window)) return;
-	const urls = Array.from(extractUrlsFromObject(jsonData));
-	const cache = await caches.open(CACHE_NAME);
-	for (const raw of urls) {
-		const allowExtensions = [".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".mp4", ".webm", ".ogg", ".mp3", ".wav", ".ttf", ".woff", ".woff2"];
-		if (!allowExtensions.some(ext => raw.toLowerCase().endsWith(ext))) {
-			// Sólo cachear extensiones permitidas
-			continue;
-		}
-		try {
-			const u = new URL(raw, window.location.origin);
-			const sameOrigin = u.origin === window.location.origin;
-			const isDynamicUpload = u.pathname.startsWith("/uploads/");
-
-			// Sólo cachear same-origin y no dinámicos
-			if (!sameOrigin || isDynamicUpload) continue;
-
-			const response = await fetch(u.href, { cache: "no-cache" });
-			if (response.ok) {
-				await cache.put(u.href, response.clone());
-			}
-		} catch (err) {
-			console.warn("Prefetch failed for", raw, err);
-		}
-	}
+export async function prefetchAssetsFromJson(_jsonData) {
+	// CACHE DESHABILITADA - Función desactivada
+	console.log("prefetchAssetsFromJson: Cache disabled, no prefetch performed");
+	return;
 }
 
 /**
  * Inicializa el Service Worker y lanza el prefetch recursivo de assets.
- * @param {object} jsonData  Objeto JSON completo del evento/actividades
+ * @param {object} _jsonData  Objeto JSON completo del evento/actividades
  */
-export function initAssetCaching(jsonData) {
+export function initAssetCaching(_jsonData) {
+	// CACHE DESHABILITADA - Solo registrar SW para notificaciones, sin cache
 	if ("serviceWorker" in navigator) {
 		navigator.serviceWorker
 			.register("/sw.js")
-			.then(() => console.log("SW registered"))
+			.then(() => console.log("SW registered (cache disabled, notifications only)"))
 			.catch(console.error);
-		if (jsonData) {
-			window.addEventListener("load", () => {
-				prefetchAssetsFromJson(jsonData);
-			});
-		}
 	}
+	console.log("initAssetCaching: Asset caching disabled");
 }
 

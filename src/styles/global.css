@@ -141,10 +141,54 @@ html {
     border-bottom: .5rem solid #DDD;
     padding-bottom: 1rem;
     padding-top: 1rem;
+    /* ✅ OPTIMIZACIÓN: Transición suave al cambiar el orden */
+    transition: order 0.3s ease;
 }
 
 .listing-item img {
     width: 8rem;
+}
+
+/* ✅ Pestañas de ordenamiento de chats */
+.chat-sort-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0 1rem;
+    position: fixed;
+    width: 25%;
+    background: white;
+    z-index: 99999;
+    margin-left: auto;
+    margin-right: auto;
+    bottom: 2vh;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.sort-tab {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    background-color: #f5f5f5;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 120px;
+}
+
+.chat-sort-tabs ~ .listing {
+    display: flex;
+    flex-direction: column;
+    padding-top: 40px;
+}
+
+.sort-tab.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
 }
 
 .content-body {
@@ -211,6 +255,7 @@ img.team-event-logo {
   object-fit: cover;
   margin: auto;
   display: block;
+  max-width: 240px;
 }
 
 img.team-detail-icon {
@@ -1629,6 +1674,7 @@ header.event-header {
   margin-bottom: 20px;
   text-align: center;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  line-height: 32px;
 }
 
 .gadgets-category {
@@ -3179,4 +3225,12 @@ h3.activities-section-title {
 .activities-list:last-child {
     border-bottom: none;
     padding-bottom: 0;
+}
+
+.logo-container:has(>.team-photo) {
+    padding: 28px;
+}
+
+h1.title {
+  max-width: 80vw;
 }

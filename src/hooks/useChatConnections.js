@@ -1,15 +1,16 @@
 // src/hooks/useChatConnections.js
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { subscribeToChat } from "../services/firebase";
 import { setChatMessages } from "../features/chats/chatsSlice";
 
 /**
- * Hook personalizado para manejar conexiones automáticas a todas las salas de chat relevantes
+ * Hook personalizado para manejar conexiones automáticas a salas de chat relevantes
  * Se conecta automáticamente a:
  * - Sala "group" (chat grupal)
  * - Sala "admin_{teamId}" (chat privado con admin)
- * - Todas las salas "team_*" que contengan el ID del equipo
+ * 
+ * ✅ OPTIMIZADO: Ya NO se conecta a salas team_X_Y automáticamente
  */
 export const useChatConnections = () => {
   const dispatch = useDispatch();
@@ -17,6 +18,16 @@ export const useChatConnections = () => {
   
   const { rooms } = useSelector((state) => state.chats);
   const { id: eventId } = useSelector((state) => state.event);
+
+  // ✅ OPTIMIZACIÓN: Memoizar getConnectionStatus para evitar re-renders innecesarios
+  const getConnectionStatus = useCallback(() => {
+    const connectedRooms = Object.keys(subscriptionsRef.current);
+    return {
+      connectedRooms,
+      totalRooms: rooms.length,
+      isFullyConnected: connectedRooms.length === rooms.length
+    };
+  }, [rooms.length]); // Solo depende de la cantidad, no del array completo
 
   useEffect(() => {
     // Solo conectar si tenemos eventId y rooms disponibles
@@ -68,18 +79,8 @@ export const useChatConnections = () => {
     };
   }, [eventId, rooms, dispatch]);
 
-  // Función para obtener el estado de conexión
-  const getConnectionStatus = () => {
-    const connectedRooms = Object.keys(subscriptionsRef.current);
-    return {
-      connectedRooms,
-      totalRooms: rooms.length,
-      isFullyConnected: connectedRooms.length === rooms.length
-    };
-  };
-
-  // Función para reconectar manualmente a todas las salas
-  const reconnectAll = () => {
+  // ✅ OPTIMIZACIÓN: Memoizar reconnectAll para evitar recrear la función en cada render
+  const reconnectAll = useCallback(() => {
     console.log("[ChatConnections] Reconectando a todas las salas...");
     
     // Desconectar primero
@@ -102,10 +103,10 @@ export const useChatConnections = () => {
         roomInfo: room
       };
     });
-  };
+  }, [eventId, rooms, dispatch]);
 
-  // Función para obtener una suscripción existente o crear una nueva si no existe
-  const getOrCreateSubscription = (roomId) => {
+  // ✅ OPTIMIZACIÓN: Memoizar getOrCreateSubscription
+  const getOrCreateSubscription = useCallback((roomId) => {
     if (subscriptionsRef.current[roomId]) {
       return subscriptionsRef.current[roomId];
     }
@@ -129,7 +130,7 @@ export const useChatConnections = () => {
     }
     
     return null;
-  };
+  }, [eventId, rooms, dispatch]);
 
   return {
     getConnectionStatus,

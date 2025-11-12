@@ -119,7 +119,7 @@ const ValoratePage = () => {
 	}, [teamsDataHash]);
 
 	const handleActivityClick = (activity) => {
-		navigate(`/admin/valorate/${eventId}/activity/${activity.teamId}/${activity.id}`, {
+		navigate(`/event/${eventId}/admin/valorate/activity/${activity.teamId}/${activity.id}`, {
 			state: { from: 'valorate' }
 		});
 	};

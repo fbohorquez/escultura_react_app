@@ -11,6 +11,7 @@ import {
 import { subscribeToChat } from "../services/firebase";
 import { notifyUserChatActivity, clearUserChatActivity } from "../services/chatNotifications";
 import { isMyMessage, getMessageSenderName, formatMessageTime } from "../utils/chatUtils";
+import { useLocalChatViewed } from "../hooks/useLocalChatViewed";
 import BackgroundLayout from "../components/backgroundLayout";
 import BackButton from "../components/backButton";
 
@@ -38,6 +39,9 @@ const ChatRoomPage = () => {
   const currentUserName = isAdmin ? t("chats.admin") : (teamName || t("chats.team"));
   const currentUserId = isAdmin ? "admin" : teamId;
   const currentUserType = isAdmin ? "admin" : "team";
+
+  // ✅ Hook para marcar mensajes como vistos LOCALMENTE
+  const { markChatAsViewed } = useLocalChatViewed(eventId, currentUserId);
 
   // Suscribirse a los mensajes del chat
   useEffect(() => {
@@ -68,31 +72,39 @@ const ChatRoomPage = () => {
   // Marcar mensajes como leídos cuando se entra al chat
   useEffect(() => {
     if (eventId && chatId && currentUserId) {
+      // ✅ Marcar como visto en Firebase (mantener compatibilidad)
       dispatch(markChatAsReadThunk({
         eventId,
         chatId,
         userId: currentUserId,
         userType: currentUserType
       }));
+      
+      // ✅ Marcar como visto LOCALMENTE
+      markChatAsViewed(chatId);
     }
-  }, [dispatch, eventId, chatId, currentUserId, currentUserType]);
+  }, [dispatch, eventId, chatId, currentUserId, currentUserType, markChatAsViewed]);
 
   // Marcar mensajes como leídos cuando cambian los mensajes (nuevos mensajes recibidos)
   useEffect(() => {
     if (eventId && chatId && currentUserId && chatMessages.length > 0) {
       // Esperar un poco para asegurar que el usuario ve los mensajes
       const timeoutId = setTimeout(() => {
+        // ✅ Marcar como visto en Firebase (mantener compatibilidad)
         dispatch(markChatAsReadThunk({
           eventId,
           chatId,
           userId: currentUserId,
           userType: currentUserType
         }));
+        
+        // ✅ Marcar como visto LOCALMENTE
+        markChatAsViewed(chatId);
       }, 1000);
 
       return () => clearTimeout(timeoutId);
     }
-  }, [dispatch, eventId, chatId, currentUserId, currentUserType, chatMessages.length]);
+  }, [dispatch, eventId, chatId, currentUserId, currentUserType, chatMessages.length, markChatAsViewed]);
 
   // Auto-scroll al final de los mensajes
   useEffect(() => {

@@ -1,7 +1,6 @@
 import { 
   doc, 
   setDoc, 
-  onSnapshot, 
   collection,
   serverTimestamp,
   query,
@@ -9,7 +8,8 @@ import {
   limit,
   getDoc
 } from "firebase/firestore";
-import { KEEPALIVE_TIMEOUT } from '../utils/keepaliveUtils';
+import { KEEPALIVE_TIMEOUT, KEEPALIVE_INTERVAL } from '../utils/keepaliveUtils';
+import { createRobustListener } from './firebase';
 
 class KeepaliveService {
   constructor(db, store) {
@@ -64,13 +64,12 @@ class KeepaliveService {
     switch (type) {
       case 'HEARTBEAT_SUCCESS':
         this.store.dispatch({ type: 'keepalive/updateLastHeartbeat', payload: timestamp });
-        this.store.dispatch({ type: 'keepalive/setConnectionStatus', payload: 'connected' });
-        this.store.dispatch({ type: 'keepalive/resetReconnectAttempts' });
+        // ✅ connectionStatus lo maneja el listener de Firebase
         break;
         
       case 'HEARTBEAT_ERROR':
-        console.error('Worker heartbeat error:', error);
-        this.handleHeartbeatError(new Error(error));
+        // ⚠️ Error del worker escribiendo heartbeat NO significa desconexión
+        console.warn('[Keepalive] Worker heartbeat write error (will retry):', error);
         break;
         
       case 'HEARTBEAT_REQUEST':
@@ -124,13 +123,12 @@ class KeepaliveService {
         });
       }
       
-      // Actualizar el estado local
+      // ✅ Solo actualizar timestamp del último heartbeat
+      // NO cambiar connectionStatus - lo maneja el listener de Firebase
       this.store.dispatch({ type: 'keepalive/updateLastHeartbeat', payload: data.timestamp });
-      this.store.dispatch({ type: 'keepalive/setConnectionStatus', payload: 'connected' });
-      this.store.dispatch({ type: 'keepalive/resetReconnectAttempts' });
       
     } catch (error) {
-      console.error('Error handling worker heartbeat request:', error);
+      console.error('[Keepalive] Error handling worker heartbeat request:', error);
       
       // Notificar al worker que el heartbeat falló
       if (this.worker) {
@@ -143,7 +141,9 @@ class KeepaliveService {
         });
       }
       
-      this.handleHeartbeatError(error);
+      // ⚠️ Error en escritura NO significa desconexión
+      // Solo loguear - el listener detectará problemas reales de conexión
+      console.warn('[Keepalive] Worker heartbeat write failed (will retry):', error.message);
     }
   }
 
@@ -213,7 +213,7 @@ class KeepaliveService {
         this.worker.postMessage({
           type: 'UPDATE_CONFIG',
           data: { 
-            interval: 30000, // Mantener intervalo normal
+            interval: KEEPALIVE_INTERVAL, // Mantener intervalo normal
             url: 'background'
           }
         });
@@ -393,7 +393,7 @@ class KeepaliveService {
         data: {
           eventId: this.eventId,
           teamId: this.teamId,
-          interval: 30000,
+          interval: KEEPALIVE_INTERVAL,
           url: window.location.href
         }
       });
@@ -406,17 +406,10 @@ class KeepaliveService {
   fallbackToInterval() {
     console.log('Using fallback interval for keepalive');
     
-    const state = this.store.getState();
-    const interval = state.keepalive?.heartbeatInterval || 30000;
-    
     this.heartbeatInterval = setInterval(async () => {
-      try {
-        await this.sendHeartbeat();
-      } catch (error) {
-        console.error('Heartbeat failed:', error);
-        this.handleHeartbeatError(error);
-      }
-    }, interval);
+      // sendHeartbeat ya maneja sus propios errores sin cambiar connectionStatus
+      await this.sendHeartbeat();
+    }, KEEPALIVE_INTERVAL);
 
     // Enviar heartbeat inicial
     this.sendHeartbeat();
@@ -427,24 +420,35 @@ class KeepaliveService {
       return;
     }
 
-    const teamRef = doc(this.db, 'events', `event_${this.eventId}`, 'teams_keepalive', `team_${this.teamId}`);
-    
-    // Obtener el estado actual de la aplicación desde el store
-    const state = this.store.getState();
-    const keepaliveState = state.keepalive;
-    
-    const heartbeatData = {
-      lastSeen: serverTimestamp(),
-      status: 'online',
-      timestamp: Date.now(),
-      // Nuevos campos para el estado de la aplicación
-      appState: keepaliveState.appState,
-      currentActivity: keepaliveState.currentActivity,
-      appStateTimestamp: keepaliveState.appStateTimestamp
-    };
+    try {
+      const teamRef = doc(this.db, 'events', `event_${this.eventId}`, 'teams_keepalive', `team_${this.teamId}`);
+      
+      // Obtener el estado actual de la aplicación desde el store
+      const state = this.store.getState();
+      const keepaliveState = state.keepalive;
+      
+      const heartbeatData = {
+        lastSeen: serverTimestamp(),
+        status: 'online',
+        timestamp: Date.now(),
+        // Nuevos campos para el estado de la aplicación
+        appState: keepaliveState.appState,
+        currentActivity: keepaliveState.currentActivity,
+        appStateTimestamp: keepaliveState.appStateTimestamp
+      };
 
-    await setDoc(teamRef, heartbeatData, { merge: true });
-    this.store.dispatch({ type: 'keepalive/updateLastHeartbeat', payload: Date.now() });
+      await setDoc(teamRef, heartbeatData, { merge: true });
+      
+      // ✅ Solo actualizar timestamp del último heartbeat
+      // NO cambiar connectionStatus - lo maneja el listener de Firebase
+      this.store.dispatch({ type: 'keepalive/updateLastHeartbeat', payload: Date.now() });
+      
+    } catch (error) {
+      // ⚠️ Error al escribir heartbeat NO significa desconexión de Firebase
+      // El listener onSnapshot detectará problemas de conexión
+      // Solo logueamos el error para debugging
+      console.warn('[Keepalive] Heartbeat write failed (will retry on next interval):', error.message);
+    }
   }
 
   // Función para forzar el envío inmediato de keepalive (para cambios de estado)
@@ -480,9 +484,17 @@ class KeepaliveService {
       limit(50)
     );
 
-    this.teamsListenerUnsubscribe = onSnapshot(
+    // ✅ Usar createRobustListener para detección automática de desconexión
+    this.teamsListenerUnsubscribe = createRobustListener(
+      `keepalive_teams_${this.eventId}`,
       teamsQuery,
       (snapshot) => {
+        // ✅ Firebase conectado - actualizar estado a 'connected'
+        this.store.dispatch({ 
+          type: 'keepalive/setConnectionStatus', 
+          payload: 'connected' 
+        });
+
         // Obtener hora de servidor antes de procesar cambios para evitar depender del reloj local
         this.getServerTime().then((serverNow) => {
           snapshot.docChanges().forEach((change) => {
@@ -538,21 +550,26 @@ class KeepaliveService {
         });
       },
       (error) => {
-        console.error('Error listening to teams:', error);
-        this.store.dispatch({ type: 'keepalive/setError', payload: error.message });
+        // ✅ Firebase DESCONECTADO - marcar error inmediatamente
+        console.error('[Keepalive] Firebase connection error:', error);
+        this.store.dispatch({ 
+          type: 'keepalive/setConnectionStatus', 
+          payload: 'error' 
+        });
+        this.store.dispatch({ 
+          type: 'keepalive/setError', 
+          payload: error.message 
+        });
+        // createRobustListener maneja la reconexión automática
       }
     );
   }
 
-  handleHeartbeatError(error) {
-    console.error('Heartbeat error:', error);
-    this.store.dispatch({ type: 'keepalive/setConnectionStatus', payload: 'error' });
-    this.scheduleReconnect();
-  }
-
   handleDisconnect() {
+    // ⚠️ Red offline - pausar heartbeat hasta que vuelva
+    console.log('[Keepalive] Network offline - pausing heartbeat');
     this.pauseHeartbeat();
-    this.store.dispatch({ type: 'keepalive/setConnectionStatus', payload: 'disconnected' });
+    // NO cambiar connectionStatus - el listener de Firebase lo detectará
   }
 
   handleReconnect() {
@@ -560,44 +577,16 @@ class KeepaliveService {
       return;
     }
 
-    const state = this.store.getState();
-    const { connectionStatus, reconnectAttempts, maxReconnectAttempts } = state.keepalive;
-
-    if (connectionStatus === 'connected') {
-      return;
-    }
-
-    if (reconnectAttempts >= maxReconnectAttempts) {
-      console.log('Max reconnection attempts reached');
-      this.store.dispatch({ type: 'keepalive/setConnectionStatus', payload: 'error' });
-      return;
-    }
-
-    this.store.dispatch({ type: 'keepalive/incrementReconnectAttempts' });
-    this.store.dispatch({ type: 'keepalive/setConnectionStatus', payload: 'connecting' });
-
-    // Intentar reconectar
-    this.startHeartbeat();
+    // ✅ Red online - enviar heartbeat inmediato para avisar que volvimos
+    console.log('[Keepalive] Network online - sending immediate heartbeat');
     
-    console.log(`Reconnection attempt ${reconnectAttempts + 1}/${maxReconnectAttempts}`);
-  }
-
-  scheduleReconnect() {
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
+    // Reiniciar heartbeat si estaba pausado
+    if (!this.heartbeatInterval && !this.worker) {
+      this.startHeartbeat();
+    } else {
+      // Si ya está corriendo, solo enviar uno inmediato
+      this.sendHeartbeat();
     }
-
-    const state = this.store.getState();
-    const { reconnectAttempts } = state.keepalive;
-    
-    // Backoff exponencial: 2^attemps * 1000ms, máximo 30 segundos
-    const delay = Math.min(Math.pow(2, reconnectAttempts) * 1000, 30000);
-    
-    this.reconnectTimeout = setTimeout(() => {
-      this.handleReconnect();
-    }, delay);
-
-    console.log(`Scheduled reconnection in ${delay}ms`);
   }
 
   pauseHeartbeat() {

@@ -227,9 +227,10 @@ const ActivityQueueManager = () => {
 			});
 			
 			showActivityPopup(nextActivity);
-		} else {
-			console.log('📭 Cola de actividades vacía');
-		}
+		} 
+		// else {
+		// 	console.log('📭 Cola de actividades vacía');
+		// }
 	}, [location.pathname, isActivityActive, popupQueue.length, showActivityPopup]);
 
 	// Effect para detectar cambios en el campo "send"

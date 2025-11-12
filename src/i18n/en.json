@@ -86,7 +86,7 @@
 	"invalid_image_file": "Please select a valid image file",
 	"invalid_video_file": "Please select a valid video file",
 	"close": "Close",
-	
+
 	"start_activity": "Start Activity",
 	"view_activity_image": "View activity image",
 	"view_activity_media": "View activity media",
@@ -199,7 +199,9 @@
 		"start_conversation": "Start the conversation!",
 		"type_message": "Type a message...",
 		"coming_soon": "Coming soon",
-		"no_messages_short": "No messages"
+		"no_messages_short": "No messages",
+		"sort_by_type": "By type",
+		"sort_by_recent": "Most recent"
 	},
 	"chat": {
 		"title": "Chat",
@@ -237,8 +239,8 @@
 		"title": "Gadgets",
 		"description": "Gadgets help you complete activities. Some require points to unlock.",
 		"current_points": "Current points",
-    "available_title": "Available Gadgets",
-    "click_to_send": "Click on a gadget to send it",
+		"available_title": "Available Gadgets",
+		"click_to_send": "Click on a gadget to send it",
 		"camera": "Camera",
 		"camera_desc": "Capture photos for activities",
 		"compass": "Compass",
@@ -259,7 +261,27 @@
 		"locked": "Locked",
 		"admin_controls": "Administrator Controls",
 		"admin_description": "Here you can manage the gadgets available to teams.",
-		"manage_gadgets": "Manage Gadgets"
+		"manage_gadgets": "Manage Gadgets",
+		"rotate_screen": {
+			"name": "Rotate Screen",
+			"description": "Rotates the target team's screen"
+		},
+		"susto": {
+			"name": "Scare",
+			"description": "Triggers a scare effect on the target team"
+		},
+		"broken_glass": {
+			"name": "Broken Glass",
+			"description": "Blocks the interface with a broken glass effect"
+		},
+		"hearts": {
+			"name": "Hearts Rain",
+			"description": "Shows floating hearts on the screen"
+		},
+		"kiss": {
+			"name": "Kiss",
+			"description": "Shows a giant kiss on the screen"
+		}
 	},
 	"clue_understood": "Understood",
 	"valorate": {
@@ -450,7 +472,10 @@
 		"permission_enabling": "Enabling notifications...",
 		"permission_enable": "Enable Notifications",
 		"permission_later": "Not Now"
-	}, 
+	},
+	"meeting_point": {
+		"title": "Meeting Point"
+	},
 	"status": {
 		"online": "Online",
 		"online_you": "You are online",
@@ -459,6 +484,8 @@
 		"screen_locked": "Screen Locked"
 	}
 }
+
+
 
 
 

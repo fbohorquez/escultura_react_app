@@ -206,7 +206,9 @@
 		"start_conversation": "¡Empieza la conversación!",
 		"type_message": "Escribe un mensaje...",
 		"coming_soon": "Próximamente disponible",
-		"no_messages_short": "Sin mensajes"
+		"no_messages_short": "Sin mensajes",
+		"sort_by_type": "Por tipo",
+		"sort_by_recent": "Más recientes"
 	},
 	"chat": {
 		"title": "Chat",
@@ -264,7 +266,27 @@
 		"locked": "Bloqueado",
 		"admin_controls": "Controles de Administrador",
 		"admin_description": "Aquí podrás gestionar los gadgets disponibles para los equipos.",
-		"manage_gadgets": "Gestionar Gadgets"
+		"manage_gadgets": "Gestionar Gadgets",
+		"rotate_screen": {
+			"name": "Rotar Pantalla",
+			"description": "Rota la pantalla del equipo objetivo"
+		},
+		"susto": {
+			"name": "Susto",
+			"description": "Provoca un efecto de susto en el equipo objetivo"
+		},
+		"broken_glass": {
+			"name": "Cristal Roto",
+			"description": "Bloquea la interfaz con un efecto de cristal roto"
+		},
+		"hearts": {
+			"name": "Lluvia de Corazones",
+			"description": "Muestra corazones flotando por la pantalla"
+		},
+		"kiss": {
+			"name": "Beso",
+			"description": "Muestra un beso gigante en la pantalla"
+		}
 	},
 	"clue_understood": "Entendido",
 	"valorate": {
@@ -459,7 +481,11 @@
 		"permission_enabling": "Activando notificaciones...",
 		"permission_enable": "Activar Notificaciones",
 		"permission_later": "Ahora no"
+	},
+	"meeting_point": {
+		"title": "Punto de encuentro"
 	}
+
 
 
 

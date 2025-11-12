@@ -24,7 +24,7 @@ const GadgetSelector = () => {
 		dispatch(setShowGadgetSelector(false));
 	};
 
-	if (!showGadgetSelector) return null;
+	if (!showGadgetSelector || !availableGadgets) return null;
 
 	return (
 		<div className="gadget-selector-overlay">

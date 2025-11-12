@@ -133,7 +133,8 @@ const RankingPage = () => {
 	};
 
 	const handleActivityClick = (activity) => {
-		navigate(`/team/activity/${eventId}/${selectedTeam.id}/${activity.id}`);
+		if (!eventId || !selectedTeam) return;
+		navigate(`/event/${eventId}/team/activity/${selectedTeam.id}/${activity.id}`);
 	};
 
 	const getMedalIcon = (position) => {
@@ -169,34 +170,40 @@ const RankingPage = () => {
 			subtitle={event?.name}
 		>
 			<BackButton onClick={handleBack} />
-			
+
 			{/* Navegación entre vistas - solo para equipos no admin */}
 			{!isAdmin && selectedTeam && (
 				<div className="ranking-navigation">
-					<button 
-						className={`nav-button ${currentView === 'ranking' ? 'active' : ''}`}
-						onClick={() => setCurrentView('ranking')}
+					<button
+						className={`nav-button ${
+							currentView === "ranking" ? "active" : ""
+						}`}
+						onClick={() => setCurrentView("ranking")}
 					>
 						{t("ranking.general_ranking", "Ranking General")}
 					</button>
-					<button 
-						className={`nav-button ${currentView === 'activities' ? 'active' : ''}`}
-						onClick={() => setCurrentView('activities')}
+					<button
+						className={`nav-button ${
+							currentView === "activities" ? "active" : ""
+						}`}
+						onClick={() => setCurrentView("activities")}
 					>
 						{t("ranking.my_activities", "Mis Actividades")}
 					</button>
 				</div>
 			)}
-			
+
 			<div className="ranking-container">
 				{/* Vista de Ranking General */}
-				{(currentView === 'ranking' || isAdmin) && (
+				{(currentView === "ranking" || isAdmin) && (
 					<>
 						{!isAdmin && currentTeamPosition && (
 							<div className="current-team-position">
 								<h3>{t("ranking.your_position", "Tu posición")}</h3>
 								<div className="position-badge">
-									<span className="position-number">{currentTeamPosition}°</span>
+									<span className="position-number">
+										{currentTeamPosition}°
+									</span>
 									<span className="team-name">{selectedTeam.name}</span>
 									<span className="points">{selectedTeam.points || 0} pts</span>
 								</div>
@@ -205,17 +212,21 @@ const RankingPage = () => {
 
 						<div className="ranking-list">
 							<h3>{t("ranking.general", "Clasificación General")}</h3>
-							
+
 							{rankedTeams.length === 0 ? (
 								<div className="no-teams">
-									<p>{t("ranking.no_teams", "Aún no hay equipos clasificados")}</p>
+									<p>
+										{t("ranking.no_teams", "Aún no hay equipos clasificados")}
+									</p>
 								</div>
 							) : (
 								<div className="teams-list">
 									{rankedTeams.map((team) => (
-										<div 
-											key={team.id} 
-											className={`team-rank-item ${team.id === selectedTeam?.id ? 'current-team' : ''}`}
+										<div
+											key={team.id}
+											className={`team-rank-item ${
+												team.id === selectedTeam?.id ? "current-team" : ""
+											}`}
 										>
 											<div className="position">
 												{getMedalIcon(team.position)}
@@ -226,9 +237,7 @@ const RankingPage = () => {
 													<span className="status online">●</span>
 												)}
 											</div>
-											<div className="points">
-												{team.points || 0} pts
-											</div>
+											<div className="points">{team.points || 0} pts</div>
 										</div>
 									))}
 								</div>
@@ -240,20 +249,30 @@ const RankingPage = () => {
 								<h4>{t("ranking.stats", "Estadísticas")}</h4>
 								<div className="stats-grid">
 									<div className="stat-item">
-										<span className="stat-label">{t("ranking.total_teams", "Equipos totales")}:</span>
+										<span className="stat-label">
+											{t("ranking.total_teams", "Equipos totales")}:
+										</span>
 										<span className="stat-value">{teams.length}</span>
 									</div>
 									<div className="stat-item">
-										<span className="stat-label">{t("ranking.active_teams", "Equipos activos")}:</span>
+										<span className="stat-label">
+											{t("ranking.active_teams", "Equipos activos")}:
+										</span>
 										<span className="stat-value">{rankedTeams.length}</span>
 									</div>
 									<div className="stat-item">
-										<span className="stat-label">{t("ranking.avg_points", "Puntos promedio")}:</span>
+										<span className="stat-label">
+											{t("ranking.avg_points", "Puntos promedio")}:
+										</span>
 										<span className="stat-value">
-											{rankedTeams.length > 0 
-												? Math.round(rankedTeams.reduce((sum, team) => sum + (team.points || 0), 0) / rankedTeams.length)
-												: 0
-											}
+											{rankedTeams.length > 0
+												? Math.round(
+														rankedTeams.reduce(
+															(sum, team) => sum + (team.points || 0),
+															0
+														) / rankedTeams.length
+												  )
+												: 0}
 										</span>
 									</div>
 								</div>
@@ -263,24 +282,43 @@ const RankingPage = () => {
 				)}
 
 				{/* Vista de Actividades del Equipo */}
-				{currentView === 'activities' && !isAdmin && selectedTeam && (
+				{currentView === "activities" && !isAdmin && selectedTeam && (
 					<div className="team-activities-section">
 						<div className="activities-stats">
-							<h3>{t("ranking.my_activities_title", "Mis Actividades Completadas")}</h3>
+							<h3>
+								{t(
+									"ranking.my_activities_title",
+									"Mis Actividades Completadas"
+								)}
+							</h3>
 							<div className="stats-summary">
 								<div className="stat-item">
-									<span className="stat-number">{completedActivities.length}</span>
-									<span className="stat-label">{t("ranking.completed_count", "Completadas")}</span>
+									<span className="stat-number">
+										{completedActivities.length}
+									</span>
+									<span className="stat-label">
+										{t("ranking.completed_count", "Completadas")}
+									</span>
 								</div>
 								<div className="stat-item">
 									<span className="stat-number">
-										{completedActivities.filter(a => a.statusKey === 'pending_review').length}
+										{
+											completedActivities.filter(
+												(a) => a.statusKey === "pending_review"
+											).length
+										}
 									</span>
-									<span className="stat-label">{t("ranking.pending_review_count", "Pendientes")}</span>
+									<span className="stat-label">
+										{t("ranking.pending_review_count", "Pendientes")}
+									</span>
 								</div>
 								<div className="stat-item">
-									<span className="stat-number">{selectedTeam.points || 0}</span>
-									<span className="stat-label">{t("ranking.total_points", "Puntos totales")}</span>
+									<span className="stat-number">
+										{selectedTeam.points || 0}
+									</span>
+									<span className="stat-label">
+										{t("ranking.total_points", "Puntos totales")}
+									</span>
 								</div>
 							</div>
 						</div>
@@ -288,13 +326,23 @@ const RankingPage = () => {
 						{completedActivities.length === 0 ? (
 							<div className="no-activities">
 								<div className="empty-icon">📋</div>
-								<h3>{t("ranking.no_completed_activities", "No hay actividades completadas")}</h3>
-								<p>{t("ranking.no_completed_activities_desc", "Aún no has completado ninguna actividad en este evento")}</p>
+								<h3>
+									{t(
+										"ranking.no_completed_activities",
+										"No hay actividades completadas"
+									)}
+								</h3>
+								<p>
+									{t(
+										"ranking.no_completed_activities_desc",
+										"Aún no has completado ninguna actividad en este evento"
+									)}
+								</p>
 							</div>
 						) : (
 							<div className="activities-list">
 								{completedActivities.map((activity) => (
-									<div 
+									<div
 										key={activity.id}
 										className="activity-item activity-clickable"
 										onClick={() => handleActivityClick(activity)}
@@ -302,7 +350,11 @@ const RankingPage = () => {
 										<div className="activity-header">
 											<h4 className="activity-name">{activity.name}</h4>
 											<div className="activity-actions">
-												<span className={`activity-status ${getActivityStatusClass(activity.statusKey)}`}>
+												<span
+													className={`activity-status ${getActivityStatusClass(
+														activity.statusKey
+													)}`}
+												>
 													{getActivityStatusText(activity.statusKey)}
 												</span>
 												<span className="activity-type">
@@ -313,20 +365,36 @@ const RankingPage = () => {
 
 										<div className="activity-details">
 											<div className="detail-item">
-												<span className="detail-label">{t("ranking.points", "Puntos")}:</span>
+												<span className="detail-label">
+													{t("ranking.points", "Puntos")}:
+												</span>
 												<span className="detail-value">
 													{renderActivityPoints(activity)}
 												</span>
 											</div>
 											<div className="detail-item">
-												<span className="detail-label">{t("ranking.completed_time", "Completada")}:</span>
-												<span className="detail-value">{formatCompletedTime(activity.complete_time)}</span>
+												<span className="detail-label">
+													{t("ranking.completed_time", "Completada")}:
+												</span>
+												<span className="detail-value">
+													{formatCompletedTime(activity.complete_time)}
+												</span>
 											</div>
 										</div>
-										
+
 										<div className="activity-arrow">›</div>
 									</div>
 								))}
+								{/* Botón para ver medios subidos */}
+								<div className="media-access-section">
+									<button
+										className="media-list-button"
+										onClick={() => navigate(`/event/${eventId}/media-list`)}
+									>
+										<span className="media-icon">📱</span>
+										{t("ranking.view_uploaded_media", "Ver Medios Subidos")}
+									</button>
+								</div>
 							</div>
 						)}
 					</div>
@@ -337,5 +405,6 @@ const RankingPage = () => {
 };
 
 export default RankingPage;
+
 
 
